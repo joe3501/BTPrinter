@@ -1,0 +1,630 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:22 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\App\des.c                                   #
+#    Command line =  E:\T6\FW\src\App\des.c -lcN                              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\des.lst          #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\des.o             #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\App\des.c
+      1          /**
+      2           * @file des.c
+      3           * @brief DES及3DES等算法实现
+      4           *		循环移位表,PC-1表,PC-2表,IP表,IP-1表,
+      5           *		E扩展表,P变换表,S盒等都可以自己设置
+      6           */
+      7          
+      8          //#define g_RUN_ON_PC//pc上运行的标志
+      9          
+     10          #ifndef g_RUN_ON_PC    
+     11          //    #include "release.h"
+     12          //#include "retype.h"
+     13          #else
+     14              #include <stdlib.h>
+     15              #define bmalloc malloc
+     16          #include "StdAfx.h"
+     17          #include "Test_DES02.h"
+     18          #endif
+     19          
+     20          #include <stdlib.h>
+     21          #include <stdio.h>
+     22          #include <string.h>
+     23          
+     24          //#define FAIL			1
+     25          //#define SUCCESS			0
+     26          
+     27          #define g_ENCRYPT_FLAG 1
+     28          #define g_DECRYPT_FLAG 2
+     29          
+     30          
+     31          void xTran(unsigned char *q,unsigned char *p,unsigned char *xTab,int xLen);
+     32          void genKey(unsigned char *key,unsigned char nkey[16][8]);
+     33          void sReplace(unsigned char *right_s);
+     34          
+     35          unsigned char comDES(unsigned char in[8],unsigned char out[8],
+     36          					 unsigned char subkey[16][8],unsigned char flg);
+     37          
+     38          //unsigned char enDES(unsigned char* indata,unsigned int inlen,unsigned char* key,
+     39          //					unsigned char* outdata,unsigned int* outlen);
+     40          //unsigned char unDES(unsigned char* indata,unsigned int inlen,unsigned char* key,
+     41          //					unsigned char* outdata,unsigned int* outlen);
+     42          unsigned char en3DES(unsigned char* indata,unsigned int inlen,unsigned char* key_1,unsigned char* key_2,
+     43          					 unsigned char* key_3,unsigned char* outdata,unsigned int* outlen);
+     44          //unsigned char un3DES(unsigned char* indata,unsigned int inlen,unsigned char* key_1,unsigned char* key_2,
+     45          //					 unsigned char* key_3,unsigned char* outdata,unsigned int* outlen);
+     46          
+     47          
+     48          
+     49          //void randKey(unsigned char *key);
+     50          
+     51          const unsigned char movebit[16]=
+     52          {//循环移位表。
+     53              1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1
+     54          };
+     55          
+     56          const unsigned char pc_1[56]=
+     57          {//PC-1置换。
+     58              57,49,41,33,25,17,9,
+     59              1,58,50,42,34,26,18,
+     60              10,2,59,51,43,35,27,
+     61              19,11,3,60,52,44,36,
+     62              63,55,47,39,31,23,15,
+     63              7,62,54,46,38,30,22,
+     64              14,6,61,53,45,37,29,
+     65              21,13,5,28,20,12,4
+     66          };
+     67          
+     68          const unsigned char pc_2[48]=
+     69          {//PC-2置换。
+     70              14,17,11,24,1,5,
+     71              3,28,15,6,21,10,
+     72              23,19,12,4,26,8,
+     73              16,7,27,20,13,2,
+     74              41,52,31,37,47,55,
+     75              30,40,51,45,33,48,
+     76              44,49,39,56,34,53,
+     77              46,42,50,36,29,32
+     78          };
+     79          
+     80          const unsigned char p[32]=
+     81          {//P置换。
+     82              16,7,20,21,
+     83              29,12,28,17,
+     84              1,15,23,26,
+     85              5,18,31,10,
+     86              2,8,24,14,
+     87              32,27,3,9,
+     88              19,13,30,6,
+     89              22,11,4,25 
+     90          };
+     91          
+     92          const unsigned char s[][4][16] =
+     93          {
+     94          	{//S盒1。   S盒都可以自己设置
+     95          		14,4,13,1,2,15,11,8,3,10,6,12,5,9,0,7,
+     96          		0,15,7,4,14,2,13,1,10,6,12,11,9,5,3,8,
+     97          		4,1,14,8,13,6,2,11,15,12,9,7,3,10,5,0,
+     98          		15,12,8,2,4,9,1,7,5,11,3,14,10,0,6,13 
+     99          	},
+    100          	{//S盒2
+    101          		15,1,8,14,6,11,3,4,9,7,2,13,12,0,5,10,
+    102          		3,13,4,7,15,2,8,14,12,0,1,10,6,9,11,5,
+    103          		0,14,7,11,10,4,13,1,5,8,12,6,9,3,2,15,
+    104          		13,8,10,1,3,15,4,2,11,6,7,12,0,5,14,9 
+    105          	},
+    106          	{//S盒3
+    107          		10,0,9,14,6,3,15,5,1,13,12,7,11,4,2,8,
+    108          		13,7,0,9,3,4,6,10,2,8,5,14,12,11,15,1,
+    109          		13,6,4,9,8,15,3,0,11,1,2,12,5,10,14,7,
+    110          		1,10,13,0,6,9,8,7,4,15,14,3,11,5,2,12 
+    111          	},
+    112          	{//S盒4
+    113          		7,13,14,3,0,6,9,10,1,2,8,5,11,12,4,15,
+    114          		13,8,11,5,6,15,0,3,4,7,2,12,1,10,14,9,
+    115          		10,6,9,0,12,11,7,13,15,1,3,14,5,2,8,4,
+    116          		3,15,0,6,10,1,13,8,9,4,5,11,12,7,2,14
+    117          	},
+    118          	{ //S盒5
+    119          		2,12,4,1,7,10,11,6,8,5,3,15,13,0,14,9,
+    120          		14,11,2,12,4,7,13,1,5,0,15,10,3,9,8,6,
+    121          		4,2,1,11,10,13,7,8,15,9,12,5,6,3,0,14,
+    122          		11,8,12,7,1,14,2,13,6,15,0,9,10,4,5,3
+    123          	},
+    124          	{//S盒6
+    125          		12,1,10,15,9,2,6,8,0,13,3,4,14,7,5,11,
+    126          		10,15,4,2,7,12,9,5,6,1,13,14,0,11,3,8,
+    127          		9,14,15,5,2,8,12,3,7,0,4,10,1,13,11,6,
+    128          		4,3,2,12,9,5,15,10,11,14,1,7,6,0,8,13 
+    129          		},
+    130          	{//S盒7
+    131          		4,11,2,14,15,0,8,13,3,12,9,7,5,10,6,1,
+    132          		13,0,11,7,4,9,1,10,14,3,5,12,2,15,8,6,
+    133          		1,4,11,13,12,3,7,14,10,15,6,8,0,5,9,2,
+    134          		6,11,13,8,1,4,10,7,9,5,0,15,14,2,3,12 
+    135          	},
+    136          	{//S盒8
+    137          		13,2,8,4,6,15,11,1,10,9,3,14,5,0,12,7,
+    138          		1,15,13,8,10,3,7,4,12,5,6,11,0,14,9,2,
+    139          		7,11,4,1,9,12,14,2,0,6,10,13,15,3,5,8,
+    140          		2,1,14,7,4,10,8,13,15,12,9,0,3,5,6,11
+    141          	}
+    142          };
+    143          
+    144          const unsigned char ip[64]=
+    145          {////IP置换。
+    146              58,50,42,34,26,18,10,2,
+    147              60,52,44,36,28,20,12,4,
+    148              62,54,46,38,30,22,14,6,
+    149              64,56,48,40,32,24,16,8,
+    150              57,49,41,33,25,17,9, 1,
+    151              59,51,43,35,27,19,11,3,
+    152              61,53,45,37,29,21,13,5,
+    153              63,55,47,39,31,23,15,7
+    154          };
+    155          const unsigned char ip_1[64]=
+    156          {//IP-1置换。可根据IP表生成
+    157              40,8,48,16,56,24,64,32,
+    158              39,7,47,15,55,23,63,31,
+    159              38,6,46,14,54,22,62,30,
+    160              37,5,45,13,53,21,61,29,
+    161              36,4,44,12,52,20,60,28,
+    162              35,3,43,11,51,19,59,27,
+    163              34,2,42,10,50,18,58,26,
+    164              33,1,41,9, 49,17,57,25
+    165          };
+    166          const unsigned char e[48] =
+    167          {//E扩展。
+    168              32,1, 2, 3, 4, 5,
+    169              4, 5, 6, 7, 8, 9,
+    170              8, 9, 10,11,12,13,
+    171              12,13,14,15,16,17,
+    172              16,17,18,19,20,21,
+    173              20,21,22,23,24,25,
+    174              24,25,26,27,28,29,
+    175              28,29,30,31,32,1
+    176          };
+    177          
+    178          
+    179          /**
+    180           * @brief 根据置换表xTab将64位q转换成p
+    181           */
+    182          static void xTran(unsigned char *q,unsigned char *p,unsigned char *xTab,int xLen)
+    183          {
+    184          	int				i,qt,pt,tt;//qt,pt分别表示q,p的第几个字节,tt暂存
+    185          
+    186          	for(i=0;i<8;i++)
+    187          		p[i]=0;//先清零
+    188          	
+    189          	for(i=0;i<xLen;i++)
+    190          	{//循环置位
+    191          		pt=i/8;
+    192          		qt=(xTab[i]-1)/8;
+    193          		tt=q[qt] << ((xTab[i]-1) % 8);
+    194          		tt=tt & 0x80;//1000 0000
+    195          		tt=tt >> (i % 8);
+    196          		p[pt]=p[pt] | tt;
+    197          	}
+    198          }
+    199          
+    200          /**
+    201           * @brief 由初始密钥okey生成16个子密钥nkey
+    202           */
+    203          static void genKey(unsigned char *key,unsigned char nkey[16][8])
+    204          {
+    205          	unsigned char	tkey[8],tt[8];//暂存64字节
+    206          	unsigned int	key_c,key_d; //前28位,后28位
+    207          	int				i=0,j=0;
+    208          
+    209          	for(i=0;i<8;i++)
+    210          		tkey[i]=0;    //初始化数组tkey[]
+    211          	i=0;
+    212          	//strcpy(tkey,key);
+    213          
+    214          	//while((*(key+i)!='\0')&&(i<8)) //先将key存放到数组tkey[]中
+    215          	while(i<8) //先将key存放到数组tkey[]中
+    216          	{   
+    217          		tkey[i]=*(key+i);
+    218          		i++; 
+    219          	}
+    220          	//从上面语句可以知道，如果Key的长度不足8个字节，那么后面就用0补齐8个字节做为Key，如果超过了8个字节，那么就取前面8个字节做为key.
+    221          
+    222          
+    223          	xTran(tkey,tt,(unsigned char *)pc_1,56); //PC-1置换
+    224          
+    225          	key_c	= (*(tt+0)<<24)+(*(tt+1)<<16)+(*(tt+2)<<8)+(*(tt+3));
+    226          	key_c	= key_c & 0xfffffff0;//将前28位移入key_c的高28位
+    227          	key_d	= (*(tt+3)<<24)+(*(tt+4)<<16)+(*(tt+5)<<8)+(*(tt+6));
+    228          	key_d	= key_d & 0x0fffffff;//将后28位移入key_d低28位
+    229          	
+    230          	for(i=0;i<16;i++)
+    231          	{	//移位以得到各个子密钥
+    232          		//根据移位表对c,d进行循环左移
+    233          		key_c=(key_c<<movebit[i]) | ((key_c>>(28-movebit[i])) & 0xfffffff0);
+    234          		key_d=((key_d<<movebit[i])& 0x0fffffff) | (key_d>>(28-movebit[i]));
+    235          		
+    236          		for(j=0;j<8;j++)
+    237          			tt[j]=0;//清零
+    238          
+    239          		*(tt+0) = key_c>>24;   *(tt+1) = key_c>>16;
+    240          		*(tt+2) = key_c>>8;    *(tt+3) = key_c;		//合并c到tt
+    241          		*(tt+3)|=(key_d>>24);  *(tt+4) = key_d>>16;
+    242          		*(tt+5)=key_d>>8;      *(tt+6) = key_d;		//合并d到tt
+    243          		xTran(tt,nkey[i],(unsigned char *)pc_2,48);	//PC-2置换
+    244          	}
+    245          }//生产子密钥结束
+    246          
+    247          /**
+    248           * @brief 查找S盒，把扩展成48位的数据，替换成32位的数据
+    249           */
+    250          static void sReplace(unsigned char *right_s)
+    251          {
+    252          	unsigned short	tt;
+    253          	int				i=0;
+    254          	unsigned char	row,col;
+    255          	unsigned char	tmp_s[8]={0,0,0,0,0,0,0,0};
+    256          
+    257          	for(i=0;i<=7;i++)
+    258          	{//从S盒中取数
+    259          		row=0,col=0;tt=0;
+    260          		tt=((right_s[i*6/8]<<8) + (right_s[i*6/8+1])) >> (10-i*6 % 8);//取六位放到tt低6位
+    261          		row=(row | ((tt>>5) & 0x01)) << 1;//取6位的第0位付给row的6位
+    262          		row=(row | ((tt>>0) & 0x01)) << 0;//取6位的第5位付给row的7位
+    263          		col=(tt >> 1) & 0x0f;//取6位的第1,2,3,4位付给row的低四位
+    264          
+    265          		//根据行和列的值从S盒中取数
+    266          		tmp_s[i/2]=tmp_s[i/2]|s[i][row][col]<<4*((i+1)%2);
+    267          	} //s_out[0-3]:???????? ???????? ???????? ???????? 00000000...
+    268          	xTran(tmp_s,right_s,(unsigned char *)p,32); //P置换
+    269          }//S代替的结束
+    270          
+    271          
+    272          /**
+    273           * @brief 单重DES加解密的公共函数
+    274           * @param[in] unsigned char in[8] 输入数据
+    275           * @param[out] unsigned char out[8] 输出数据
+    276           * @param[in] unsigned char subkey[16][8] 密钥
+    277           * @param[in] unsigned char flg 执行操作类型
+    278           */
+    279          unsigned char comDES(unsigned char in[8],unsigned char out[8],
+    280          					 unsigned char subkey[16][8],unsigned char flg)
+    281          {//单重DES加解密的公共函数 in输入数据 key密钥   out输出数据
+    282          	unsigned char	left[8],right[8],temp[8];//数据的左32位,右32位,暂存
+    283          	int				i=0,j=0,k=0;
+    284          
+    285          	xTran(in,temp,(unsigned char *)ip,64); //IP置换
+    286          
+    287          	for(i=0;i<=3;i++)
+    288          		left[i]=temp[i] ;//将明文左32位放到left中
+    289          
+    290          	for(i=4;i<=7;i++)
+    291          		right[i-4]=temp[i] ;//将明文右32位放到right中
+    292          
+    293          	for(i=0;i<16;i++)
+    294          	{//16层循环
+    295          		if(flg==g_ENCRYPT_FLAG)
+    296          			k=i;
+    297          		else if(flg==g_DECRYPT_FLAG)
+    298          			k=15-i;
+    299          		else
+    300          			return 0;
+    301          
+    302          		for(j=0;j<=3;j++)
+    303          		{
+    304          			temp[j]=left[j];//将left暂存起来
+    305          			left[j]=right[j];//L(n) = R(n-1)
+    306          		}
+    307          
+    308          		xTran(left,right,(unsigned char *)e,48);//对right进行E扩展
+    309          		
+    310          		for(j=0;j<6;j++)
+    311          			right[j]=right[j]^subkey[k][j];//48位的数据右部与密钥异或
+    312          		
+    313          		sReplace(right) ;//将48位的right变为32位
+    314          		for(j=0;j<=3;j++)
+    315          		{//获得下一个right
+    316          			right[j]=temp[j] ^ right[j] ;//f(R(n-1),k)
+    317          		}
+    318          	}
+    319          	for(i=0;i<4;i++)
+    320          		temp[i]=right[i]; //合并right和left到temp(64位)
+    321          
+    322          	for(i=4;i<8;i++)
+    323          		temp[i]=left[i-4];//右边左边互换,因为最后一次不用交换
+    324          
+    325          	//for(i=0;i<64;i++) ip_1[ip[i]-1]=i+1;//生成IP-1置换表
+    326          	xTran(temp,out,(unsigned char *)ip_1,64);//IP-1置换
+    327          	return 1;
+    328          }//单重DES加解密结束
+    329          
+    330          #if 0
+    331          /** 
+    332           * @brief enDES 进行3DES加密运算
+    333           * @param[in] unsigned char* indata 要加密的原文数据
+    334           * @param[in] unsigned int inlen 加密数据的长度
+    335           * @param[in] unsigned char* key 进行加密的key
+    336           * @param[out] unsigned char* outdata 加密输出结果
+    337           * @param[out] unsigned int* outlen 加密后的输出数据
+    338           */
+    339          unsigned char enDES(unsigned char* indata,unsigned int inlen,unsigned char* key,
+    340          					unsigned char* outdata,unsigned int* outlen)
+    341          {//加密
+    342          	unsigned char	*p,*p1,s_key[16][8],tt[8];
+    343          	int				tlen=0,i=0,ttlen=0;
+    344          	unsigned char	padding[7] ={0x80,0,0,0,0,0,0};	//根据GP规范中计算DES的时候数据补齐的规定。GPCardSpecV2.2.1--B.4
+    345          	//    if((indata==NULL)||(outdata==NULL)||(key==NULL)
+    346          	//        ||(outlen==NULL)||(inlen<=0)||(*outlen<inlen))
+    347          	if((indata==NULL)||(outdata==NULL)||(key==NULL)
+    348          		||(outlen==NULL)||(inlen<=0))
+    349          		return 0;//传入参数错误
+    350          	p=indata;
+    351          	tlen=inlen/8;
+    352          	if(inlen%8!=0)
+    353          	{
+    354          		memcpy(indata+inlen,padding,8-(inlen%8));			//输入的数据不是8的倍数的时候要补齐
+    355          		tlen=tlen+1;	
+    356          	}
+    357          	tlen=tlen*8;//补整
+    358          
+    359          	//	printf("补整之后的明文是：\n");
+    360          	//	for (i = 0;i < tlen;i++)					//把文件内容打印出来
+    361          	//	{
+    362          	//		if(i%8 == 0) printf("\n");
+    363          	//		printf("0x%X ",indata[i]);
+    364          	//	}
+    365          
+    366          	*outlen=tlen;//密文长度  //密文长度一定是64Bit的整数倍。
+    367          
+    368          	p1=outdata;//tlen=inlen;
+    369          	for(i=0;i<8;i++)
+    370          		tt[i]=0;
+    371          
+    372          	genKey(key,s_key);//获取16个子密钥
+    373          	while(tlen>0)
+    374          	{//逐64位循环加密
+    375          		for(i=0;i<8;i++) tt[i]=0;
+    376          		ttlen=(tlen<8)?tlen:8; 
+    377          		for(i=0;i<ttlen;i++)
+    378          			tt[i]=*(p+i);//取原数据
+    379          		comDES(tt,p1,s_key,g_ENCRYPT_FLAG);
+    380          		p=p+8;p1=p1+8;tlen=tlen-8;
+    381          	}
+    382          	return 1;
+    383          }
+    384          #endif
+    385          
+    386          #if 0
+    387          /**
+    388           * @brief 解密
+    389           * @param[in] unsigned char* indata 输入数据
+    390           * @param[in] unsigned int inlen 输入数据长度
+    391           * @param[in] unsigned char* key 解密的key
+    392           * @param[out] unsigned char* outdata 解密的输出数据
+    393           * @param[out] unsigned int* outlen 输出数据的长度
+    394           */
+    395          unsigned char unDES(unsigned char* indata,unsigned int inlen,unsigned char* key,
+    396          					unsigned char* outdata,unsigned int* outlen)
+    397          {
+    398          	unsigned char	*p,*p1,s_key[16][8],tt[8];
+    399          	int				tlen=0,i=0,ttlen=0;
+    400          
+    401          	if((indata==NULL)||(outdata==NULL)||(key==NULL)
+    402          		||(outlen==NULL)||(inlen<=0)||(*outlen<inlen))
+    403          		return 0;//传入参数错误
+    404          
+    405          	p=indata;
+    406          	tlen=inlen/8;
+    407          	if(inlen%8!=0)
+    408          		tlen=tlen+1;
+    409          	tlen=tlen*8;//补整
+    410          	*outlen=tlen;//明文长度
+    411          	p1=outdata;//tlen=inlen;
+    412          	for(i=0;i<8;i++)    tt[i]=0;
+    413          	genKey(key,s_key);//获取16个子密钥
+    414          	while(tlen>0)
+    415          	{//逐64位循环解密
+    416          		for(i=0;i<8;i++) tt[i]=0;
+    417          		ttlen=(tlen<8)?tlen:8;
+    418          		for(i=0;i<ttlen;i++)
+    419          			tt[i]=*(p+i);//取原数据
+    420          		comDES(tt,p1,s_key,g_DECRYPT_FLAG);
+    421          		p=p+8;p1=p1+8;tlen=tlen-8;
+    422          	}
+    423          	return 1;
+    424          }
+    425          #endif
+    426          
+    427          //================随机生成密钥========================
+    428          //void randKey(unsigned char key[8])
+    429          //{//根随机生成一个64位(8字节)的密钥
+    430          //	unsigned char i;
+    431          //	for(i=0;i<8;i++)
+    432          //		key[i]=rand() % 0x0100;
+    433          //};
+    434          
+    435          #if 1
+    436          /**
+    437           * @brief 3DES加密
+    438           * @param[in] unsigned char* indata 输入数据
+    439           * @param[in] unsigned int inlen 输入数据长度
+    440           * @param[in] unsigned char* key1 加密的key1
+    441           * @param[in] unsigned char* key2 加密的key2
+    442           * @param[in] unsigned char* key3 加密的key3
+    443           * @param[out] unsigned char* outdata 加密的输出数据
+    444           * @param[out] unsigned int* outlen 输出数据的长度
+    445           */
+    446          unsigned char en3DES(unsigned char* indata,unsigned int inlen,unsigned char* key_1,unsigned char* key_2,
+    447          					 unsigned char* key_3,unsigned char* outdata,unsigned int* outlen)
+    448          {
+    449          	unsigned char	*p,*p1,s_key_1[16][8],s_key_2[16][8],s_key_3[16][8],tt[8];
+    450          	int				tlen=0,i=0,ttlen=0;
+    451          	unsigned char	padding[7] ={0x80,0,0,0,0,0,0};
+    452          
+    453          	if((indata==NULL)||(outdata==NULL)||(key_1==NULL)||(key_2==NULL)||(key_3==NULL)\
+    454          		||(outlen==NULL)||(inlen<=0))
+    455          		return 0;//传入参数错误
+    456          
+    457          	p=indata;
+    458          	tlen=inlen/8;
+    459          	if(inlen%8!=0)			//如果输入数据长度不是8的倍数
+    460          	{
+    461          		memcpy(indata+inlen,padding,8-(inlen%8));
+    462          		tlen=tlen+1;	
+    463          	}
+    464          
+    465          	tlen=tlen*8;//补整
+    466          	*outlen=tlen;//密文长度  //密文长度一定是64Bit的整数倍。
+    467          	genKey(key_1,s_key_1);//获取第一个密钥产生的16个子密钥
+    468          	genKey(key_2,s_key_2);//获取第二个密钥产生的16个子密钥
+    469          	genKey(key_3,s_key_3);//获取第三个密钥产生的16个子密钥
+    470          	p1=outdata;//tlen=inlen;
+    471          
+    472          	while(tlen>0)
+    473          	{//逐64位循环加密
+    474          		for(i=0;i<8;i++) tt[i]=0;		
+    475          		ttlen=(tlen<8)?tlen:8; 
+    476          		for(i=0;i<ttlen;i++)  tt[i]=*(p+i);//取原数据
+    477          		comDES(tt,p1,s_key_1,g_ENCRYPT_FLAG);
+    478          		for(i=0;i<8;i++) tt[i]=p1[i];		//第一次加密运算结果做为第二次解密运算的输入
+    479          		comDES(tt,p1,s_key_2,g_DECRYPT_FLAG);		
+    480          		for(i=0;i<8;i++) tt[i]=p1[i];		//第二次解密运算结果做为第三次加密运算的输入
+    481          		comDES(tt,p1,s_key_3,g_ENCRYPT_FLAG);
+    482          		p=p+8;p1=p1+8;tlen=tlen-8;
+    483          	}
+    484          	return 1;
+    485          }
+    486          #endif
+    487          
+    488          
+    489          /**
+    490           * @brief 3DES解密
+    491           * @param[in] unsigned char* indata 输入数据
+    492           * @param[in] unsigned int inlen 输入数据长度
+    493           * @param[in] unsigned char* key1 解密的key1
+    494           * @param[in] unsigned char* key2 解密的key2
+    495           * @param[in] unsigned char* key3 解密的key3
+    496           * @param[out] unsigned char* outdata 解密的输出数据
+    497           * @param[out] unsigned int* outlen 输出数据的长度
+    498           */
+    499          #if 0
+    500          unsigned char un3DES(unsigned char* indata,unsigned int inlen,unsigned char* key_1,unsigned char* key_2,
+    501          					 unsigned char* key_3,unsigned char* outdata,unsigned int* outlen)
+    502          {
+    503          	unsigned char *p,*p1,s_key_1[16][8],s_key_2[16][8],s_key_3[16][8],tt[8];
+    504          	int tlen=0,i=0,ttlen=0;
+    505          
+    506          	if((indata==NULL)||(outdata==NULL)||(key_1==NULL)||(key_2==NULL)||(key_3==NULL)
+    507          		||(outlen==NULL)||(inlen<=0))
+    508          		return 0;//传入参数错误
+    509          
+    510          	p			= indata;
+    511          	tlen		= inlen/8;
+    512          	if(inlen%8!=0)
+    513          		tlen	= tlen+1;
+    514          	tlen		= tlen*8;//补整
+    515          
+    516          	*outlen		= tlen;//密文长度  //密文长度一定是64Bit的整数倍。
+    517          	genKey(key_1,s_key_1);//获取第一个密钥产生的16个子密钥
+    518          	genKey(key_2,s_key_2);//获取第二个密钥产生的16个子密钥
+    519          	genKey(key_3,s_key_3);//获取第三个密钥产生的16个子密钥
+    520          	p1			= outdata;
+    521          	//tlen		= inlen;
+    522          
+    523          	for(i=0;i<8;i++)
+    524          		tt[i]=0;
+    525          
+    526          	while(tlen>0)
+    527          	{//逐64位循环加密
+    528          		for(i=0;i<8;i++)
+    529          			tt[i]=0;		
+    530          		ttlen=(tlen<8)?tlen:8; 
+    531          
+    532          		for(i=0;i<ttlen;i++)
+    533          			tt[i]=*(p+i);//取原数据
+    534          		comDES(tt,p1,s_key_3,g_DECRYPT_FLAG);
+    535          		
+    536          		for(i=0;i<8;i++)
+    537          			tt[i]=p1[i];		//第一次加密运算结果做为第二次解密运算的输入
+    538          		comDES(tt,p1,s_key_2,g_ENCRYPT_FLAG);
+    539          
+    540          		for(i=0;i<8;i++)
+    541          			tt[i]=p1[i];		//第二次解密运算结果做为第三次加密运算的输入
+    542          		comDES(tt,p1,s_key_1,g_DECRYPT_FLAG);
+    543          
+    544          		p=p+8;p1=p1+8;tlen=tlen-8;
+    545          	}
+    546          	return 1;
+    547          }
+    548          
+    549          #endif
+    550          
+    551          
+
+   Maximum stack usage in bytes:
+
+     Function .cstack
+     -------- -------
+     comDES       56
+     en3DES      440
+     genKey       40
+     memcpy        8
+     sReplace     32
+     xTran        24
+
+
+   Section sizes:
+
+     Function/Label                       Bytes
+     --------------                       -----
+     memcpy                                 14
+     movebit                                16
+     pc_1                                   56
+     pc_2                                   48
+     p                                      32
+     s                                     512
+     ip                                     64
+     ip_1                                   64
+     e                                      48
+     xTran                                  90
+     genKey                                284
+     sReplace                              200
+     comDES                                272
+     en3DES                                292
+     ?<Constant {0, 0, 0, 0, 0, 0, 0, 0}>    8
+     ?<Constant {128, 0, 0, 0, 0, 0, 0}>     8
+
+ 
+   856 bytes in section .rodata
+ 1 152 bytes in section .text
+ 
+ 1 138 bytes of CODE  memory (+ 14 bytes shared)
+   856 bytes of CONST memory
+
+Errors: none
+Warnings: none

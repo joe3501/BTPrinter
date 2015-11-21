@@ -1,0 +1,261 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     30/Sep/2015  17:04:41 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\App\PCUsart.c                            #
+#    Command line =  E:\H520B\FW\src\App\PCUsart.c -D DEBUG_VER -lcN          #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o           #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\PCUsart.lst   #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\PCUsart.o      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\App\PCUsart.c
+      1          /**
+      2          * @file PCUsart.c
+      3          * @brief 手持公交刷卡机与PC交互的串口模块
+      4          *
+      5          * @version V0.0.1
+      6          * @author yinzh
+      7          * @date 2010年9月8日
+      8          * @note
+      9          *   			此模块通信协议参考 非接触式读写器接口规范
+     10          * 
+     11          * @copy
+     12          *
+     13          * 此代码为深圳江波龙电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     14          * 本公司以外的项目。本司保留一切追究权利。
+     15          *
+     16          * <h1><center>&copy; COPYRIGHT 2010 netcom</center></h1>
+     17          */
+     18          
+     19          /* Includes ------------------------------------------------------------------*/
+     20          #include <string.h>
+     21          #include "PCUsart.h"
+     22          #include "ucos_ii.h"
+     23          #include "stm32f10x_lib.h"
+     24          #include "hw_config.h"
+     25          #include "usb_init.h"
+     26          #include "TimeBase.h"
+     27          #include "Terminal_Para.h"
+     28          #include "usb_lib.h"
+     29          
+     30          
+     31          unsigned char	g_mass_storage_device_type;
+     32          
+     33          extern  unsigned char				g_usb_type;
+     34          
+     35          
+     36          /*******************************************************************************
+     37          * Function Name  : Set_USBClock
+     38          * Description    : Configures USB Clock input (48MHz)
+     39          * Input          : None.
+     40          * Return         : None.
+     41          *******************************************************************************/
+     42          static void Set_USBClock(void)
+     43          {
+     44          	/* Enable GPIOA, GPIOD and USART1 clock */
+     45          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOD, ENABLE);
+     46          
+     47          	/* USBCLK = PLLCLK / 1.5 */
+     48          	RCC_USBCLKConfig(RCC_USBCLKSource_PLLCLK_1Div5);
+     49          	/* Enable USB clock */
+     50          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USB, ENABLE);
+     51          }
+     52          
+     53          /*******************************************************************************
+     54          * Function Name  : USB_Interrupts_Config
+     55          * Description    : Configures the USB interrupts
+     56          * Input          : None.
+     57          * Return         : None.
+     58          *******************************************************************************/
+     59          static void USB_Interrupts_Config(void)
+     60          {
+     61          	NVIC_InitTypeDef NVIC_InitStructure;
+     62          
+     63          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+     64          
+     65          	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN_RX0_IRQChannel;
+     66          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+     67          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+     68          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     69          	NVIC_Init(&NVIC_InitStructure);
+     70          
+     71          	NVIC_InitStructure.NVIC_IRQChannel = USB_HP_CAN_TX_IRQChannel;
+     72          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+     73          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;
+     74          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     75          	NVIC_Init(&NVIC_InitStructure);
+     76          }
+     77          
+     78          
+     79          void reset_command(void)
+     80          {
+     81          	//g_pcCommand.CmdPos = 0;
+     82          	//g_pcCommand.DataLength = 0;
+     83          	//g_pcCommand.status = 0;
+     84          	//g_pcCommand.CmdBuffer[0] = 0;
+     85          }
+     86          
+     87          /*******************************************************************************
+     88          * Function Name  : USB_Cable_Config
+     89          * Description    : Software Connection/Disconnection of USB Cable
+     90          * Input          : None.
+     91          * Return         : Status
+     92          *******************************************************************************/
+     93          void USB_Cable_Config (unsigned char NewState)
+     94          {
+     95          
+     96          }
+     97          
+     98          void PCUsart_Init(void)
+     99          {
+    100          	Set_USBClock();
+    101          	USB_Interrupts_Config();
+    102          	USB_Init();
+    103          
+    104          	//g_pcCommand.CmdBuffer	= g_receive_buff;
+    105          	//g_com_handle_flag = 0;
+    106          
+    107          	//reset_command();
+    108          }
+    109          
+    110          
+    111          /**
+    112          * @brief 读到一个PC端的响应数据
+    113          * @param[in] unsigned char c 读入的字符
+    114          * @return 0:success put in buffer
+    115          *        -1:fail
+    116          */
+    117          int PCUsart_InByte(unsigned char c)
+    118          {
+    119          #if 0
+    120          	int		tmp;
+    121          	if (0 == g_pcCommand.status)
+    122          	{
+    123          		if (g_pcCommand.CmdBuffer[0] == 0x02)
+    124          		{
+    125          			g_pcCommand.CmdBuffer[g_pcCommand.CmdPos++] = c;
+    126          			if (g_pcCommand.CmdPos == 5)
+    127          			{
+    128          				//接收完长度字节了
+    129          				g_pcCommand.DataLength = g_pcCommand.CmdBuffer[1];
+    130          				g_pcCommand.DataLength <<= 24;
+    131          
+    132          				tmp = g_pcCommand.CmdBuffer[2];
+    133          				tmp <<= 16;
+    134          				g_pcCommand.DataLength |= tmp;
+    135          
+    136          				tmp = g_pcCommand.CmdBuffer[3];
+    137          				tmp <<= 8;
+    138          				g_pcCommand.DataLength |= tmp;
+    139          
+    140          				g_pcCommand.DataLength |= g_pcCommand.CmdBuffer[4];
+    141          
+    142          				if (g_pcCommand.DataLength > TLV_FRAME_SIZE)
+    143          				{
+    144          					g_pcCommand.CmdBuffer[0] = 0;
+    145          				}
+    146          			}
+    147          			else if (g_pcCommand.CmdPos == g_pcCommand.DataLength+10)
+    148          			{
+    149          				//数据帧结束了
+    150          				g_pcCommand.status = 1;
+    151          				return 1;
+    152          			}
+    153          		}
+    154          		else
+    155          		{
+    156          			g_pcCommand.CmdBuffer[0] = c;
+    157          			g_pcCommand.CmdPos = 1;
+    158          			g_pcCommand.DataLength = 0;
+    159          		}
+    160          	}
+    161          #endif	
+    162          	return 0;
+    163          
+    164          }
+    165          
+    166          
+    167          /**
+    168          * @brief 设备的初始化
+    169          * @note
+    170          */
+    171          void usb_device_init(unsigned char device_type)
+    172          {
+    173          	//if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_KEYBOARD)&&(device_type != USB_MASSSTORAGE))
+    174          	//{
+    175          	//	return;
+    176          	//}
+    177          
+    178          	if ((device_type != USB_KEYBOARD)&&(device_type != USB_MASSSTORAGE))
+    179          	{
+    180          		return;
+    181          	}
+    182          
+    183          	if (g_usb_type != device_type)
+    184          	{
+    185          		g_usb_type = device_type;
+    186          		PCUsart_Init();
+    187          		//vcom_device_state = 0;		//接收到连接命令之前的状态
+    188          	}
+    189          }
+
+   Maximum stack usage in bytes:
+
+     Function              .cstack
+     --------              -------
+     PCUsart_InByte             0
+     PCUsart_Init               8
+     Set_USBClock               8
+     USB_Cable_Config           0
+     USB_Interrupts_Config      8
+     reset_command              0
+     usb_device_init            8
+
+
+   Section sizes:
+
+     Function/Label             Bytes
+     --------------             -----
+     g_mass_storage_device_type    1
+     Set_USBClock                 28
+     USB_Interrupts_Config        72
+     reset_command                 2
+     USB_Cable_Config              2
+     PCUsart_Init                 16
+     PCUsart_InByte                4
+     usb_device_init              40
+
+ 
+   1 byte  in section .bss
+ 164 bytes in section .text
+ 
+ 164 bytes of CODE memory
+   1 byte  of DATA memory
+
+Errors: none
+Warnings: none

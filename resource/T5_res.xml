@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<RESOURCE Align="4096">
+	<DATA DataFile="songti_GBK_16_16" DataType="0x10" DataID="2" ModuleName="GBK16"/>
+	<DATA DataFile="huasong_GBK_24_24.DZK" DataType="0x10" DataID="3" ModuleName="GBK24"/>
+	<DATA DataFile="PIC.DAT" DataType="0x11" DataID="0" ModuleName="Picture"/>
+</RESOURCE>

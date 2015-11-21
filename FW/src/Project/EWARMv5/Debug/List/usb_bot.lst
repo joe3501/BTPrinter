@@ -1,0 +1,429 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:15 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_bot.c                   #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_bot.c" -D DEBUG_VER    #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_bot. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_bot.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_bot.c
+      1          /******************** (C) COPYRIGHT 2010 STMicroelectronics ********************
+      2          * File Name          : usb_bot.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V3.1.1
+      5          * Date               : 04/07/2010
+      6          * Description        : BOT State Machine management
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "usb_app_config.h"
+     18          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+     19          #include "usb_scsi.h"
+     20          #include "hw_config.h"
+     21          #include "usb_regs.h"
+     22          #include "usb_mem.h"
+     23          #include "usb_conf.h"
+     24          #include "usb_bot.h"
+     25          //#include "memory.h"
+     26          #include "usb_sil.h"
+     27          #include "usb_lib.h"
+     28          
+     29          /* Private typedef -----------------------------------------------------------*/
+     30          /* Private define ------------------------------------------------------------*/
+     31          /* Private macro -------------------------------------------------------------*/
+     32          /* Private variables ---------------------------------------------------------*/
+     33          u8 Bot_State;
+     34          u8 Bulk_Data_Buff[BULK_MAX_PACKET_SIZE];  /* data buffer*/
+     35          u16 Data_Len;
+     36          Bulk_Only_CBW CBW;
+     37          Bulk_Only_CSW CSW;
+     38          u32 SCSI_LBA , SCSI_BlkLen;
+     39          extern u32 Max_Lun;
+     40          /* Extern variables ----------------------------------------------------------*/
+     41          /* Private function prototypes -----------------------------------------------*/
+     42          /* Extern function prototypes ------------------------------------------------*/
+     43          /* Private functions ---------------------------------------------------------*/
+     44          
+     45          /*******************************************************************************
+     46          * Function Name  : Mass_Storage_In
+     47          * Description    : Mass Storage IN transfer.
+     48          * Input          : None.
+     49          * Output         : None.
+     50          * Return         : None.
+     51          *******************************************************************************/
+     52          void Mass_Storage_In (void)
+     53          {
+     54            switch (Bot_State)
+     55            {
+     56              case BOT_CSW_Send:
+     57              case BOT_ERROR:
+     58                Bot_State = BOT_IDLE;
+     59              #ifndef STM32F10X_CL
+     60                SetEPRxStatus(ENDP2, EP_RX_VALID);/* enable the Endpoint to recive the next cmd*/
+     61              #else
+     62                if (GetEPRxStatus(EP2_OUT) == EP_RX_STALL)
+     63                {
+     64                  SetEPRxStatus(EP2_OUT, EP_RX_VALID);/* enable the Endpoint to recive the next cmd*/
+     65                }
+     66              #endif /* STM32F10X_CL */
+     67                break;
+     68              case BOT_DATA_IN:
+     69                switch (CBW.CB[0])
+     70                {
+     71                  case SCSI_READ10:
+     72                    SCSI_Read10_Cmd(CBW.bLUN , SCSI_LBA , SCSI_BlkLen);
+     73                    break;
+     74                }
+     75                break;
+     76              case BOT_DATA_IN_LAST:
+     77                Set_CSW (CSW_CMD_PASSED, SEND_CSW_ENABLE);
+     78              #ifndef STM32F10X_CL
+     79                SetEPRxStatus(ENDP2, EP_RX_VALID);
+     80              #else
+     81                if (GetEPRxStatus(EP2_OUT) == EP_RX_STALL)
+     82                {
+     83                  SetEPRxStatus(EP2_OUT, EP_RX_VALID);/* enable the Endpoint to recive the next cmd*/
+     84                }      
+     85              #endif /* STM32F10X_CL */
+     86                break;
+     87          
+     88              default:
+     89                break;
+     90            }
+     91          }
+     92          
+     93          /*******************************************************************************
+     94          * Function Name  : Mass_Storage_Out
+     95          * Description    : Mass Storage OUT transfer.
+     96          * Input          : None.
+     97          * Output         : None.
+     98          * Return         : None.
+     99          *******************************************************************************/
+    100          void Mass_Storage_Out (void)
+    101          {
+    102            u8 CMD;
+    103            CMD = CBW.CB[0];
+    104          
+    105            Data_Len = USB_SIL_Read(EP2_OUT, Bulk_Data_Buff);
+    106          
+    107            switch (Bot_State)
+    108            {
+    109              case BOT_IDLE:
+    110                CBW_Decode();
+    111                break;
+    112              case BOT_DATA_OUT:
+    113                if (CMD == SCSI_WRITE10)
+    114                {
+    115                  SCSI_Write10_Cmd(CBW.bLUN , SCSI_LBA , SCSI_BlkLen);
+    116                  break;
+    117                }
+    118                Bot_Abort(DIR_OUT);
+    119                Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_FIELED_IN_COMMAND);
+    120                Set_CSW (CSW_PHASE_ERROR, SEND_CSW_DISABLE);
+    121                break;
+    122              default:
+    123                Bot_Abort(BOTH_DIR);
+    124                Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_FIELED_IN_COMMAND);
+    125                Set_CSW (CSW_PHASE_ERROR, SEND_CSW_DISABLE);
+    126                break;
+    127            }
+    128          }
+    129          
+    130          /*******************************************************************************
+    131          * Function Name  : CBW_Decode
+    132          * Description    : Decode the received CBW and call the related SCSI command
+    133          *                 routine.
+    134          * Input          : None.
+    135          * Output         : None.
+    136          * Return         : None.
+    137          *******************************************************************************/
+    138          void CBW_Decode(void)
+    139          {
+    140            u32 Counter;
+    141          
+    142            for (Counter = 0; Counter < Data_Len; Counter++)
+    143            {
+    144              *((u8 *)&CBW + Counter) = Bulk_Data_Buff[Counter];
+    145            }
+    146            CSW.dTag = CBW.dTag;
+    147            CSW.dDataResidue = CBW.dDataLength;
+    148            if (Data_Len != BOT_CBW_PACKET_LENGTH)
+    149            {
+    150              Bot_Abort(BOTH_DIR);
+    151              /* reset the CBW.dSignature to desible the clear feature until receiving a Mass storage reset*/
+    152              CBW.dSignature = 0;
+    153              Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, PARAMETER_LIST_LENGTH_ERROR);
+    154              Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    155              return;
+    156            }
+    157          
+    158            if ((CBW.CB[0] == SCSI_READ10 ) || (CBW.CB[0] == SCSI_WRITE10 ))
+    159            {
+    160              /* Calculate Logical Block Address */
+    161              SCSI_LBA = (CBW.CB[2] << 24) | (CBW.CB[3] << 16) | (CBW.CB[4] <<  8) | CBW.CB[5];
+    162              /* Calculate the Number of Blocks to transfer */
+    163              SCSI_BlkLen = (CBW.CB[7] <<  8) | CBW.CB[8];
+    164            }
+    165          
+    166            if (CBW.dSignature == BOT_CBW_SIGNATURE)
+    167            {
+    168              /* Valid CBW */
+    169              if ((CBW.bLUN > Max_Lun) || (CBW.bCBLength < 1) || (CBW.bCBLength > 16))
+    170              {
+    171                Bot_Abort(BOTH_DIR);
+    172                Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_FIELED_IN_COMMAND);
+    173                Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    174              }
+    175              else
+    176              {
+    177                switch (CBW.CB[0])
+    178                {
+    179                  case SCSI_REQUEST_SENSE:
+    180                    SCSI_RequestSense_Cmd (CBW.bLUN);
+    181                    break;
+    182                  case SCSI_INQUIRY:
+    183                    SCSI_Inquiry_Cmd(CBW.bLUN);
+    184                    break;
+    185                  case SCSI_START_STOP_UNIT:
+    186                    SCSI_Start_Stop_Unit_Cmd(CBW.bLUN);
+    187                    break;
+    188                  case SCSI_ALLOW_MEDIUM_REMOVAL:
+    189                    SCSI_Start_Stop_Unit_Cmd(CBW.bLUN);
+    190                    break;
+    191                  case SCSI_MODE_SENSE6:
+    192                    SCSI_ModeSense6_Cmd (CBW.bLUN);
+    193                    break;
+    194                  case SCSI_MODE_SENSE10:
+    195                    SCSI_ModeSense10_Cmd (CBW.bLUN);
+    196                    break;
+    197                  case SCSI_READ_FORMAT_CAPACITIES:
+    198                    SCSI_ReadFormatCapacity_Cmd(CBW.bLUN);
+    199                    break;
+    200                  case SCSI_READ_CAPACITY10:
+    201                    SCSI_ReadCapacity10_Cmd(CBW.bLUN);
+    202                    break;
+    203                  case SCSI_TEST_UNIT_READY:
+    204                    SCSI_TestUnitReady_Cmd(CBW.bLUN);
+    205                    break;
+    206                  case SCSI_READ10:
+    207                    SCSI_Read10_Cmd(CBW.bLUN, SCSI_LBA , SCSI_BlkLen);
+    208                    break;
+    209                  case SCSI_WRITE10:
+    210                    SCSI_Write10_Cmd(CBW.bLUN, SCSI_LBA , SCSI_BlkLen);
+    211                    break;
+    212                  case SCSI_VERIFY10:
+    213                    SCSI_Verify10_Cmd(CBW.bLUN);
+    214                    break;
+    215                  case SCSI_FORMAT_UNIT:
+    216                    SCSI_Format_Cmd(CBW.bLUN);
+    217                    break;
+    218                    /*Unsupported command*/
+    219          
+    220                  case SCSI_MODE_SELECT10:
+    221                    SCSI_Mode_Select10_Cmd(CBW.bLUN);
+    222                    break;
+    223                  case SCSI_MODE_SELECT6:
+    224                    SCSI_Mode_Select6_Cmd(CBW.bLUN);
+    225                    break;
+    226          
+    227                  case SCSI_SEND_DIAGNOSTIC:
+    228                    SCSI_Send_Diagnostic_Cmd(CBW.bLUN);
+    229                    break;
+    230                  case SCSI_READ6:
+    231                    SCSI_Read6_Cmd(CBW.bLUN);
+    232                    break;
+    233                  case SCSI_READ12:
+    234                    SCSI_Read12_Cmd(CBW.bLUN);
+    235                    break;
+    236                  case SCSI_READ16:
+    237                    SCSI_Read16_Cmd(CBW.bLUN);
+    238                    break;
+    239                  case SCSI_READ_CAPACITY16:
+    240                    SCSI_READ_CAPACITY16_Cmd(CBW.bLUN);
+    241                    break;
+    242                  case SCSI_WRITE6:
+    243                    SCSI_Write6_Cmd(CBW.bLUN);
+    244                    break;
+    245                  case SCSI_WRITE12:
+    246                    SCSI_Write12_Cmd(CBW.bLUN);
+    247                    break;
+    248                  case SCSI_WRITE16:
+    249                    SCSI_Write16_Cmd(CBW.bLUN);
+    250                    break;
+    251                  case SCSI_VERIFY12:
+    252                    SCSI_Verify12_Cmd(CBW.bLUN);
+    253                    break;
+    254                  case SCSI_VERIFY16:
+    255                    SCSI_Verify16_Cmd(CBW.bLUN);
+    256                    break;
+    257          
+    258                  default:
+    259                  {
+    260                    Bot_Abort(BOTH_DIR);
+    261                    Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_COMMAND);
+    262                    Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    263                  }
+    264                }
+    265              }
+    266            }
+    267            else
+    268            {
+    269              /* Invalid CBW */
+    270              Bot_Abort(BOTH_DIR);
+    271              Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_COMMAND);
+    272              Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    273            }
+    274          }
+    275          
+    276          /*******************************************************************************
+    277          * Function Name  : Transfer_Data_Request
+    278          * Description    : Send the request response to the PC HOST.
+    279          * Input          : u8* Data_Address : point to the data to transfer.
+    280          *                  u16 Data_Length : the nember of Bytes to transfer.
+    281          * Output         : None.
+    282          * Return         : None.
+    283          *******************************************************************************/
+    284          void Transfer_Data_Request(u8* Data_Pointer, u16 Data_Len)
+    285          {
+    286            USB_SIL_Write(EP1_IN, Data_Pointer, Data_Len);
+    287          
+    288            SetEPTxStatus(ENDP1, EP_TX_VALID);
+    289            Bot_State = BOT_DATA_IN_LAST;
+    290            CSW.dDataResidue -= Data_Len;
+    291            CSW.bStatus = CSW_CMD_PASSED;
+    292          }
+    293          
+    294          /*******************************************************************************
+    295          * Function Name  : Set_CSW
+    296          * Description    : Set the SCW with the needed fields.
+    297          * Input          : u8 CSW_Status this filed can be CSW_CMD_PASSED,CSW_CMD_FAILED,
+    298          *                  or CSW_PHASE_ERROR.
+    299          * Output         : None.
+    300          * Return         : None.
+    301          *******************************************************************************/
+    302          void Set_CSW (u8 CSW_Status, u8 Send_Permission)
+    303          {
+    304            CSW.dSignature = BOT_CSW_SIGNATURE;
+    305            CSW.bStatus = CSW_Status;
+    306          
+    307            USB_SIL_Write(EP1_IN, ((u8 *)& CSW), CSW_DATA_LENGTH);
+    308          
+    309            Bot_State = BOT_ERROR;
+    310            if (Send_Permission)
+    311            {
+    312              Bot_State = BOT_CSW_Send;
+    313              SetEPTxStatus(ENDP1, EP_TX_VALID);
+    314            }
+    315          
+    316          }
+    317          
+    318          /*******************************************************************************
+    319          * Function Name  : Bot_Abort
+    320          * Description    : Stall the needed Endpoint according to the selected direction.
+    321          * Input          : Endpoint direction IN, OUT or both directions
+    322          * Output         : None.
+    323          * Return         : None.
+    324          *******************************************************************************/
+    325          void Bot_Abort(u8 Direction)
+    326          {
+    327            switch (Direction)
+    328            {
+    329              case DIR_IN :
+    330                SetEPTxStatus(ENDP1, EP_TX_STALL);
+    331                break;
+    332              case DIR_OUT :
+    333                SetEPRxStatus(ENDP2, EP_RX_STALL);
+    334                break;
+    335              case BOTH_DIR :
+    336                SetEPTxStatus(ENDP1, EP_TX_STALL);
+    337                SetEPRxStatus(ENDP2, EP_RX_STALL);
+    338                break;
+    339              default:
+    340                break;
+    341            }
+    342          }
+    343          #endif
+    344          /******************* (C) COPYRIGHT 2010 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function              .cstack
+     --------              -------
+     Bot_Abort                  8
+     CBW_Decode                 8
+     Mass_Storage_In            8
+     Mass_Storage_Out           8
+     Set_CSW                    8
+     Transfer_Data_Request      8
+
+
+   Section sizes:
+
+     Function/Label        Bytes
+     --------------        -----
+     Bot_State                1
+     Bulk_Data_Buff          64
+     Data_Len                 2
+     CBW                     32
+     CSW                     16
+     SCSI_LBA                 4
+     SCSI_BlkLen              4
+     Mass_Storage_In         98
+     Mass_Storage_Out       126
+     CBW_Decode             664
+     Transfer_Data_Request   50
+     Set_CSW                 56
+     Bot_Abort               60
+     ??DataTable16            4
+     ??DataTable22            4
+     ??DataTable53            4
+     ??DataTable54            4
+     ??DataTable71            4
+     ??DataTable78            4
+     ??DataTable80            4
+
+ 
+   123 bytes in section .bss
+ 1 082 bytes in section .text
+ 
+ 1 082 bytes of CODE memory
+   123 bytes of DATA memory
+
+Errors: none
+Warnings: none

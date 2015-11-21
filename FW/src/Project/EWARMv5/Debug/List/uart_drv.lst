@@ -1,0 +1,741 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:15 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\Drivers\uart_drv.c                          #
+#    Command line =  E:\T6\FW\src\Drivers\uart_drv.c -lcN                     #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\uart_drv.lst     #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\uart_drv.o        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\Drivers\uart_drv.c
+      1          /**
+      2          * @file uart_drv.c
+      3          * @brief 串口驱动程序
+      4          *	本模块为串口驱动模块，集中管理多个串口的收发任务
+      5          *
+      6          * @version V0.0.3
+      7          * @author xhh
+      8          * @date 2011年11月18日
+      9          * @note
+     10          *    fixed: 部分bug--(TXE标志上电后，默认为1，所以开机时不能打开TXE的中断，否则会误进入
+     11          *    modify:开机，串口初始化后，默认TXE/TC 中断关闭，打开接收中断；应用调用发送时，才打开TXE/TC 中断，用完后关闭
+     12          
+     13          * @version V0.0.2
+     14          * @author zhongyh
+     15          * @date 2010年8月17日
+     16          * @note
+     17          *    整合对模拟串口的支持，需要 analog_uart.c
+     18          *    删除了对操作系统的依赖
+     19          *    删除了R3964协议处理部分
+     20          *    增加了 uart_device 以优化速度
+     21          *
+     22          * @version V0.0.1
+     23          * @author zhongyh
+     24          * @date 2009年10月2日
+     25          * @note
+     26          *    first release,支持串口1及串口2
+     27          *    
+     28          *
+     29          *
+     30          */
+     31          #include "stm32f10x_lib.h"
+     32          #include "uart_drv.h"
+     33          #include <string.h>
+     34          
+     35          /**
+     36          * @brief 串口发送管理buffer
+     37          */
+     38          typedef struct {
+     39          	unsigned char					*pTxbuffer;			// 要发送的缓冲
+     40          	int								TxbufferSize;		// 要发送的数据长度
+     41          	int								tx_finish;			// 标识是否发送完所有数据  1:发送已完成  0：未完成
+     42          	CommIsrInByte					InByte;				// 串口接收到一字节的回调函数
+     43          }COMM_RING_BUF;
+     44          
+     45          
+     46          static COMM_RING_BUF				Comm1Buf;
+     47          static COMM_RING_BUF				Comm2Buf;
+     48          static COMM_RING_BUF				Comm3Buf;
+     49          static COMM_RING_BUF				Comm4Buf;
+     50          static COMM_RING_BUF				Comm5Buf;
+     51          static COMM_RING_BUF				CommXBuf;			// 模拟串口
+     52          
+     53          static COMM_RING_BUF * uart_device[] = 
+     54          {
+     55             
+     56          	&Comm1Buf,
+     57          	&Comm2Buf,
+     58          	&Comm3Buf,
+     59          	&Comm4Buf,
+     60          	&Comm5Buf,
+     61          	&CommXBuf,
+     62          };
+     63          
+     64          
+     65          
+     66          /**
+     67          ****************************************************
+     68          * @brief		：	USART中断逐个字节发送 
+     69          * @param[in]	：	none				
+     70          * @return		：	
+     71          * @note			：	此函数在中断中调用 
+     72          ****************************************************
+     73          */
+     74          void Comm_IsrSendBytes(unsigned char ch)
+     75          {
+     76          	unsigned char		dat;
+     77          	unsigned char		err;
+     78          
+     79          	dat			=	Comm_IsrGetTxChar(ch, &err);				//从发送缓冲中取出一个数据并发送出去
+     80          
+     81          	switch(ch)
+     82          	{
+     83          	case COMM1:
+     84          		if( COMM_NO_ERR == err )									//是否发送完毕
+     85          		{
+     86          			USART_SendData(USART1, dat);
+     87          		}
+     88          		else
+     89          		{
+     90          			
+     91          			USART_ITConfig(USART1, USART_IT_TXE, DISABLE);
+     92          		}
+     93          		break;
+     94          
+     95          	case COMM2:
+     96          		if( COMM_NO_ERR  == err )									//是否发送完毕
+     97          		{
+     98          			USART_SendData(USART2, dat);	
+     99          		}
+    100          		else
+    101          		{
+    102          			
+    103          			USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
+    104          		}
+    105          		break;
+    106          
+    107          	case COMM3:
+    108          		if( COMM_NO_ERR  == err )									//是否发送完毕
+    109          		{
+    110          			USART_SendData(USART3, dat);
+    111          		}
+    112          		else
+    113          		{
+    114          			//关闭TXE中断的使能
+    115          			USART_ITConfig(USART3, USART_IT_TXE, DISABLE);
+    116          		}
+    117          		break;
+    118          
+    119          	case COMM4:
+    120          		if( COMM_NO_ERR  == err )									//是否发送完毕
+    121          		{
+    122          			USART_SendData(UART4, dat);	
+    123          		}
+    124          		else
+    125          		{	
+    126          			USART_ITConfig(UART4, USART_IT_TXE, DISABLE);
+    127          		}
+    128          		break;
+    129          
+    130          	case COMM5:
+    131          		//if( COMM_NO_ERR  == err )									//是否发送完毕
+    132          		//{
+    133          		//	USART_SendData(UART5, dat);
+    134          		//}
+    135          		//else
+    136          		//{
+    137          		//	USART_ITConfig(UART5, USART_IT_TXE, DISABLE);
+    138          		//}
+    139          		break;
+    140          	default:
+    141          		break;
+    142          	}
+    143          }
+    144          
+    145          
+    146          
+    147          /**
+    148          *********************************************************************************************************  
+    149          * @brief 中断程序调用此函数，从发送缓冲中取一个字符发送出去
+    150          * Arguments   : 'ch'    is the COMM port channel number and can either be:  
+    151          *                           COMM1,COMM2,COMM3,COMM4,COMM5
+    152          *               'err'   is a pointer to where an error code will be deposited:  
+    153          *                           *err is set to COMM_NO_ERR         if at least one character was left in the  
+    154          *                                                              buffer.  
+    155          *                           *err is set to COMM_TX_EMPTY       if the Tx buffer is empty.  
+    156          *                           *err is set to COMM_BAD_CH         if you have specified an incorrect channel  
+    157          * @return     : The next character in the Tx buffer or NUL if the buffer is empty.  
+    158          *********************************************************************************************************  
+    159          */
+    160          unsigned char Comm_IsrGetTxChar (unsigned char ch, unsigned char *err)
+    161          {
+    162          	unsigned char					c;
+    163          	COMM_RING_BUF					*pbuf;
+    164          
+    165          	*err							= COMM_NO_ERR;
+    166          
+    167          	if( ch >= COMM_MAX )
+    168          	{
+    169          		*err						= COMM_BAD_CH;
+    170          		return 0;
+    171          	}
+    172          
+    173          	pbuf							= uart_device[ch-1];
+    174          
+    175          	if(pbuf->pTxbuffer != (unsigned char*)0 )
+    176          	{
+    177          
+    178          		if (pbuf->TxbufferSize>0)
+    179          		{
+    180          			c						= *pbuf->pTxbuffer++;
+    181          			*err					= COMM_NO_ERR;
+    182          			pbuf->TxbufferSize --;
+    183          			return c;
+    184          		}
+    185          		else
+    186          		{
+    187          			if( pbuf->TxbufferSize == 0)
+    188          				pbuf->TxbufferSize	= -1;
+    189          			pbuf->tx_finish			= 1;
+    190          			*err					= COMM_TX_EMPTY;
+    191          			return 0;
+    192          		}
+    193          	}
+    194          	*err							= COMM_TX_EMPTY;
+    195          	return 0;
+    196          }
+    197          
+    198          /**
+    199          ***************************************************************************
+    200          *@brief	串口管理模块初始化
+    201          *@param[in] 
+    202          *@return 
+    203          *@warning
+    204          *@see	
+    205          *@note 
+    206          ***************************************************************************
+    207          */
+    208          void Comm_Init (void)
+    209          {
+    210          	memset(&Comm1Buf,0,sizeof(Comm1Buf));
+    211          	memset(&Comm2Buf,0,sizeof(Comm2Buf));
+    212          	memset(&Comm3Buf,0,sizeof(Comm3Buf));
+    213          	memset(&Comm4Buf,0,sizeof(Comm4Buf));
+    214          	memset(&Comm5Buf,0,sizeof(Comm5Buf));
+    215          	memset(&CommXBuf,0,sizeof(CommXBuf));
+    216          
+    217          	Comm1Buf.tx_finish =1;
+    218          	Comm2Buf.tx_finish =1;
+    219          	Comm3Buf.tx_finish =1;
+    220          	Comm4Buf.tx_finish =1;
+    221          	Comm5Buf.tx_finish =1;
+    222          	CommXBuf.tx_finish =1;
+    223          	
+    224          }
+    225          
+    226          /**
+    227          * @brief 应用程序调用，判断发送缓冲是否为空
+    228          * @param[in] 
+    229          * @return 0:空
+    230          *         1:满
+    231          * @note 
+    232          */
+    233          int Comm_AppIsFull (unsigned char ch)
+    234          {
+    235          	int								empty;
+    236          	COMM_RING_BUF					*pbuf;
+    237          
+    238          	if( ch >= COMM_MAX )
+    239          	{
+    240          		return 0;
+    241          	}
+    242          	pbuf		=	uart_device[ch-1];
+    243          
+    244          	if( pbuf->tx_finish )
+    245          	{	
+    246          		empty	=	0;					// 发送已完成 。空
+    247          	}
+    248          	else
+    249          	{	
+    250          		empty	=	1;					// 发送未完成。非空
+    251          	}
+    252          	return empty;
+    253          }
+    254          
+    255          
+    256          /**
+    257          * @brief 中断程序调用此函数，将一个接收到的字符放到缓冲中
+    258          
+    259          */
+    260          void Comm_IsrPutRxChar (unsigned char ch, unsigned char c)
+    261          {
+    262          	COMM_RING_BUF					*pbuf;
+    263          
+    264          	// 此函数为优化，没有对参数的安全检查!!!
+    265          
+    266          	pbuf							= uart_device[ch-1];
+    267          
+    268          	if (pbuf->InByte)
+    269          		(pbuf->InByte)(c);
+    270          }
+    271          
+    272          
+    273          /**
+    274          * @brief 为指定的串口中断设置串口中断接收函数
+    275          * @param[in] unsigned char ch:COMM1,COMM2,COMM3,COMM4,COMM5
+    276          * @param[in] CommIsrInByte inbyte 中断处理函数
+    277          note:(1) USART_IT_TXE  可以先不打开，使用的时候再打开，使用完关闭,其复位值默认为1,会误入中断；
+    278          		 需要发送的时候再打开，顺序是先写入DR，然后USART_ITConfig(USART2, USART_IT_TXE, ENABLE);参考《stm32参考文档》
+    279               (2) USART_ClearITPendingBit(USART2, USART_IT_TXE);此句无作用
+    280          	 (3) USART_ClearITPendingBit(USART3, USART_IT_RXNE)最好用(void)USART_ReceiveData(USART3)代替---参考《stm32参考文档》
+    281          	  
+    282          */
+    283          void Comm_SetReceiveProc(unsigned char ch, CommIsrInByte inbyte)
+    284          {
+    285          	if( ch == COMM1 )
+    286          	{
+    287          		Comm1Buf.TxbufferSize		= 0;
+    288          		Comm1Buf.InByte				= inbyte;
+    289          		(void)USART_ReceiveData(USART1);
+    290          		USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+    291          	}
+    292          	else if(ch == COMM2)
+    293          	{
+    294          		Comm2Buf.TxbufferSize		= 0;
+    295          		Comm2Buf.InByte				= inbyte;
+    296          		(void)USART_ReceiveData(USART2);
+    297          		USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
+    298          	}
+    299          	else if(ch == COMM3)
+    300          	{	//智能卡
+    301          		Comm3Buf.TxbufferSize		= 0;
+    302          		Comm3Buf.InByte				= inbyte;
+    303          		
+    304          		(void)USART_ReceiveData(USART3);
+    305          		USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
+    306          	}
+    307          	else if(ch == COMM4)
+    308          	{	// COMM4
+    309          		Comm4Buf.TxbufferSize		= 0;
+    310          		Comm4Buf.InByte				= inbyte;
+    311          		
+    312          		(void)USART_ReceiveData(UART4);
+    313          		USART_ITConfig(UART4, USART_IT_RXNE, ENABLE);
+    314          	}
+    315          	else if(ch == COMM5)
+    316          	{	// COMM5
+    317          		Comm5Buf.TxbufferSize		= 0;
+    318          		Comm5Buf.InByte				= inbyte;
+    319          		//(void)USART_ReceiveData(UART5);
+    320          		//USART_ITConfig(UART5, USART_IT_RXNE, ENABLE);
+    321          	}
+    322          	else
+    323          	{
+    324          		// 模拟串口，不用做任何事情
+    325          	}
+    326          }
+    327          
+    328          /**
+    329          * @brief 应用程序调用此函数，通过串口发送数据
+    330          * @param[in] unsigned char ch 串口的通道，可以是COMM1,COMM2,COMM3,COMM4,COMM5
+    331          * @param[in] unsigned char *buffer 要发送的数据缓冲
+    332          * @param[in] int len 要发送的数据长度
+    333          * @param[in] CommIsrInByte inbyte 接收数据的回调函数
+    334          */
+    335          void Comm_AppSendBuffer(unsigned char ch, unsigned char *buffer, int len)
+    336          {
+    337          	COMM_RING_BUF					*pbuf;
+    338          
+    339          	// 必须有字符要发送
+    340          	if ( len <= 0 )
+    341          	{
+    342          		return;
+    343          	}
+    344          
+    345          	switch (ch)
+    346          	{ /* Obtain pointer to communications channel */
+    347          	case COMM1:
+    348          		pbuf = &Comm1Buf;
+    349          		USART_ITConfig(USART1, USART_IT_TXE, DISABLE);
+    350          		USART_ITConfig(USART1, USART_IT_RXNE, DISABLE);
+    351          		break;
+    352          	case COMM2:
+    353          		pbuf = &Comm2Buf;
+    354           		USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
+    355           		USART_ITConfig(USART2, USART_IT_RXNE, DISABLE);
+    356          		break;
+    357          	case COMM3:
+    358          		pbuf = &Comm3Buf;
+    359          		USART_ITConfig(USART3, USART_IT_TXE, DISABLE);
+    360          		USART_ITConfig(USART3, USART_IT_TC, DISABLE);
+    361          		USART_ITConfig(USART3, USART_IT_RXNE, DISABLE);	
+    362          		break;
+    363          	case COMM4:
+    364          		pbuf = &Comm4Buf;
+    365          		USART_ITConfig(UART4, USART_IT_TXE, DISABLE);
+    366          		USART_ITConfig(UART4, USART_IT_RXNE, DISABLE);
+    367          		break;
+    368          	//case COMM5:
+    369          	//	pbuf = &Comm1Buf;
+    370          	//	USART_ITConfig(UART5, USART_IT_TXE, DISABLE);
+    371          	//	USART_ITConfig(UART5, USART_IT_RXNE, DISABLE);
+    372          		//break;
+    373          	case COMMX:
+    374          		pbuf = &CommXBuf;
+    375          		break;
+    376          
+    377          	default:
+    378          		return;
+    379          	}
+    380          
+    381          	// 填充发送结构
+    382          	pbuf->pTxbuffer				= buffer+1;
+    383          	pbuf->TxbufferSize			= len-1;
+    384          	pbuf->tx_finish				= 0;
+    385          
+    386          	// 发送第一个字符，并打开发送中断，然后返回。
+    387          	// 在中断程序中会将剩余的数据送到串口
+    388          	switch(ch)
+    389          	{
+    390          	case COMM1:
+    391          		USART_SendData(USART1, *buffer);
+    392          		USART_ITConfig(USART1, USART_IT_TXE, ENABLE);
+    393          		(void)USART_ReceiveData(USART1);
+    394          		USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+    395          		break;
+    396          	case COMM2:
+    397          		USART_SendData(USART2, *buffer);
+    398           		USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
+    399          		(void)USART_ReceiveData(USART2);
+    400           		USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
+    401          		break;
+    402          
+    403          	case COMM3:
+    404          		//不打开接收中断,等进入TC中断后打开
+    405          		USART_SendData(USART3, *buffer);
+    406          		USART_ClearITPendingBit(USART3, USART_IT_TC);
+    407          		USART_ITConfig(USART3, USART_IT_TXE, ENABLE);
+    408          		USART_ITConfig(USART3, USART_IT_TC, ENABLE);
+    409          		break;
+    410          	case COMM4:
+    411          		USART_SendData(UART4, *buffer);
+    412          		USART_ITConfig(UART4, USART_IT_TXE, ENABLE);
+    413          		(void)USART_ReceiveData(UART4);
+    414          		USART_ITConfig(UART4, USART_IT_RXNE, ENABLE);
+    415          		break;
+    416          
+    417          	case COMM5:
+    418          		//USART_SendData(UART5, *buffer);
+    419          		//USART_ITConfig(UART5, USART_IT_TXE, ENABLE);
+    420          		//(void)USART_ReceiveData(UART5);
+    421          		//USART_ITConfig(UART5, USART_IT_RXNE, ENABLE);
+    422          		break;
+    423          
+    424          	case COMMX:
+    425          		// todo 模拟串口
+    426          		// 启动发送第一个字节，并启动接收中断
+    427          //		analoguart_sendbyte(*buffer);
+    428          		break;
+    429          
+    430          	default:
+    431          		return;
+    432          	}
+    433          }
+    434          
+    435          /**
+    436          ***************************************************************************
+    437          *@brief	初始化串口，并打开串口。具体的中断在设置回调的函数中打开
+    438          *@param[in] parity:0  无校验 no
+    439                             1  奇校验 odd
+    440          				   2  偶校验 even
+    441          *@return 
+    442          *@warning
+    443          *@see	
+    444          *@note COMMX 
+    445          ***************************************************************************
+    446          */
+    447          int Comm_InitPort(int ch, int baud,unsigned short parity)
+    448          {
+    449          	USART_InitTypeDef				USART_InitStructure;
+    450          	NVIC_InitTypeDef				NVIC_InitStructure;
+    451          	GPIO_InitTypeDef				GPIO_InitStructure; 
+    452          
+    453          	unsigned short usart_parity;
+    454          	unsigned short usart_wordlength;
+    455          	switch (parity)
+    456          	{
+    457          	case 1:
+    458          		usart_wordlength =USART_WordLength_9b;//奇校验
+    459          		usart_parity=USART_Parity_Odd;
+    460          		break;
+    461          	case 2:
+    462          		usart_wordlength =USART_WordLength_9b;//偶校验
+    463          		usart_parity=USART_Parity_Even;
+    464          		break;
+    465          	default:
+    466          		usart_wordlength =USART_WordLength_8b;
+    467          		usart_parity=USART_Parity_No;
+    468          		break;
+    469          	}
+    470          
+    471          	/* 1 bit for pre-emption priority, 3 bits for subpriority */
+    472          //NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+    473          
+    474          	if( ch == COMM1 )
+    475          	{
+    476                    // 初始化中断
+    477          		NVIC_InitStructure.NVIC_IRQChannel		= USART1_IRQChannel;
+    478          		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;				//先占优先级
+    479          		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 5;				//子优先级
+    480          
+    481          		NVIC_InitStructure.NVIC_IRQChannelCmd	= ENABLE;
+    482          		NVIC_Init(&NVIC_InitStructure);
+    483                          
+    484                          
+    485          		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_USART1 | RCC_APB2Periph_AFIO, ENABLE);
+    486          
+    487          		/* Configure USART1 Tx (PA.09) as alternate function push-pull */
+    488          		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_9;
+    489          		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    490          		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    491          		GPIO_Init(GPIOA, &GPIO_InitStructure);
+    492          
+    493          		/* Configure USART1 Rx (PA.10) as input floating */
+    494          		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+    495          		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    496          		GPIO_Init(GPIOA, &GPIO_InitStructure);
+    497          
+    498          		// 初始化串口
+    499          		USART_InitStructure.USART_BaudRate		= baud;										// 
+    500          		USART_InitStructure.USART_WordLength	= usart_wordlength;						 
+    501          		USART_InitStructure.USART_StopBits		= USART_StopBits_1;							//停止位
+    502          		USART_InitStructure.USART_Parity		= usart_parity;							 
+    503          		USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;		//没有硬件流控制
+    504          		USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;		
+    505          
+    506          		USART_Init(USART1, &USART_InitStructure);
+    507          
+    508          		
+    509          
+    510          		 
+    511          		USART_Cmd(USART1, ENABLE);
+    512          		return 0;
+    513          	}
+    514          	else if( ch == COMM2 )
+    515          	{
+    516          		RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2 , ENABLE);
+    517          		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
+    518          
+    519          		// 初始化IO
+    520          		// TX
+    521          		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
+    522          		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    523          		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    524          		GPIO_Init(GPIOA, &GPIO_InitStructure);
+    525          
+    526          		/* Configure USART1 Rx (PA.10) as input floating				*/
+    527          		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_3;
+    528          		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    529          
+    530          		GPIO_Init(GPIOA, &GPIO_InitStructure);
+    531          
+    532          		// 初始化串口
+    533          		USART_InitStructure.USART_BaudRate		= baud;						// 
+    534          		USART_InitStructure.USART_WordLength	= usart_wordlength;				//8bit数据位模式
+    535          		USART_InitStructure.USART_StopBits		= USART_StopBits_1;						//停止位
+    536          		USART_InitStructure.USART_Parity		= usart_parity;							//没有奇偶校验位
+    537          		USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;			//没有硬件流控制
+    538          		USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;		
+    539          		
+    540          		USART_Init(USART2, &USART_InitStructure);
+    541          
+    542          		// 初始化中断
+    543          		NVIC_InitStructure.NVIC_IRQChannel		= USART2_IRQChannel;
+    544          		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    545          		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 5;				//子优先级
+    546          		NVIC_InitStructure.NVIC_IRQChannelCmd	= ENABLE;
+    547          		NVIC_Init(&NVIC_InitStructure);
+    548          		
+    549          		 
+    550          		USART_Cmd(USART2, ENABLE);
+    551          
+    552          		USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
+    553          		USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
+    554          
+    555          		return 0;
+    556          	}
+    557          	
+    558          	else if( ch == COMM4 )
+    559          	{
+    560          		//PC10:tx  PC11:rx
+    561          		RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4 , ENABLE);
+    562          		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
+    563          
+    564          		// 初始化IO
+    565          		// TX
+    566          		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+    567          		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    568          		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    569          		GPIO_Init(GPIOC, &GPIO_InitStructure);
+    570          
+    571          		/* Configure USART4 Rx (PC.11) as input floating				*/
+    572          		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_11;
+    573          		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    574          		//		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    575          
+    576          		GPIO_Init(GPIOC, &GPIO_InitStructure);
+    577          
+    578          		// 初始化串口
+    579          		USART_InitStructure.USART_BaudRate		= baud;						// 
+    580          		USART_InitStructure.USART_WordLength	= usart_wordlength;				 
+    581          		USART_InitStructure.USART_StopBits		= USART_StopBits_1;						//停止位
+    582          		USART_InitStructure.USART_Parity		= usart_parity;							 
+    583          		USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;			//没有硬件流控制
+    584          		USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;		
+    585          
+    586          		USART_Init(UART4, &USART_InitStructure);
+    587          
+    588          		// 初始化中断
+    589          		NVIC_InitStructure.NVIC_IRQChannel		= UART4_IRQChannel;
+    590          		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    591          		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 5;				//子优先级
+    592          		NVIC_InitStructure.NVIC_IRQChannelCmd	= ENABLE;
+    593          		NVIC_Init(&NVIC_InitStructure);
+    594          
+    595          		USART_Cmd(UART4, ENABLE);
+    596          
+    597          		return 0;
+    598          	}
+    599              else if( ch == COMM5 )
+    600          	{
+    601            //        // 初始化中断
+    602          		//NVIC_InitStructure.NVIC_IRQChannel		= UART5_IRQChannel;
+    603          		//NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 15;				//先占优先级
+    604          	
+    605          		//NVIC_InitStructure.NVIC_IRQChannelCmd	= ENABLE;
+    606          		//NVIC_Init(&NVIC_InitStructure);
+    607            //              
+    608            //      RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART5 , ENABLE);        
+    609          		//RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC |RCC_APB2Periph_GPIOD  | RCC_APB2Periph_AFIO, ENABLE);
+    610          
+    611          		///* Configure UART5 Tx (PC.12) as alternate function push-pull */
+    612          		//GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_12;
+    613          		//GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    614          		//GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    615          		//GPIO_Init(GPIOC, &GPIO_InitStructure);
+    616          
+    617          		///* Configure UART5 Rx (PD.02) as input floating */
+    618          		//GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
+    619          		//GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    620          		//GPIO_Init(GPIOD, &GPIO_InitStructure);
+    621          
+    622          		//// 初始化串口
+    623          		//USART_InitStructure.USART_BaudRate		= baud;										// 
+    624          		//USART_InitStructure.USART_WordLength	= usart_wordlength;						 
+    625          		//USART_InitStructure.USART_StopBits		= USART_StopBits_1;							//停止位
+    626          		//USART_InitStructure.USART_Parity		= usart_parity;							 
+    627          		//USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;		//没有硬件流控制
+    628          		//USART_InitStructure.USART_Mode			= USART_Mode_Tx;//USART_Mode_Rx |		
+    629          
+    630          		//USART_Init(UART5, &USART_InitStructure);
+    631          
+    632          		//USART_Cmd(UART5, ENABLE);
+    633                  
+    634          		return 0;
+    635          	}
+    636          	else if( ch == COMMX )
+    637          	{
+    638          //		init_analoguart_port(baud);
+    639          		return -1;
+    640          	}
+    641          	return 0;
+    642          }
+    643          
+    644          
+    645          
+    646          
+    647          /******************* (C) COPYRIGHT 2010 Netcom *****END OF FILE****************/
+
+   Maximum stack usage in bytes:
+
+     Function            .cstack
+     --------            -------
+     Comm_AppIsFull           0
+     Comm_AppSendBuffer      24
+     Comm_Init                8
+     Comm_InitPort           40
+     Comm_IsrGetTxChar        0
+     Comm_IsrPutRxChar        8
+     Comm_IsrSendBytes       16
+     Comm_SetReceiveProc      8
+     memset                   8
+
+
+   Section sizes:
+
+     Function/Label      Bytes
+     --------------      -----
+     memset                20
+     Comm1Buf              16
+     Comm2Buf              16
+     Comm3Buf              16
+     Comm4Buf              16
+     Comm5Buf              16
+     CommXBuf              16
+     uart_device           24
+     Comm_IsrSendBytes    202
+     Comm_IsrGetTxChar     96
+     Comm_Init            100
+     Comm_AppIsFull        32
+     Comm_IsrPutRxChar     30
+     Comm_SetReceiveProc  176
+     Comm_AppSendBuffer   392
+     Comm_InitPort        520
+     ??DataTable22          4
+     ??DataTable40          4
+     ??DataTable41          4
+     ??DataTable48          4
+     ??DataTable51          4
+     ??DataTable55          4
+     ??DataTable58          4
+     ??DataTable66          4
+     ??DataTable72          4
+     ??DataTable76          4
+     ??DataTable78          4
+
+ 
+    96 bytes in section .bss
+    24 bytes in section .data
+ 1 612 bytes in section .text
+ 
+ 1 592 bytes of CODE memory (+ 20 bytes shared)
+   120 bytes of DATA memory
+
+Errors: none
+Warnings: none

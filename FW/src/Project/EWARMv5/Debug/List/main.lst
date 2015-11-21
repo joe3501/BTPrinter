@@ -1,0 +1,475 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     21/Nov/2015  11:15:51 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\Project\main.c                      #
+#    Command line =  "E:\BT Printer\FW\src\Project\main.c" -D DEBUG_VER -lcN  #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\main.lst #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\main.o    #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\Project\main.c
+      1          /**
+      2          * @file main.c
+      3          * @brief 蓝牙打印机项目主程序
+      4          *
+      5          * @version V0.0.1
+      6          * @author joe
+      7          * @date 2015年11月12日
+      8          * @note
+      9          *		none
+     10          *
+     11          * @copy
+     12          *
+     13          * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     14          * 本公司以外的项目。本司保留一切追究权利。
+     15          *
+     16          * <h1><center>&copy; COPYRIGHT 2015 heroje</center></h1>
+     17          */
+     18          
+     19          /* Private Includes ------------------------------------------------------------------*/
+     20          #include "stm32f10x_lib.h"
+     21          #include <string.h>
+     22          #include <stdlib.h>
+     23          #include "hw_platform.h"
+     24          #include "data_uart.h"
+     25          #include "TimeBase.h"
+     26          #include "Terminal_para.h"
+     27          #include "usb_app_config.h"
+     28          #include "res_spi.h"
+     29          /* Private define ------------------------------------------------------------*/
+     30          
+     31          // Cortex System Control register address
+     32          #define SCB_SysCtrl					((u32)0xE000ED10)
+     33          // SLEEPDEEP bit mask
+     34          #define SysCtrl_SLEEPDEEP_Set		((u32)0x00000004)
+     35          
+     36          
+     37          
+     38          /* Global variables ---------------------------------------------------------*/
+     39          ErrorStatus			HSEStartUpStatus;							//Extern crystal OK Flag
+     40          
+     41          
+     42          /* Private functions ---------------------------------------------------------*/
+     43          static void Unconfigure_All(void);
+     44          static void GPIO_AllAinConfig(void);
+     45          void RCC_Configuration(void);
+     46          
+     47          /* External variables -----------------------------------------------*/
+     48          extern	TTerminalPara			g_param;					//Terminal Param
+     49          
+     50          /*******************************************************************************
+     51          * Function Name  : system_error_tip
+     52          * Description    : 严重的系统错误提示
+     53          *******************************************************************************/
+     54          void system_error_tip(void)
+     55          {
+     56          	//@todo...
+     57          
+     58          	while(1);
+     59          }
+     60          
+     61          /*******************************************************************************
+     62          * Function Name  : enter_u_disk_mode
+     63          * Description    : 进入U盘模式
+     64          *******************************************************************************/
+     65          void enter_u_disk_mode(void)
+     66          {
+     67          	int key_state = 0;
+     68          	g_mass_storage_device_type = MASSTORAGE_DEVICE_TYPE_SPI_FLASH;
+     69          	usb_device_init(USB_MASSSTORAGE);
+     70          	usb_Cable_Config(ENABLE);
+     71          	
+     72          	while(1)
+     73          	{
+     74          		delay_ms(50);
+     75          		if(!KEY_FEED())
+     76          		{
+     77          			key_state++;
+     78          		}
+     79          		else
+     80          		{
+     81          			key_state = 0;
+     82          		}
+     83          		if( key_state == 20)		//退出USB模式，系统复位
+     84          		{
+     85          			usb_Cable_Config(DISABLE);
+     86          			NVIC_SETFAULTMASK();
+     87          			NVIC_GenerateSystemReset();
+     88          		}
+     89          	}
+     90          }
+     91          
+     92          /*******************************************************************************
+     93          * Function Name  : main
+     94          * Description    : Main program.
+     95          * Input          : None
+     96          * Output         : None
+     97          * Return         : None
+     98          *******************************************************************************/
+     99          int main(void)
+    100          {
+    101          	int	ret,key_state;
+    102          	/* System Clocks Configuration **********************************************/
+    103          	RCC_Configuration(); 
+    104          #ifdef RELEASE_VER
+    105          	/* NVIC Configuration *******************************************************/
+    106          	NVIC_SetVectorTable(NVIC_VectTab_FLASH, IAP_SIZE);		//需要加密的 bootcode
+    107          #else	
+    108          	/* NVIC Configuration *******************************************************/
+    109          	NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0);
+    110          #endif
+    111          	
+    112          	// Clear SLEEPDEEP bit of Cortex System Control Register
+    113          	*(vu32 *) SCB_SysCtrl &= ~SysCtrl_SLEEPDEEP_Set;
+    114          
+    115          	Unconfigure_All();
+    116          	// 数据串口(调试口)初始化
+    117          	data_uart_init();
+    118                  
+    119                  //while(1);
+    120          
+    121          #ifdef DEBUG_VER
+    122          	printf("BTPrinter startup...\r\n");
+    123          	if (HSEStartUpStatus == SUCCESS)
+    124          	{
+    125          		printf("HSE OK!\r\n");
+    126          	}
+    127          	else
+    128          	{
+    129          		printf("HSE Failed!\r\n");
+    130          	}
+    131          #endif
+    132          
+    133          	//初始化时基函数
+    134          	TimeBase_Init();
+    135          
+    136          
+    137          	//初始化按键模块
+    138          	KeyScanInit();
+    139          
+    140          	key_state = 0;
+    141          	if (!KEY_FEED())
+    142          	{
+    143          		key_state = 1;
+    144          	}
+    145          #ifdef HW_VER_LCD
+    146          	//初始化LCD
+    147          	//@todo...		//for debug
+    148          #else
+    149          	//初始化LED
+    150          	//@todo...
+    151          	delay_ms(10);	//for debug
+    152          #endif
+    153          
+    154          	if (!KEY_FEED())
+    155          	{
+    156          		if (key_state == 1)
+    157          		{
+    158          			key_state = 2;
+    159          		}
+    160          	}
+    161           
+    162          	//初始化参数模块（SPI FLASH）
+    163          	ret = ReadTerminalPara();
+    164          	if (ret)
+    165          	{
+    166          		if (ret > 0 || ret == -4)
+    167          		{
+    168          			if (DefaultTerminalPara())
+    169          			{
+    170          				system_error_tip();	//严重的错误，系统停止继续运行，可能进入诊断模式
+    171          			}
+    172          		}
+    173          		else
+    174          		{
+    175          			system_error_tip();	//严重的错误，系统停止继续运行，可能进入诊断模式
+    176          		}
+    177          	}
+    178          
+    179          	
+    180          	//检查系统的字库资源是否正确
+    181          	ret = res_init();
+    182          
+    183          	if ((key_state == 2) || (ret!=0))	//开机时长按进纸键或者检测到系统的字库资源不正确时，进入U盘模式
+    184          	{
+    185          		enter_u_disk_mode();
+    186          	}
+    187          	//初始化热敏打印头的控制IO及定时器
+    188          	print_head_init();
+    189          
+    190          	//初始化蓝牙模块
+    191          	BT816_init();
+    192          
+    193          	esc_init();
+    194          
+    195          	//test_motor();
+    196          
+    197          	PaperStartSns();		//Systick跳动起来
+    198          
+    199          
+    200          	while (1)
+    201          	{
+    202          		esc_p();		//等待串口接收到的数据，根据不同的数据进行相应的处理
+    203          	}
+    204          }
+    205          
+    206          /*******************************************************************************
+    207          * Function Name  : RCC_Configuration
+    208          * Description    : Configures the different system clocks.
+    209          * Input          : None
+    210          * Output         : None
+    211          * Return         : None
+    212          *******************************************************************************/
+    213          void RCC_Configuration(void)
+    214          {   
+    215          	vu32 i=0;
+    216          
+    217          	/* RCC system reset(for debug purpose) */
+    218          	RCC_DeInit();
+    219          
+    220          	/* Enable HSE							*/
+    221          	RCC_HSEConfig(RCC_HSE_ON);
+    222          	// 这里要做延时，才能兼容某些比较差的晶体，以便顺利起震	
+    223          	for(i=0; i<200000; i++);
+    224          
+    225          	/* Wait till HSE is ready			*/
+    226          	HSEStartUpStatus = RCC_WaitForHSEStartUp();
+    227          
+    228          	if(HSEStartUpStatus == SUCCESS)
+    229          	{
+    230          		/* Enable Prefetch Buffer		*/
+    231          		FLASH_PrefetchBufferCmd(FLASH_PrefetchBuffer_Enable);
+    232          
+    233          		/* Flash 2 wait state			*/
+    234          		FLASH_SetLatency(FLASH_Latency_2);
+    235          
+    236          		/* HCLK = SYSCLK					*/
+    237          		RCC_HCLKConfig(RCC_SYSCLK_Div1); 
+    238          
+    239          		/* PCLK2 = HCLK					*/
+    240          		RCC_PCLK2Config(RCC_HCLK_Div1); 
+    241          
+    242          		/* PCLK1 = HCLK/2					*/
+    243          		RCC_PCLK1Config(RCC_HCLK_Div2);
+    244          
+    245          		/* PLLCLK = 12MHz * 6 = 72 MHz	*/
+    246          		RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_6);
+    247          
+    248          		/* PLLCLK = 8MHz * 9 = 72 MHz	*/
+    249          		//RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_9);
+    250          
+    251          		/* Enable PLL						*/
+    252          		RCC_PLLCmd(ENABLE);
+    253          
+    254          		/* Wait till PLL is ready		*/
+    255          		while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET)
+    256          		{
+    257          		}
+    258          
+    259          		/* Select PLL as system clock source */
+    260          		RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
+    261          
+    262          		/* Wait till PLL is used as system clock source */
+    263          		while(RCC_GetSYSCLKSource() != 0x08)
+    264          		{
+    265          		}
+    266          	}
+    267          }
+    268          
+    269          /*******************************************************************************
+    270          * Function Name  : Unconfigure_All
+    271          * Description    : set all the RCC data to the default values 
+    272          *                  configure all the GPIO as input
+    273          * Input          : None
+    274          * Output         : None
+    275          * Return         : None
+    276          *******************************************************************************/
+    277          static void Unconfigure_All(void)
+    278          {
+    279          	//RCC_DeInit();
+    280          
+    281          	/* RCC configuration */
+    282          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ALL, DISABLE);
+    283          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_ALL, DISABLE);
+    284          
+    285          	GPIO_AllAinConfig();
+    286          }
+    287          
+    288          
+    289          /*******************************************************************************
+    290          * Function Name  : GPIO_AllAinConfig
+    291          * Description    : Configure all GPIO port pins in Analog Input mode 
+    292          *                  (floating input trigger OFF)
+    293          * Input          : None
+    294          * Output         : None
+    295          * Return         : None
+    296          *******************************************************************************/
+    297          static void GPIO_AllAinConfig(void)
+    298          {
+    299          	GPIO_InitTypeDef GPIO_InitStructure;
+    300          
+    301          	/* Configure all GPIO port pins in Analog Input mode (floating input trigger OFF) */
+    302          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
+    303          	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+    304          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    305          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+    306          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    307          	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    308          	GPIO_Init(GPIOD, &GPIO_InitStructure);
+    309          	GPIO_Init(GPIOE, &GPIO_InitStructure);
+    310          }
+    311          
+    312          /************************************************
+    313          * Function Name  : EnterLowPowerMode()
+    314          ************************************************/
+    315          void EnterLowPowerMode(void)
+    316          {
+    317          	//GPIO_InitTypeDef GPIO_InitStructure;
+    318          	BT816_enter_sleep();
+    319          	stop_real_timer();
+    320          
+    321          	//但是需要开启PWR模块的时钟
+    322          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE); // Enable PWR clock
+    323          
+    324          	// enable Debug in Stop mode
+    325          	//DBGMCU->CR |= DBGMCU_CR_DBG_STOP;
+    326          	
+    327          	//进入低功耗模式
+    328          	EXTI_ClearFlag(0xffff);
+    329          	PWR_EnterSTOPMode(PWR_Regulator_ON, PWR_STOPEntry_WFI);
+    330          }
+    331          
+    332          /************************************************
+    333          * Function Name  : ExitLowPowerMode()
+    334          ************************************************/
+    335          void ExitLowPowerMode(void)
+    336          {
+    337          	//GPIO_InitTypeDef GPIO_InitStructure;
+    338          	//重新配置时钟
+    339          	RCC_Configuration();
+    340          	BT816_wakeup();
+    341          	start_real_timer();
+    342          }
+    343          
+    344          //关闭某一个中断
+    345           void NVIC_DisableIRQ(unsigned char	irq_channel)
+    346          {
+    347          	NVIC_InitTypeDef							NVIC_InitStructure;
+    348          	/* Enable the TIM3 Interrupt */
+    349          	NVIC_InitStructure.NVIC_IRQChannel			= irq_channel;
+    350          	NVIC_InitStructure.NVIC_IRQChannelCmd		= DISABLE;
+    351          	NVIC_Init(&NVIC_InitStructure);
+    352          }
+    353          
+    354          //使能某一个中断
+    355           void NVIC_EnableIRQ(unsigned char	irq_channel)
+    356          {
+    357          	NVIC_InitTypeDef							NVIC_InitStructure;
+    358          	/* Enable the TIM3 Interrupt */
+    359          	NVIC_InitStructure.NVIC_IRQChannel			= irq_channel;
+    360          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    361          	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 0;
+    362          	NVIC_InitStructure.NVIC_IRQChannelCmd		= ENABLE;
+    363          	NVIC_Init(&NVIC_InitStructure);
+    364          }
+    365          
+    366          
+    367          
+    368          /*******************************************************************************
+    369          * Function Name  : assert_failed
+    370          * Description    : Reports the name of the source file and the source line number
+    371          *                  where the assert_param error has occurred.
+    372          * Input          : - file: pointer to the source file name
+    373          *                  - line: assert_param error line source number
+    374          * Output         : None
+    375          * Return         : None
+    376          *******************************************************************************/
+    377          
+    378          //void assert_failed(u8* file, u32 line)
+    379          //{ 
+    380          /* User can add his own implementation to report the file name and line number,
+    381          ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    382          
+    383          /* Infinite loop */
+    384          //while (1)
+    385          //{
+    386          //}
+    387          //}
+    388          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+    389          
+
+   Maximum stack usage in bytes:
+
+     Function          .cstack
+     --------          -------
+     EnterLowPowerMode      8
+     ExitLowPowerMode       8
+     GPIO_AllAinConfig      8
+     NVIC_DisableIRQ        8
+     NVIC_EnableIRQ         8
+     RCC_Configuration      8
+     Unconfigure_All        8
+     enter_u_disk_mode      8
+     main                   8
+     system_error_tip       0
+
+
+   Section sizes:
+
+     Function/Label                         Bytes
+     --------------                         -----
+     HSEStartUpStatus                          1
+     system_error_tip                          2
+     enter_u_disk_mode                        72
+     main                                    204
+     RCC_Configuration                       136
+     Unconfigure_All                          32
+     GPIO_AllAinConfig                        80
+     EnterLowPowerMode                        38
+     ExitLowPowerMode                         16
+     NVIC_DisableIRQ                          20
+     NVIC_EnableIRQ                           32
+     ??DataTable5                              4
+     ??DataTable6                              4
+     ?<Constant "BTPrinter startup...\r\n">   24
+     ?<Constant "HSE OK!\r\n">                12
+     ?<Constant "HSE Failed!\r\n">            16
+
+ 
+   1 byte  in section .bss
+  52 bytes in section .rodata
+ 640 bytes in section .text
+ 
+ 640 bytes of CODE  memory
+  52 bytes of CONST memory
+   1 byte  of DATA  memory
+
+Errors: none
+Warnings: none

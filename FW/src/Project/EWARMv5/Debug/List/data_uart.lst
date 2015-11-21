@@ -1,0 +1,168 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:05 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\Drivers\data_uart.c                 #
+#    Command line =  "E:\BT Printer\FW\src\Drivers\data_uart.c" -D DEBUG_VER  #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\data_uar #
+#                    t.lst                                                    #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\data_uart #
+#                    .o                                                       #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\Drivers\data_uart.c
+      1          /**
+      2           * @file data_uart.c
+      3           * @brief 
+      4           *			串口5的驱动，系统提供给外部的串口，开发阶段可以用于调试
+      5           * @version V0.0.1
+      6           * @author kent.zhou
+      7           * @date 2015年11月12日
+      8           * @note
+      9           *
+     10           * @copy
+     11           *
+     12           * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     13           * 本公司以外的项目。本司保留一切追究权利。
+     14           *
+     15           * <h1><center>&copy; COPYRIGHT 2015 heroje</center></h1>
+     16           */
+     17          /* Private include -----------------------------------------------------------*/
+     18          #include "stm32f10x_lib.h"
+     19          #include <stdio.h>
+     20          #include <stdlib.h>
+     21          #include <string.h>
+     22          #include "data_uart.h"
+     23          
+     24          /* Private typedef -----------------------------------------------------------*/
+     25          /* Private define ------------------------------------------------------------*/
+     26          
+     27          /**
+     28          * @brief 初始化数据串口
+     29          */
+     30          void data_uart_init(void)
+     31          {
+     32          	USART_InitTypeDef						USART_InitStructure;
+     33          	GPIO_InitTypeDef						GPIO_InitStructure;
+     34          	
+     35          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART5, ENABLE);
+     36          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD, ENABLE);
+     37          
+     38          	/* Configure UART5 Tx (PC.12) as alternate function push-pull */
+     39          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_12;
+     40          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+     41          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+     42          	GPIO_Init(GPIOC, &GPIO_InitStructure);
+     43          	
+     44          	/* Configure UART5 Rx (PD.02) as input floating */
+     45          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
+     46          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+     47          	GPIO_Init(GPIOD, &GPIO_InitStructure);
+     48          	
+     49          	/* 设置串口参数								*/
+     50          	USART_InitStructure.USART_BaudRate		= 115200;
+     51          	USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+     52          	USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+     53          	USART_InitStructure.USART_Parity		= USART_Parity_No;
+     54          	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+     55          	USART_InitStructure.USART_Mode			= USART_Mode_Tx;
+     56          	USART_Init(UART5, &USART_InitStructure);
+     57          
+     58          	USART_Cmd(UART5, ENABLE);	
+     59          }
+     60          
+     61          /**
+     62           * @brief	发送一个字节
+     63           */
+     64          void data_uart_sendbyte(unsigned char data)
+     65          {
+     66          	USART_SendData(UART5, (unsigned short)data);
+     67          }
+     68          
+     69          /**
+     70           * @brief	接收一个字节
+     71           */
+     72          unsigned char uart_rec_byte(void)
+     73          {
+     74          	int	i = 0;
+     75          	while((USART_GetFlagStatus(UART5,USART_FLAG_RXNE)== RESET)&&(i<400000))
+     76          	{
+     77          		i++;
+     78          	}
+     79          	if (i == 400000) 
+     80          	{
+     81          		return 0x55;
+     82          	}
+     83          	return  USART_ReceiveData(UART5) & 0xFF;              /* Read one byte from the receive data register         */
+     84          }
+     85          
+     86          /**
+     87          * @brief 实现此函数可以利用系统函数printf,方便调试时格式输出调试信息
+     88          */
+     89          int fputc(int ch, FILE *f)
+     90          {
+     91          	//ENABLE_DATA_UART();
+     92          	/* Write a character to the USART */
+     93          	
+     94          	USART_SendData(UART5, (u8) ch);
+     95          	
+     96          	while(USART_GetFlagStatus(UART5, USART_FLAG_TXE) == RESET)
+     97          	{
+     98          	}
+     99          	//	DISABLE_DATA_UART;
+    100          	return ch;        
+    101          }
+
+   Maximum stack usage in bytes:
+
+     Function           .cstack
+     --------           -------
+     data_uart_init         24
+     data_uart_sendbyte      8
+     fputc                   8
+     uart_rec_byte           8
+
+
+   Section sizes:
+
+     Function/Label     Bytes
+     --------------     -----
+     data_uart_init      136
+     data_uart_sendbyte   16
+     uart_rec_byte        52
+     fputc                32
+     ??DataTable6          4
+
+ 
+ 240 bytes in section .text
+ 
+ 240 bytes of CODE memory
+
+Errors: none
+Warnings: none

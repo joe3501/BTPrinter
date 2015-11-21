@@ -1,0 +1,189 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     17/Nov/2015  15:49:49 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_sil.c                   #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_sil.c" -D DEBUG_VER    #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_sil. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_sil.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_sil.c
+      1          /******************** (C) COPYRIGHT 2010 STMicroelectronics ********************
+      2          * File Name          : usb_sil.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V3.1.1
+      5          * Date               : 04/07/2010
+      6          * Description        : Simplified Interface Layer for Global Initialization and 
+      7          *                      Endpoint Rea/Write operations.
+      8          ********************************************************************************
+      9          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+     10          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     11          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     12          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     13          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     14          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     15          *******************************************************************************/
+     16          
+     17          /* Includes ------------------------------------------------------------------*/
+     18          #include "usb_lib.h"
+     19          
+     20          /* Private typedef -----------------------------------------------------------*/
+     21          /* Private define ------------------------------------------------------------*/
+     22          /* Private macro -------------------------------------------------------------*/
+     23          /* Private variables ---------------------------------------------------------*/
+     24          /* Extern variables ----------------------------------------------------------*/
+     25          /* Private function prototypes -----------------------------------------------*/
+     26          /* Private functions ---------------------------------------------------------*/
+     27          
+     28          /*******************************************************************************
+     29          * Function Name  : USB_SIL_Init
+     30          * Description    : Initialize the USB Device IP and the Endpoint 0.
+     31          * Input          : None.
+     32          * Output         : None.
+     33          * Return         : Status.
+     34          *******************************************************************************/
+     35          u32 USB_SIL_Init(void)
+     36          {
+     37          #ifndef STM32F10X_CL
+     38            
+     39            /* USB interrupts initialization */
+     40            /* clear pending interrupts */
+     41            _SetISTR(0);
+     42            wInterrupt_Mask = IMR_MSK;
+     43            /* set interrupts mask */
+     44            _SetCNTR(wInterrupt_Mask);
+     45            
+     46          #else
+     47            
+     48            /* Perform OTG Device initialization procedure (including EP0 init) */
+     49            OTG_DEV_Init();
+     50            
+     51          #endif /* STM32F10X_CL */
+     52          
+     53            return 0;
+     54          }
+     55          
+     56          /*******************************************************************************
+     57          * Function Name  : USB_SIL_Write
+     58          * Description    : Write a buffer of data to a selected endpoint.
+     59          * Input          : - bEpAddr: The address of the non control endpoint.
+     60          *                  - pBufferPointer: The pointer to the buffer of data to be written
+     61          *                    to the endpoint.
+     62          *                  - wBufferSize: Number of data to be written (in bytes).
+     63          * Output         : None.
+     64          * Return         : Status.
+     65          *******************************************************************************/
+     66          u32 USB_SIL_Write(u8 bEpAddr, u8* pBufferPointer, u32 wBufferSize)
+     67          {
+     68          #ifndef STM32F10X_CL
+     69          
+     70            /* Use the memory interface function to write to the selected endpoint */
+     71            UserToPMABufferCopy(pBufferPointer, GetEPTxAddr(bEpAddr & 0x7F), wBufferSize);
+     72          
+     73            /* Update the data length in the control register */
+     74            SetEPTxCount((bEpAddr & 0x7F), wBufferSize);
+     75            
+     76          #else
+     77            
+     78             /* Use the PCD interface layer function to write to the selected endpoint */
+     79             OTGD_FS_PCD_EP_Write (bEpAddr, pBufferPointer, wBufferSize); 
+     80             
+     81          #endif /* STM32F10X_CL */
+     82          
+     83            return 0;
+     84          }
+     85          
+     86          /*******************************************************************************
+     87          * Function Name  : USB_SIL_Read
+     88          * Description    : Write a buffer of data to a selected endpoint.
+     89          * Input          : - bEpAddr: The address of the non control endpoint.
+     90          *                  - pBufferPointer: The pointer to which will be saved the 
+     91          *                     received data buffer.
+     92          * Output         : None.
+     93          * Return         : Number of received data (in Bytes).
+     94          *******************************************************************************/
+     95          u32 USB_SIL_Read(u8 bEpAddr, u8* pBufferPointer)
+     96          {
+     97            u32 DataLength = 0;
+     98          
+     99          #ifndef STM32F10X_CL
+    100          
+    101            /* Get the number of received data on the selected Endpoint */
+    102            DataLength = GetEPRxCount(bEpAddr & 0x7F);
+    103            
+    104            /* Use the memory interface function to write to the selected endpoint */
+    105            PMAToUserBufferCopy(pBufferPointer, GetEPRxAddr(bEpAddr & 0x7F), DataLength);
+    106          
+    107          #else
+    108            
+    109            USB_OTG_EP *ep;
+    110          
+    111            /* Get the structure pointer of the selected Endpoint */
+    112            ep = OTGD_FS_PCD_GetOutEP(bEpAddr);
+    113            
+    114            /* Get the number of received data */
+    115            DataLength = ep->xfer_len;
+    116            
+    117            /* Use the PCD interface layer function to read the selected endpoint */
+    118            OTGD_FS_PCD_EP_Read (bEpAddr, pBufferPointer, DataLength);
+    119            
+    120          #endif /* STM32F10X_CL */
+    121          
+    122            /* Return the number of received data */
+    123            return DataLength;
+    124          }
+    125          
+    126          /******************* (C) COPYRIGHT 2010 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function      .cstack
+     --------      -------
+     USB_SIL_Init       0
+     USB_SIL_Read      16
+     USB_SIL_Write     16
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     USB_SIL_Init     40
+     USB_SIL_Write    46
+     USB_SIL_Read     44
+
+ 
+ 130 bytes in section .text
+ 
+ 130 bytes of CODE memory
+
+Errors: none
+Warnings: none

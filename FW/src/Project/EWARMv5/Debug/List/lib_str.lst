@@ -1,0 +1,2932 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     30/Sep/2015  17:04:46 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\uCOS\uC-LIB\lib_str.c                    #
+#    Command line =  E:\H520B\FW\src\uCOS\uC-LIB\lib_str.c -D DEBUG_VER -lcN  #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o           #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\lib_str.lst   #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\lib_str.o      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\uCOS\uC-LIB\lib_str.c
+      1          /*
+      2          *********************************************************************************************************
+      3          *                                               uC/LIB
+      4          *                                       CUSTOM LIBRARY MODULES
+      5          *
+      6          *                          (c) Copyright 2004-2008; Micrium, Inc.; Weston, FL
+      7          *
+      8          *               All rights reserved.  Protected by international copyright laws.
+      9          *
+     10          *               uC/LIB is provided in source form for FREE evaluation, for educational
+     11          *               use or peaceful research.  If you plan on using uC/LIB in a commercial
+     12          *               product you need to contact Micrium to properly license its use in your
+     13          *               product.  We provide ALL the source code for your convenience and to
+     14          *               help you experience uC/LIB.  The fact that the source code is provided
+     15          *               does NOT mean that you can use it without paying a licensing fee.
+     16          *
+     17          *               Knowledge of the source code may NOT be used to develop a similar product.
+     18          *
+     19          *               Please help us continue to provide the Embedded community with the finest
+     20          *               software available.  Your honesty is greatly appreciated.
+     21          *********************************************************************************************************
+     22          */
+     23          
+     24          /*
+     25          *********************************************************************************************************
+     26          *
+     27          *                                       ASCII STRING MANAGEMENT
+     28          *
+     29          * Filename      : lib_str.c
+     30          * Version       : V1.26
+     31          * Programmer(s) : ITJ
+     32          *                 BAN
+     33          *                 JDH
+     34          *********************************************************************************************************
+     35          * Note(s)       : (1) NO compiler-supplied standard library functions are used in library or product software.
+     36          *
+     37          *                     (a) ALL standard library functions are implemented in the custom library modules :
+     38          *
+     39          *                         (1) \<Custom Library Directory>\lib*.*
+     40          *
+     41          *                         (2) \<Custom Library Directory>\Ports\<cpu>\<compiler>\lib*_a.*
+     42          *
+     43          *                               where
+     44          *                                       <Custom Library Directory>      directory path for custom library software
+     45          *                                       <cpu>                           directory name for specific processor (CPU)
+     46          *                                       <compiler>                      directory name for specific compiler
+     47          *
+     48          *                     (b) Product-specific library functions are implemented in individual products.
+     49          *
+     50          *********************************************************************************************************
+     51          * Notice(s)     : (1) The Institute of Electrical and Electronics Engineers and The Open Group, have given 
+     52          *                     us permission to reprint portions of their documentation.  Portions of this text are 
+     53          *                     reprinted and reproduced in electronic form from the IEEE Std 1003.1, 2004 Edition, 
+     54          *                     Standard for Information Technology -- Portable Operating System Interface (POSIX), 
+     55          *                     The Open Group Base Specifications Issue 6, Copyright (C) 2001-2004 by the Institute 
+     56          *                     of Electrical and Electronics Engineers, Inc and The Open Group.  In the event of any 
+     57          *                     discrepancy between these versions and the original IEEE and The Open Group Standard, 
+     58          *                     the original IEEE and The Open Group Standard is the referee document.  The original 
+     59          *                     Standard can be obtained online at http://www.opengroup.org/unix/online.html.
+     60          *********************************************************************************************************
+     61          */
+     62          
+     63          
+     64          /*
+     65          *********************************************************************************************************
+     66          *                                            INCLUDE FILES
+     67          *********************************************************************************************************
+     68          */
+     69          
+     70          #define    LIB_STR_MODULE
+     71          #include  <lib_str.h>
+     72          
+     73          
+     74          /*$PAGE*/
+     75          /*
+     76          *********************************************************************************************************
+     77          *                                            LOCAL DEFINES
+     78          *********************************************************************************************************
+     79          */
+     80          
+     81          
+     82          /*
+     83          *********************************************************************************************************
+     84          *                                           LOCAL CONSTANTS
+     85          *********************************************************************************************************
+     86          */
+     87          
+     88          
+     89          /*
+     90          *********************************************************************************************************
+     91          *                                          LOCAL DATA TYPES
+     92          *********************************************************************************************************
+     93          */
+     94          
+     95          
+     96          /*
+     97          *********************************************************************************************************
+     98          *                                            LOCAL TABLES
+     99          *********************************************************************************************************
+    100          */
+    101          
+    102          static  const  CPU_INT32U  Str_MultOvfThTbl_Int32U[] = {
+    103             (CPU_INT32U) DEF_INT_32U_MAX_VAL,                /*                Invalid base  0.      */
+    104            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  1)),         /*                Invalid base  1.      */
+    105            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  2)),         /* 32-bit mult ovf th for base  2.      */
+    106            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  3)),         /* 32-bit mult ovf th for base  3.      */
+    107            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  4)),         /* 32-bit mult ovf th for base  4.      */
+    108            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  5)),         /* 32-bit mult ovf th for base  5.      */
+    109            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  6)),         /* 32-bit mult ovf th for base  6.      */
+    110            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  7)),         /* 32-bit mult ovf th for base  7.      */
+    111            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  8)),         /* 32-bit mult ovf th for base  8.      */
+    112            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL /  9)),         /* 32-bit mult ovf th for base  9.      */
+    113            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 10)),         /* 32-bit mult ovf th for base 10.      */
+    114            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 11)),         /* 32-bit mult ovf th for base 11.      */
+    115            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 12)),         /* 32-bit mult ovf th for base 12.      */
+    116            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 13)),         /* 32-bit mult ovf th for base 13.      */
+    117            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 14)),         /* 32-bit mult ovf th for base 14.      */
+    118            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 15)),         /* 32-bit mult ovf th for base 15.      */
+    119            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 16)),         /* 32-bit mult ovf th for base 16.      */
+    120            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 17)),         /* 32-bit mult ovf th for base 17.      */
+    121            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 18)),         /* 32-bit mult ovf th for base 18.      */
+    122            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 19)),         /* 32-bit mult ovf th for base 19.      */
+    123            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 20)),         /* 32-bit mult ovf th for base 20.      */
+    124            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 21)),         /* 32-bit mult ovf th for base 21.      */
+    125            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 22)),         /* 32-bit mult ovf th for base 22.      */
+    126            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 23)),         /* 32-bit mult ovf th for base 23.      */
+    127            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 24)),         /* 32-bit mult ovf th for base 24.      */
+    128            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 25)),         /* 32-bit mult ovf th for base 25.      */
+    129            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 26)),         /* 32-bit mult ovf th for base 26.      */
+    130            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 27)),         /* 32-bit mult ovf th for base 27.      */
+    131            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 28)),         /* 32-bit mult ovf th for base 28.      */
+    132            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 29)),         /* 32-bit mult ovf th for base 29.      */
+    133            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 30)),         /* 32-bit mult ovf th for base 30.      */
+    134            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 31)),         /* 32-bit mult ovf th for base 31.      */
+    135            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 32)),         /* 32-bit mult ovf th for base 32.      */
+    136            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 33)),         /* 32-bit mult ovf th for base 33.      */
+    137            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 34)),         /* 32-bit mult ovf th for base 34.      */
+    138            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 35)),         /* 32-bit mult ovf th for base 35.      */
+    139            ((CPU_INT32U)(DEF_INT_32U_MAX_VAL / 36))          /* 32-bit mult ovf th for base 36.      */
+    140          };
+    141          
+    142          
+    143          /*
+    144          *********************************************************************************************************
+    145          *                                       LOCAL GLOBAL VARIABLES
+    146          *********************************************************************************************************
+    147          */
+    148          
+    149          
+    150          /*$PAGE*/
+    151          /*
+    152          *********************************************************************************************************
+    153          *                                      LOCAL FUNCTION PROTOTYPES
+    154          *********************************************************************************************************
+    155          */
+    156          
+    157          static  CPU_CHAR    *Str_FmtNbr_Int32  (CPU_INT32U     nbr,
+    158                                                  CPU_INT08U     nbr_dig,
+    159                                                  CPU_INT08U     nbr_base,
+    160                                                  CPU_BOOLEAN    nbr_neg,
+    161                                                  CPU_BOOLEAN    lead_zeros,
+    162                                                  CPU_BOOLEAN    lower_case,
+    163                                                  CPU_BOOLEAN    nul,
+    164                                                  CPU_CHAR      *pstr);
+    165          
+    166          static  CPU_INT32U   Str_ParseNbr_Int32(CPU_CHAR      *pstr,
+    167                                                  CPU_CHAR     **pstr_next,
+    168                                                  CPU_INT08U     nbr_base,
+    169                                                  CPU_BOOLEAN    nbr_signed,
+    170                                                  CPU_BOOLEAN   *pnbr_neg);
+    171          
+    172          
+    173          /*
+    174          *********************************************************************************************************
+    175          *                                     LOCAL CONFIGURATION ERRORS
+    176          *********************************************************************************************************
+    177          */
+    178          
+    179          
+    180          /*$PAGE*/
+    181          /*
+    182          *********************************************************************************************************
+    183          *                                              Str_Len()
+    184          *
+    185          * Description : Calculate length of a string.
+    186          *
+    187          * Argument(s) : pstr        Pointer to string (see Note #1).
+    188          *
+    189          * Return(s)   : Length of string; number of characters in string before terminating NULL character.
+    190          *
+    191          * Caller(s)   : Application.
+    192          *
+    193          * Note(s)     : (1) String buffer NOT modified.
+    194          *
+    195          *               (2) String length calculation terminates when :
+    196          *
+    197          *                   (a) String pointer points to NULL.
+    198          *                       (1) String buffer overlaps with NULL address.
+    199          *                       (2) String length calculated for string up to but NOT beyond or including
+    200          *                           the NULL address.
+    201          *
+    202          *                   (b) Terminating NULL character found.
+    203          *                       (1) String length calculated for string up to but NOT           including
+    204          *                           the NULL character.
+    205          *********************************************************************************************************
+    206          */
+    207          
+    208          CPU_SIZE_T  Str_Len (CPU_CHAR  *pstr)
+    209          {
+    210              CPU_SIZE_T  len;
+    211          
+    212          
+    213              len = 0;
+    214              while (( pstr != (CPU_CHAR *)0) &&                          /* Calc str len until NULL ptr (see Note #2a) ...       */
+    215                     (*pstr != (CPU_CHAR  )0)) {                          /* ... or NULL char found      (see Note #2b).          */
+    216                  len++;
+    217                  pstr++;
+    218              }
+    219          
+    220              return (len);
+    221          }
+    222          
+    223          
+    224          /*$PAGE*/
+    225          /*
+    226          *********************************************************************************************************
+    227          *                                             Str_Copy()
+    228          *
+    229          * Description : Copy source string to destination string buffer.
+    230          *
+    231          * Argument(s) : pdest       Pointer to destination string buffer to receive source string copy (see Note #1).
+    232          *
+    233          *               psrc        Pointer to source      string to copy into destination string buffer.
+    234          *
+    235          * Return(s)   : Pointer to destination string, if NO errors (see Note #2).
+    236          *
+    237          *               Pointer to NULL,               otherwise.
+    238          *
+    239          * Caller(s)   : Application.
+    240          *
+    241          * Note(s)     : (1) Destination buffer size NOT validated; buffer overruns MUST be prevented by caller.
+    242          *
+    243          *                   (a) Destination buffer size MUST be large enough to accommodate the entire source
+    244          *                       string size including the terminating NULL character.
+    245          *
+    246          *               (2) String copy terminates when :
+    247          *
+    248          *                   (a) Destination/Source string pointer(s) are passed NULL pointers.
+    249          *                       (1) No string copy performed; NULL pointer returned.
+    250          *
+    251          *                   (b) Destination/Source string pointer(s) points to NULL.
+    252          *                       (1) String buffer(s) overlap with NULL address.
+    253          *                       (2) Source string copied into destination string buffer up to but NOT beyond or
+    254          *                           including the NULL address; destination string buffer properly terminated
+    255          *                           with NULL character.
+    256          *
+    257          *                   (c) Source string's terminating NULL character found.
+    258          *                       (1) Entire source string copied into destination string buffer.
+    259          *********************************************************************************************************
+    260          */
+    261          
+    262          CPU_CHAR  *Str_Copy (CPU_CHAR  *pdest,
+    263                               CPU_CHAR  *psrc)
+    264          {
+    265              pdest = Str_Copy_N((CPU_CHAR *)pdest,
+    266                                 (CPU_CHAR *)psrc,
+    267                                 (CPU_SIZE_T)DEF_INT_CPU_U_MAX_VAL);
+    268          
+    269              return (pdest);
+    270          }
+    271          
+    272          
+    273          /*$PAGE*/
+    274          /*
+    275          *********************************************************************************************************
+    276          *                                            Str_Copy_N()
+    277          *
+    278          * Description : Copy source string to destination string buffer, up to a maximum number of characters.
+    279          *
+    280          * Argument(s) : pdest       Pointer to destination string buffer to receive source string copy (see Note #1).
+    281          *
+    282          *               psrc        Pointer to source      string to copy into destination string buffer.
+    283          *
+    284          *               len_max     Maximum number of characters to copy (see Note #2d).
+    285          *
+    286          * Return(s)   : Pointer to destination string, if NO errors (see Note #2).
+    287          *
+    288          *               Pointer to NULL,               otherwise.
+    289          *
+    290          * Caller(s)   : Application.
+    291          *
+    292          * Note(s)     : (1) Destination buffer size NOT validated; buffer overruns MUST be prevented by caller.
+    293          *
+    294          *                   (a) Destination buffer size MUST be large enough to accommodate the entire source
+    295          *                       string size including the terminating NULL character.
+    296          *
+    297          *               (2) String copy terminates when :
+    298          *
+    299          *                   (a) Destination/Source string pointer(s) are passed NULL pointers.
+    300          *                       (1) No string copy performed; NULL pointer returned.
+    301          *
+    302          *                   (b) Destination/Source string pointer(s) points to NULL.
+    303          *                       (1) String buffer(s) overlap with NULL address.
+    304          *                       (2) Source string copied into destination string buffer up to but NOT beyond or
+    305          *                           including the NULL address; destination string buffer properly terminated
+    306          *                           with NULL character.
+    307          *
+    308          *                   (c) Source string's terminating NULL character found.
+    309          *                       (1) Entire source string copied into destination string buffer.
+    310          *
+    311          *                   (d) 'len_max' number of characters copied.
+    312          *                       (1) 'len_max' number of characters does NOT include the terminating NULL character.
+    313          *
+    314          *                           See also Note #1a.
+    315          *********************************************************************************************************
+    316          */
+    317          
+    318          CPU_CHAR  *Str_Copy_N (CPU_CHAR    *pdest,
+    319                                 CPU_CHAR    *psrc,
+    320                                 CPU_SIZE_T   len_max)
+    321          {
+    322              CPU_CHAR    *pstr;
+    323              CPU_CHAR    *pstr_next;
+    324              CPU_SIZE_T   len_copy;
+    325          
+    326                                                                          /* Rtn NULL if str ptr(s) NULL      (see Note #2a).     */
+    327              if (pdest == (CPU_CHAR *)0) {
+    328                  return  ((CPU_CHAR *)0);
+    329              }
+    330              if (psrc  == (CPU_CHAR *)0) {
+    331                  return  ((CPU_CHAR *)0);
+    332              }
+    333          
+    334              if (len_max == (CPU_SIZE_T)0) {                             /* Rtn NULL if copy len equals zero (see Note #2d).     */
+    335                  return  ((CPU_CHAR *)0);
+    336              }
+    337          
+    338          
+    339              pstr      = pdest;
+    340              pstr_next = pstr;
+    341              pstr_next++;
+    342              len_copy  = 0;
+    343          
+    344              while (( pstr_next != (CPU_CHAR *)0) &&                     /* Copy str until NULL ptr(s)  [see Note #2b]  ...      */
+    345                     ( psrc      != (CPU_CHAR *)0) &&
+    346                     (*psrc      != (CPU_CHAR  )0) &&                     /* ... or NULL char found      (see Note #2c); ...      */
+    347                     ( len_copy  <  (CPU_SIZE_T)len_max)) {               /* ... or max nbr chars copied (see Note #2d).          */
+    348                 *pstr = *psrc;
+    349                  pstr++;
+    350                  pstr_next++;
+    351                  psrc++;
+    352                  len_copy++;
+    353              }
+    354          
+    355             *pstr = (CPU_CHAR)0;                                         /* Append NULL char (see Note #2b2).                    */
+    356          
+    357          
+    358              return (pdest);
+    359          }
+    360          
+    361          
+    362          /*$PAGE*/
+    363          /*
+    364          *********************************************************************************************************
+    365          *                                              Str_Cat()
+    366          *
+    367          * Description : Append concatenation string to destination string.
+    368          *
+    369          * Argument(s) : pdest       Pointer to destination   string to append concatenation  string (see Note #1).
+    370          *
+    371          *               pstr_cat    Pointer to concatenation string to append to destination string.
+    372          *
+    373          * Return(s)   : Pointer to destination string, if NO errors (see Note #2).
+    374          *
+    375          *               Pointer to NULL,               otherwise.
+    376          *
+    377          * Caller(s)   : Application.
+    378          *
+    379          * Note(s)     : (1) Destination string buffer size NOT validated; buffer overruns MUST be prevented by caller.
+    380          *
+    381          *                   (a) Destination buffer size MUST be large enough to accommodate the entire concatenated
+    382          *                       string size including the terminating NULL character.
+    383          *
+    384          *               (2) String concatenation terminates when :
+    385          *
+    386          *                   (a) Destination/Concatenation string pointer(s) are passed NULL pointers.
+    387          *                       (1) No string concatenation performed; NULL pointer returned.
+    388          *
+    389          *                   (b) Destination string overlaps with NULL address.
+    390          *                       (1) No string concatenation performed; NULL pointer returned.
+    391          *
+    392          *                   (c) Destination/Concatenation string pointer(s) points to NULL.
+    393          *                       (1) String buffer(s) overlap with NULL address.
+    394          *                       (2) Concatenation string appended into destination string buffer up to but NOT
+    395          *                           beyond or including the NULL address; destination string buffer properly
+    396          *                           terminated with NULL character.
+    397          *
+    398          *                   (d) Concatenation string's terminating NULL character found.
+    399          *                       (1) Entire concatenation string appended to destination string.
+    400          *********************************************************************************************************
+    401          */
+    402          
+    403          CPU_CHAR  *Str_Cat (CPU_CHAR  *pdest,
+    404                              CPU_CHAR  *pstr_cat)
+    405          {
+    406              pdest = Str_Cat_N((CPU_CHAR *)pdest,
+    407                                (CPU_CHAR *)pstr_cat,
+    408                                (CPU_SIZE_T)DEF_INT_CPU_U_MAX_VAL);
+    409          
+    410              return (pdest);
+    411          }
+    412          
+    413          
+    414          /*$PAGE*/
+    415          /*
+    416          *********************************************************************************************************
+    417          *                                             Str_Cat_N()
+    418          *
+    419          * Description : Append concatenation string to destination string, up to a maximum number of characters.
+    420          *
+    421          * Argument(s) : pdest       Pointer to destination   string to append concatenation  string (see Note #1).
+    422          *
+    423          *               pstr_cat    Pointer to concatenation string to append to destination string.
+    424          *
+    425          *               len_max     Maximum number of characters to concatenate (see Note #2e).
+    426          *
+    427          * Return(s)   : Pointer to destination string, if NO errors (see Note #2).
+    428          *
+    429          *               Pointer to NULL,               otherwise.
+    430          *
+    431          * Caller(s)   : Application.
+    432          *
+    433          * Note(s)     : (1) Destination string buffer size NOT validated; buffer overruns MUST be prevented by caller.
+    434          *
+    435          *                   (a) Destination buffer size MUST be large enough to accommodate the entire concatenated
+    436          *                       string size including the terminating NULL character.
+    437          *
+    438          *               (2) String concatenation terminates when :
+    439          *
+    440          *                   (a) Destination/Concatenation string pointer(s) are passed NULL pointers.
+    441          *                       (1) No string concatenation performed; NULL pointer returned.
+    442          *
+    443          *                   (b) Destination string overlaps with NULL address.
+    444          *                       (1) No string concatenation performed; NULL pointer returned.
+    445          *
+    446          *                   (c) Destination/Concatenation string pointer(s) points to NULL.
+    447          *                       (1) String buffer(s) overlap with NULL address.
+    448          *                       (2) Concatenation string appended into destination string buffer up to but NOT
+    449          *                           beyond or including the NULL address; destination string buffer properly
+    450          *                           terminated with NULL character.
+    451          *
+    452          *                   (d) Concatenation string's terminating NULL character found.
+    453          *                       (1) Entire concatenation string appended to destination string.
+    454          *
+    455          *                   (e) 'len_max' number of characters concatenated.
+    456          *                       (1) 'len_max' number of characters does NOT include the terminating NULL character.
+    457          *
+    458          *                           See also Note #1a.
+    459          *********************************************************************************************************
+    460          */
+    461          /*$PAGE*/
+    462          CPU_CHAR  *Str_Cat_N (CPU_CHAR    *pdest,
+    463                                CPU_CHAR    *pstr_cat,
+    464                                CPU_SIZE_T   len_max)
+    465          {
+    466              CPU_CHAR    *pstr;
+    467              CPU_CHAR    *pstr_next;
+    468              CPU_SIZE_T   len_cat;
+    469          
+    470                                                                          /* Rtn NULL if str ptr(s) NULL     (see Note #2a).      */
+    471              if (pdest == (CPU_CHAR *)0) {
+    472                  return  ((CPU_CHAR *)0);
+    473              }
+    474              if (pstr_cat == (CPU_CHAR *)0) {
+    475                  return  ((CPU_CHAR *)0);
+    476              }
+    477          
+    478              if (len_max == (CPU_SIZE_T)0) {                             /* Rtn NULL if cat len equals zero (see Note #2e).      */
+    479                  return  ((CPU_CHAR *)0);
+    480              }
+    481          
+    482          
+    483              pstr = pdest;
+    484              while (( pstr != (CPU_CHAR *)0) &&                          /* Adv to end of cur dest str until NULL ptr ...        */
+    485                     (*pstr != (CPU_CHAR  )0)) {                          /* ... or NULL char found..                             */
+    486                  pstr++;
+    487              }
+    488              if (pstr == (CPU_CHAR *)0) {                                /* If NULL str overrun, rtn NULL (see Note #2b).        */
+    489                  return ((CPU_CHAR *)0);
+    490              }
+    491          
+    492              pstr_next = pstr;
+    493              pstr_next++;
+    494              len_cat   = 0;
+    495          
+    496              while (( pstr_next != (CPU_CHAR *)0) &&                     /* Cat str until NULL ptr(s)  [see Note #2c]  ...       */
+    497                     ( pstr_cat  != (CPU_CHAR *)0) &&
+    498                     (*pstr_cat  != (CPU_CHAR  )0) &&                     /* ... or NULL char found     (see Note #2d); ...       */
+    499                     ( len_cat   <  (CPU_SIZE_T)len_max)) {               /* ... or max nbr chars cat'd (see Note #2d).           */
+    500                 *pstr = *pstr_cat;
+    501                  pstr++;
+    502                  pstr_next++;
+    503                  pstr_cat++;
+    504                  len_cat++;
+    505              }
+    506          
+    507             *pstr = (CPU_CHAR)0;                                         /* Append NULL char (see Note #2c2).                    */
+    508          
+    509          
+    510              return (pdest);
+    511          }
+    512          
+    513          
+    514          /*$PAGE*/
+    515          /*
+    516          *********************************************************************************************************
+    517          *                                              Str_Cmp()
+    518          *
+    519          * Description : Determine if two strings are identical.
+    520          *
+    521          * Argument(s) : p1_str      Pointer to first  string (see Note #1).
+    522          *
+    523          *               p2_str      Pointer to second string (see Note #1).
+    524          *
+    525          * Return(s)   : 0,              if strings are identical             (see Notes #3a1A, #3a2A, #3b, & #3d).
+    526          *
+    527          *               Negative value, if 'p1_str' is less    than 'p2_str' (see Notes #3a1B1, #3a2B1, & #3c).
+    528          *
+    529          *               Positive value, if 'p1_str' is greater than 'p2_str' (see Notes #3a1B2, #3a2B2, & #3c).
+    530          *
+    531          *               See also Note #2b.
+    532          *
+    533          * Caller(s)   : Application.
+    534          *
+    535          * Note(s)     : (1) String buffers NOT modified.
+    536          *
+    537          *               (2) (a) IEEE Std 1003.1, 2004 Edition, Section 'strcmp() : DESCRIPTION' states that "the 
+    538          *                       strcmp() function shall compare the string pointed to by s1 to the string pointed 
+    539          *                       to by s2".
+    540          *
+    541          *                   (b) (1) IEEE Std 1003.1, 2004 Edition, Section 'strcmp() : RETURN VALUE' states that 
+    542          *                          "upon successful completion, strncmp() shall return an integer greater than, 
+    543          *                           equal to, or less than 0".
+    544          *
+    545          *                       (2) IEEE Std 1003.1, 2004 Edition, Section 'strcmp() : DESCRIPTION' adds that "the
+    546          *                           sign of a non-zero return value shall be determined by the sign of the difference 
+    547          *                           between the values of the first pair of bytes ... that differ in the strings 
+    548          *                           being compared".
+    549          *
+    550          *               (3) String comparison terminates when :
+    551          *
+    552          *                   (a) (1) (A) BOTH string pointer(s) are passed NULL pointers.
+    553          *                               (1) NULL strings identical; return 0.
+    554          *
+    555          *                           (B) (1) 'p1_str' passed a NULL pointer.
+    556          *                                   (a) Return negative value of character pointed to by 'p2_str'.
+    557          *
+    558          *                               (2) 'p2_str' passed a NULL pointer.
+    559          *                                   (a) Return positive value of character pointed to by 'p1_str'.
+    560          *
+    561          *                       (2) (A) BOTH strings point to NULL.
+    562          *                               (1) Strings overlap with NULL address.
+    563          *                               (2) Strings identical up to but NOT beyond or including the NULL address; 
+    564          *                                   return 0.
+    565          *
+    566          *                           (B) (1) 'p1_str_next' points to NULL.
+    567          *                                   (a) 'p1_str' overlaps with NULL address.
+    568          *                                   (b) Strings compared up to but NOT beyond or including the NULL address.
+    569          *                                   (c) Return negative value of character pointed to by 'p2_str_next'.
+    570          *
+    571          *                               (2) 'p2_str_next' points to NULL.
+    572          *                                   (a) 'p2_str' overlaps with NULL address.
+    573          *                                   (b) Strings compared up to but NOT beyond or including the NULL address.
+    574          *                                   (c) Return positive value of character pointed to by 'p1_str_next'.
+    575          *
+    576          *                   (b) Terminating NULL character found in both strings.
+    577          *                       (1) Strings identical; return 0.
+    578          *                       (2) Only one NULL character test required in conditional since previous condition
+    579          *                           tested character equality.
+    580          *
+    581          *                   (c) Non-matching characters found.
+    582          *                       (1) Return signed-integer difference of the character pointed to by 'p2_str'
+    583          *                           from the character pointed to by 'p1_str'.
+    584          *
+    585          *               (4) Since 16-bit signed arithmetic is performed to calculate a non-identical comparison
+    586          *                   return value, 'CPU_CHAR' native data type size MUST be 8-bit.
+    587          *********************************************************************************************************
+    588          */
+    589          
+    590          CPU_INT16S  Str_Cmp (CPU_CHAR  *p1_str,
+    591                               CPU_CHAR  *p2_str)
+    592          {
+    593              CPU_INT16S  cmp_val;
+    594          
+    595          
+    596              cmp_val = Str_Cmp_N((CPU_CHAR *)p1_str,
+    597                                  (CPU_CHAR *)p2_str,
+    598                                  (CPU_SIZE_T)DEF_INT_CPU_U_MAX_VAL);
+    599          
+    600              return (cmp_val);
+    601          }
+    602          
+    603          
+    604          /*$PAGE*/
+    605          /*
+    606          *********************************************************************************************************
+    607          *                                             Str_Cmp_N()
+    608          *
+    609          * Description : Determine if two strings are identical for up to a maximum number of characters.
+    610          *
+    611          * Argument(s) : p1_str      Pointer to first  string (see Note #1).
+    612          *
+    613          *               p2_str      Pointer to second string (see Note #1).
+    614          *
+    615          *               len_max     Maximum number of characters to compare  (see Note  #3d).
+    616          *
+    617          * Return(s)   : 0,              if strings are identical             (see Notes #3a1A, #3a2A, #3b, & #3d).
+    618          *
+    619          *               Negative value, if 'p1_str' is less    than 'p2_str' (see Notes #3a1B1, #3a2B1, & #3c).
+    620          *
+    621          *               Positive value, if 'p1_str' is greater than 'p2_str' (see Notes #3a1B2, #3a2B2, & #3c).
+    622          *
+    623          *               See also Note #2b.
+    624          *
+    625          * Caller(s)   : Application.
+    626          *
+    627          * Note(s)     : (1) String buffers NOT modified.
+    628          *
+    629          *               (2) (a) IEEE Std 1003.1, 2004 Edition, Section 'strncmp() : DESCRIPTION' states that :
+    630          *
+    631          *                       (1) "The strncmp() function shall compare ... the array pointed to by s1 to the 
+    632          *                            array pointed to by s2" but ...
+    633          *                       (2) "not more than 'n' bytes" of either array.
+    634          *
+    635          *                   (b) (1) IEEE Std 1003.1, 2004 Edition, Section 'strncmp() : RETURN VALUE' states that 
+    636          *                          "upon successful completion, strncmp() shall return an integer greater than, 
+    637          *                           equal to, or less than 0".
+    638          *
+    639          *                       (2) IEEE Std 1003.1, 2004 Edition, Section 'strncmp() : DESCRIPTION' adds that 
+    640          *                          "the sign of a non-zero return value is determined by the sign of the difference 
+    641          *                           between the values of the first pair of bytes ... that differ in the strings 
+    642          *                           being compared".
+    643          *
+    644          *               (3) String comparison terminates when :
+    645          *
+    646          *                   (a) (1) (A) BOTH string pointer(s) are passed NULL pointers.
+    647          *                               (1) NULL strings identical; return 0.
+    648          *
+    649          *                           (B) (1) 'p1_str' passed a NULL pointer.
+    650          *                                   (a) Return negative value of character pointed to by 'p2_str'.
+    651          *
+    652          *                               (2) 'p2_str' passed a NULL pointer.
+    653          *                                   (a) Return positive value of character pointed to by 'p1_str'.
+    654          *
+    655          *                       (2) (A) BOTH strings point to NULL.
+    656          *                               (1) Strings overlap with NULL address.
+    657          *                               (2) Strings identical up to but NOT beyond or including the NULL address; 
+    658          *                                   return 0.
+    659          *
+    660          *                           (B) (1) 'p1_str_next' points to NULL.
+    661          *                                   (a) 'p1_str' overlaps with NULL address.
+    662          *                                   (b) Strings compared up to but NOT beyond or including the NULL address.
+    663          *                                   (c) Return negative value of character pointed to by 'p2_str_next'.
+    664          *
+    665          *                               (2) 'p2_str_next' points to NULL.
+    666          *                                   (a) 'p2_str' overlaps with NULL address.
+    667          *                                   (b) Strings compared up to but NOT beyond or including the NULL address.
+    668          *                                   (c) Return positive value of character pointed to by 'p1_str_next'.
+    669          *
+    670          *                   (b) Terminating NULL character found in both strings.
+    671          *                       (1) Strings identical; return 0.
+    672          *                       (2) Only one NULL character test required in conditional since previous condition
+    673          *                           tested character equality.
+    674          *
+    675          *                   (c) Non-matching characters found.
+    676          *                       (1) Return signed-integer difference of the character pointed to by 'p2_str'
+    677          *                           from the character pointed to by 'p1_str'.
+    678          *
+    679          *                   (d) (1) 'len_max' passed a zero length.
+    680          *                           (A) Zero-length strings identical; return 0.
+    681          *
+    682          *                       (2) First 'len_max' number of characters identical.
+    683          *                           (A) Strings identical; return 0.
+    684          *
+    685          *                       See also Note #2a2.
+    686          *
+    687          *               (4) Since 16-bit signed arithmetic is performed to calculate a non-identical comparison
+    688          *                   return value, 'CPU_CHAR' native data type size MUST be 8-bit.
+    689          *********************************************************************************************************
+    690          */
+    691          /*$PAGE*/
+    692          CPU_INT16S  Str_Cmp_N (CPU_CHAR    *p1_str,
+    693                                 CPU_CHAR    *p2_str,
+    694                                 CPU_SIZE_T   len_max)
+    695          {
+    696              CPU_CHAR    *p1_str_next;
+    697              CPU_CHAR    *p2_str_next;
+    698              CPU_INT16S   cmp_val;
+    699              CPU_SIZE_T   cmp_len;
+    700          
+    701          
+    702              if (len_max == 0) {                                         /* If cmp len equals zero, rtn 0      (see Note #3d1).  */
+    703                  return ((CPU_INT16S)0);
+    704              }
+    705          
+    706              if (p1_str == (CPU_CHAR *)0) {
+    707                  if (p2_str == (CPU_CHAR *)0) {
+    708                      return ((CPU_INT16S)0);                             /* If BOTH str ptrs NULL,  rtn 0      (see Note #3a1A). */
+    709                  }
+    710                  cmp_val = (CPU_INT16S)0 - (CPU_INT16S)(*p2_str);
+    711                  return (cmp_val);                                       /* If p1_str NULL, rtn neg p2_str val (see Note #3a1B1).*/
+    712              }
+    713              if (p2_str == (CPU_CHAR *)0) {
+    714                  cmp_val = (CPU_INT16S)(*p1_str);
+    715                  return (cmp_val);                                       /* If p2_str NULL, rtn pos p1_str val (see Note #3a1B2).*/
+    716              }
+    717          
+    718          
+    719              p1_str_next = p1_str;
+    720              p2_str_next = p2_str;
+    721              p1_str_next++;
+    722              p2_str_next++;
+    723              cmp_len     = 0;
+    724              while ((*p1_str      == *p2_str)       &&                   /* Cmp strs until non-matching chars (see Note #3c) ... */
+    725                     (*p1_str      != (CPU_CHAR  )0) &&                   /* ... or NULL chars                 (see Note #3b) ... */
+    726                     ( p1_str_next != (CPU_CHAR *)0) &&                   /* ... or NULL ptr(s) found          (see Note #3a2);   */
+    727                     ( p2_str_next != (CPU_CHAR *)0) &&
+    728                     ( cmp_len     <  (CPU_SIZE_T)len_max)) {             /* ... or max nbr chars cmp'd        (see Note #3d2).   */
+    729                  p1_str_next++;
+    730                  p2_str_next++;
+    731                  p1_str++;
+    732                  p2_str++;
+    733                  cmp_len++;
+    734              }
+    735          
+    736          
+    737              if (cmp_len == len_max) {                                       /* If strs     identical for len nbr of chars, ...  */
+    738                  return ((CPU_INT16S)0);                                     /* ... rtn 0                   (see Note #3d2).     */
+    739              }
+    740          
+    741              if (*p1_str != *p2_str) {                                       /* If strs NOT identical, ...                       */
+    742                   cmp_val = (CPU_INT16S)(*p1_str) - (CPU_INT16S)(*p2_str);   /* ... calc & rtn char diff    (see Note #3c).      */
+    743          
+    744              } else if (*p1_str == (CPU_CHAR)0) {                            /* If NULL char(s) found, ...                       */
+    745                   cmp_val = 0;                                               /* ... strs identical; rtn 0   (see Note #3b).      */
+    746          
+    747              } else {
+    748                  if (p1_str_next == (CPU_CHAR *)0) {
+    749                      if (p2_str_next == (CPU_CHAR *)0) {                     /* If BOTH next str ptrs NULL, ...                  */
+    750                          cmp_val  = (CPU_INT16S)0;                           /* ... rtn 0                   (see Note #3a2A).    */
+    751                      } else {                                                /* If p1_str_next NULL, ...                         */
+    752                                                                              /* ... rtn neg p2_str_next val (see Note #3a2B1).   */
+    753                          cmp_val  = (CPU_INT16S)0 - (CPU_INT16S)(*p2_str_next);
+    754                      }
+    755                  } else {                                                    /* If p2_str_next NULL, ...                         */
+    756                      cmp_val = (CPU_INT16S)(*p1_str_next);                   /* ... rtn pos p1_str_next val (see Note #3a2B2).   */
+    757                  }
+    758              }
+    759          
+    760          
+    761              return (cmp_val);
+    762          }
+    763          
+    764          
+    765          /*$PAGE*/
+    766          /*
+    767          *********************************************************************************************************
+    768          *                                         Str_CmpIgnoreCase()
+    769          *
+    770          * Description : Determine if two strings are identical, ignoring case.
+    771          *
+    772          * Argument(s) : p1_str      Pointer to first  string (see Note #1).
+    773          *
+    774          *               p2_str      Pointer to second string (see Note #1).
+    775          *
+    776          * Return(s)   : 0,              if strings are identical             (see Notes #3a1A, #3a2A, #3b, & #3d).
+    777          *
+    778          *               Negative value, if 'p1_str' is less    than 'p2_str' (see Notes #3a1B1, #3a2B1, & #3c).
+    779          *
+    780          *               Positive value, if 'p1_str' is greater than 'p2_str' (see Notes #3a1B2, #3a2B2, & #3c).
+    781          *
+    782          *               See also Note #2b.
+    783          *
+    784          * Caller(s)   : Application.
+    785          *
+    786          * Note(s)     : (1) String buffers NOT modified.
+    787          *
+    788          *               (2) (a) IEEE Std 1003.1, 2004 Edition, Section 'strcasecmp() : DESCRIPTION' states that :
+    789          *
+    790          *                       (1) (A) "The strcasecmp() function shall compare ... the string pointed to by s1 
+    791          *                                to the string pointed to by s2" ...
+    792          *                           (B) "ignoring differences in case".
+    793          *
+    794          *                       (2) "strcasecmp() ... shall behave as if the strings had been converted to lowercase 
+    795          *                            and then a byte comparison performed."
+    796          *
+    797          *                   (b) (1) IEEE Std 1003.1, 2004 Edition, Section 'strcasecmp() : RETURN VALUE' states that
+    798          *                          "upon successful completion, strcasecmp() shall return an integer greater than, 
+    799          *                           equal to, or less than 0".
+    800          *
+    801          *                       (2) IEEE Std 1003.1, 2004 Edition, Section 'strcmp() : DESCRIPTION' adds that "the
+    802          *                           sign of a non-zero return value shall be determined by the sign of the difference 
+    803          *                           between the values of the first pair of bytes ... that differ in the strings 
+    804          *                           being compared".
+    805          *
+    806          *               (3) String comparison terminates when :
+    807          *
+    808          *                   (a) (1) (A) BOTH string pointer(s) are passed NULL pointers.
+    809          *                               (1) NULL strings identical; return 0.
+    810          *
+    811          *                           (B) (1) 'p1_str' passed a NULL pointer.
+    812          *                                   (a) Return negative value of character pointed to by 'p2_str', converted 
+    813          *                                       to lower case (see Note #2a2).
+    814          *
+    815          *                               (2) 'p2_str' passed a NULL pointer.
+    816          *                                   (a) Return positive value of character pointed to by 'p1_str', converted 
+    817          *                                       to lower case (see Note #2a2).
+    818          *
+    819          *                       (2) (A) BOTH strings point to NULL.
+    820          *                               (1) Strings overlap with NULL address.
+    821          *                               (2) Strings identical up to but NOT beyond or including the NULL address; 
+    822          *                                   return 0.
+    823          *
+    824          *                           (B) (1) 'p1_str_next' points to NULL.
+    825          *                                   (a) 'p1_str' overlaps with NULL address.
+    826          *                                   (b) Strings compared up to but NOT beyond or including the NULL address.
+    827          *                                   (c) Return negative value of character pointed to by 'p2_str_next', 
+    828          *                                       converted to lower case (see Note #2a2).
+    829          *
+    830          *                               (2) 'p2_str_next' points to NULL.
+    831          *                                   (a) 'p2_str' overlaps with NULL address.
+    832          *                                   (b) Strings compared up to but NOT beyond or including the NULL address.
+    833          *                                   (c) Return positive value of character pointed to by 'p1_str_next', 
+    834          *                                       converted to lower case (see Note #2a2).
+    835          *
+    836          *                   (b) Terminating NULL character found in both strings.
+    837          *                       (1) Strings identical; return 0.
+    838          *                       (2) Only one NULL character test required in conditional since previous condition
+    839          *                           tested character equality.
+    840          *
+    841          *                   (c) Non-matching characters found.
+    842          *                       (1) Return signed-integer difference of the character pointed to by 'p2_str',
+    843          *                           converted to lower case, from the character pointed to by 'p1_str', converted
+    844          *                           to lower case.
+    845          *
+    846          *               (4) Since 16-bit signed arithmetic is performed to calculate a non-identical comparison
+    847          *                   return value, 'CPU_CHAR' native data type size MUST be 8-bit.
+    848          *********************************************************************************************************
+    849          */
+    850          /*$PAGE*/
+    851          CPU_INT16S  Str_CmpIgnoreCase (CPU_CHAR  *p1_str,
+    852                                         CPU_CHAR  *p2_str)
+    853          {
+    854              CPU_INT16S  cmp_val;
+    855          
+    856          
+    857              cmp_val = Str_CmpIgnoreCase_N((CPU_CHAR *)p1_str,
+    858                                            (CPU_CHAR *)p2_str,
+    859                                            (CPU_SIZE_T)DEF_INT_CPU_U_MAX_VAL);
+    860          
+    861              return (cmp_val);
+    862          }
+    863          
+    864          
+    865          /*$PAGE*/
+    866          /*
+    867          *********************************************************************************************************
+    868          *                                        Str_CmpIgnoreCase_N()
+    869          *
+    870          * Description : Determine if two strings are identical for up to a maximum number of characters, 
+    871          *                   ignoring case.
+    872          *
+    873          * Argument(s) : p1_str      Pointer to first  string (see Note #1).
+    874          *
+    875          *               p2_str      Pointer to second string (see Note #1).
+    876          *
+    877          *               len_max     Maximum number of characters to compare  (see Note  #3d).
+    878          *
+    879          * Return(s)   : 0,              if strings are identical             (see Notes #3a1A, #3a2A, #3b, & #3d).
+    880          *
+    881          *               Negative value, if 'p1_str' is less    than 'p2_str' (see Notes #3a1B1, #3a2B1, & #3c).
+    882          *
+    883          *               Positive value, if 'p1_str' is greater than 'p2_str' (see Notes #3a1B2, #3a2B2, & #3c).
+    884          *
+    885          *               See also Note #2b.
+    886          *
+    887          * Caller(s)   : Application.
+    888          *
+    889          * Note(s)     : (1) String buffers NOT modified.
+    890          *
+    891          *               (2) (a) IEEE Std 1003.1, 2004 Edition, Section 'strncasecmp() : DESCRIPTION' states that :
+    892          *
+    893          *                       (1) (A) "The strncasecmp() function shall compare ... the string pointed to by s1 
+    894          *                                to the string pointed to by s2" ...
+    895          *                           (B) "ignoring differences in case" & ...
+    896          *                           (C) "not more than 'n' bytes" of either string.
+    897          *
+    898          *                       (2) "strncasecmp() shall behave as if the strings had been converted to lowercase 
+    899          *                            and then a byte comparison performed."
+    900          *
+    901          *                   (b) (1) IEEE Std 1003.1, 2004 Edition, Section 'strncasecmp() : RETURN VALUE' states that
+    902          *                          "upon successful completion, strncasecmp() shall return an integer greater than, 
+    903          *                           equal to, or less than 0".
+    904          *
+    905          *                       (2) IEEE Std 1003.1, 2004 Edition, Section 'strcmp() : DESCRIPTION' adds that "the
+    906          *                           sign of a non-zero return value shall be determined by the sign of the difference 
+    907          *                           between the values of the first pair of bytes ... that differ in the strings 
+    908          *                           being compared".
+    909          *
+    910          *               (3) String comparison terminates when :
+    911          *
+    912          *                   (a) (1) (A) BOTH string pointer(s) are passed NULL pointers.
+    913          *                               (1) NULL strings identical; return 0.
+    914          *
+    915          *                           (B) (1) 'p1_str' passed a NULL pointer.
+    916          *                                   (a) Return negative value of character pointed to by 'p2_str', converted 
+    917          *                                       to lower case (see Note #2a2).
+    918          *
+    919          *                               (2) 'p2_str' passed a NULL pointer.
+    920          *                                   (a) Return positive value of character pointed to by 'p1_str', converted 
+    921          *                                       to lower case (see Note #2a2).
+    922          *
+    923          *                       (2) (A) BOTH strings point to NULL.
+    924          *                               (1) Strings overlap with NULL address.
+    925          *                               (2) Strings identical up to but NOT beyond or including the NULL address; 
+    926          *                                   return 0.
+    927          *
+    928          *                           (B) (1) 'p1_str_next' points to NULL.
+    929          *                                   (a) 'p1_str' overlaps with NULL address.
+    930          *                                   (b) Strings compared up to but NOT beyond or including the NULL address.
+    931          *                                   (c) Return negative value of character pointed to by 'p2_str_next', 
+    932          *                                       converted to lower case (see Note #2a2).
+    933          *
+    934          *                               (2) 'p2_str_next' points to NULL.
+    935          *                                   (a) 'p2_str' overlaps with NULL address.
+    936          *                                   (b) Strings compared up to but NOT beyond or including the NULL address.
+    937          *                                   (c) Return positive value of character pointed to by 'p1_str_next', 
+    938          *                                       converted to lower case (see Note #2a2).
+    939          *
+    940          *                   (b) Terminating NULL character found in both strings.
+    941          *                       (1) Strings identical; return 0.
+    942          *                       (2) Only one NULL character test required in conditional since previous condition
+    943          *                           tested character equality.
+    944          *
+    945          *                   (c) Non-matching characters found.
+    946          *                       (1) Return signed-integer difference of the character pointed to by 'p2_str',
+    947          *                           converted to lower case, from the character pointed to by 'p1_str', converted
+    948          *                           to lower case.
+    949          *
+    950          *                   (d) (1) 'len_max' passed a zero length.
+    951          *                           (A) Zero-length strings identical; return 0.
+    952          *
+    953          *                       (2) First 'len_max' number of characters identical.
+    954          *                           (A) Strings identical; return 0.
+    955          *
+    956          *                       See also Note #2a1C.
+    957          *$PAGE*
+    958          *               (4) Since 16-bit signed arithmetic is performed to calculate a non-identical comparison
+    959          *                   return value, 'CPU_CHAR' native data type size MUST be 8-bit.
+    960          *********************************************************************************************************
+    961          */
+    962          
+    963          CPU_INT16S  Str_CmpIgnoreCase_N (CPU_CHAR    *p1_str,
+    964                                           CPU_CHAR    *p2_str,
+    965                                           CPU_SIZE_T   len_max)
+    966          {
+    967              CPU_CHAR    *p1_str_next;
+    968              CPU_CHAR    *p2_str_next;
+    969              CPU_CHAR     char1;
+    970              CPU_CHAR     char2;
+    971              CPU_INT16S   cmp_val;
+    972              CPU_SIZE_T   cmp_len;
+    973          
+    974          
+    975              if (len_max == 0) {                                         /* If cmp len equals zero, rtn 0      (see Note #3d1).  */
+    976                  return ((CPU_INT16S)0);
+    977              }
+    978          
+    979              if (p1_str == (CPU_CHAR *)0) {
+    980                  if (p2_str == (CPU_CHAR *)0) {
+    981                      return ((CPU_INT16S)0);                             /* If BOTH str ptrs NULL,  rtn 0      (see Note #3a1A). */
+    982                  }
+    983                  char2   =  ASCII_TO_LOWER(*p2_str);
+    984                  cmp_val = (CPU_INT16S)0 - (CPU_INT16S)char2;
+    985                  return (cmp_val);                                       /* If p1_str NULL, rtn neg p2_str val (see Note #3a1B1).*/
+    986              }
+    987              if (p2_str == (CPU_CHAR *)0) {
+    988                  char1   =  ASCII_TO_LOWER(*p1_str);
+    989                  cmp_val = (CPU_INT16S)char1;
+    990                  return (cmp_val);                                       /* If p2_str NULL, rtn pos p1_str val (see Note #3a1B2).*/
+    991              }
+    992          
+    993          
+    994              p1_str_next = p1_str;
+    995              p2_str_next = p2_str;
+    996              p1_str_next++;
+    997              p2_str_next++;
+    998              char1       = ASCII_TO_LOWER(*p1_str);
+    999              char2       = ASCII_TO_LOWER(*p2_str);
+   1000              cmp_len     = 0;
+   1001              while (( char1       ==  char2)        &&                   /* Cmp strs until non-matching chars (see Note #3c) ... */
+   1002                     (*p1_str      != (CPU_CHAR  )0) &&                   /* ... or NULL chars                 (see Note #3b) ... */
+   1003                     ( p1_str_next != (CPU_CHAR *)0) &&                   /* ... or NULL ptr(s) found          (see Note #3a2);   */
+   1004                     ( p2_str_next != (CPU_CHAR *)0) &&
+   1005                     ( cmp_len     <  (CPU_SIZE_T)len_max)) {             /* ... or max nbr chars cmp'd        (see Note #3d2).   */
+   1006                  p1_str_next++;
+   1007                  p2_str_next++;
+   1008                  p1_str++;
+   1009                  p2_str++;
+   1010                  cmp_len++;
+   1011                  char1 = ASCII_TO_LOWER(*p1_str);
+   1012                  char2 = ASCII_TO_LOWER(*p2_str);
+   1013              }
+   1014          
+   1015          
+   1016              if (cmp_len == len_max) {                                   /* If strs     identical for len nbr of chars, ...      */
+   1017                  return ((CPU_INT16S)0);                                 /* ... rtn 0                   (see Note #3d2).         */
+   1018              }
+   1019          
+   1020              if (char1 != char2) {                                       /* If strs NOT identical, ...                           */
+   1021                   cmp_val = (CPU_INT16S)char1 - (CPU_INT16S)char2;       /* ... calc & rtn char diff    (see Note #3c).          */
+   1022          
+   1023              } else if (char1 == (CPU_CHAR)0) {                          /* If NULL char(s) found, ...                           */
+   1024                   cmp_val = 0;                                           /* ... strs identical; rtn 0   (see Note #3b).          */
+   1025          
+   1026              } else {
+   1027                  if (p1_str_next == (CPU_CHAR *)0) {
+   1028                      if (p2_str_next == (CPU_CHAR *)0) {                 /* If BOTH next str ptrs NULL, ...                      */
+   1029                          cmp_val  = (CPU_INT16S)0;                       /* ... rtn 0                   (see Note #3a2A).        */
+   1030                      } else {                                            /* If p1_str_next NULL, ...                             */
+   1031                          char2    =  ASCII_TO_LOWER(*p2_str_next);
+   1032                          cmp_val  = (CPU_INT16S)0 - (CPU_INT16S)char2;   /* ... rtn neg p2_str_next val (see Note #3a2B1).       */
+   1033                      }
+   1034                  } else {                                                /* If p2_str_next NULL, ...                             */
+   1035                      char1   =  ASCII_TO_LOWER(*p1_str_next);
+   1036                      cmp_val = (CPU_INT16S)char1;                        /* ... rtn pos p1_str_next val (see Note #3a2B2).       */
+   1037                  }
+   1038              }
+   1039          
+   1040          
+   1041              return (cmp_val);
+   1042          }
+   1043          
+   1044          
+   1045          /*$PAGE*/
+   1046          /*
+   1047          *********************************************************************************************************
+   1048          *                                             Str_Char()
+   1049          *
+   1050          * Description : Search string for first occurrence of specific character.
+   1051          *
+   1052          * Argument(s) : pstr            Pointer to string (see Note #1).
+   1053          *
+   1054          *               srch_char       Search character.
+   1055          *
+   1056          * Return(s)   : Pointer to first occurrence of search character in string, if any.
+   1057          *
+   1058          *               Pointer to NULL,                                           otherwise.
+   1059          *
+   1060          * Caller(s)   : Application.
+   1061          *
+   1062          * Note(s)     : (1) String buffer NOT modified.
+   1063          *
+   1064          *               (2) String search terminates when :
+   1065          *
+   1066          *                   (a) String pointer passed a NULL pointer.
+   1067          *                       (1) No string search performed; NULL pointer returned.
+   1068          *
+   1069          *                   (b) String pointer points to NULL.
+   1070          *                       (1) String overlaps with NULL address.
+   1071          *                       (2) String searched up to but NOT beyond or including the NULL address.
+   1072          *
+   1073          *                   (c) String's terminating NULL character found.
+   1074          *                       (1) Search character NOT found in search string; NULL pointer returned.
+   1075          *                       (2) Applicable ONLY IF search character is NOT the terminating NULL character.
+   1076          *
+   1077          *                   (d) Search character found.
+   1078          *                       (1) Return pointer to first occurrence of search character in search string.
+   1079          *********************************************************************************************************
+   1080          */
+   1081          
+   1082          CPU_CHAR  *Str_Char (CPU_CHAR  *pstr,
+   1083                               CPU_CHAR   srch_char)
+   1084          {
+   1085              pstr = Str_Char_N((CPU_CHAR *)pstr,
+   1086                                (CPU_SIZE_T)DEF_INT_CPU_U_MAX_VAL,
+   1087                                (CPU_CHAR  )srch_char);
+   1088          
+   1089              return (pstr);
+   1090          }
+   1091          
+   1092          
+   1093          /*$PAGE*/
+   1094          /*
+   1095          *********************************************************************************************************
+   1096          *                                            Str_Char_N()
+   1097          *
+   1098          * Description : Search string for first occurrence of specific character, up to a maximum number of characters.
+   1099          *
+   1100          * Argument(s) : pstr            Pointer to string (see Note #1).
+   1101          *
+   1102          *               len_max         Maximum number of characters to search (see Notes #2e & #3).
+   1103          *
+   1104          *               srch_char       Search character.
+   1105          *
+   1106          * Return(s)   : Pointer to first occurrence of search character in string, if any.
+   1107          *
+   1108          *               Pointer to NULL,                                           otherwise.
+   1109          *
+   1110          * Caller(s)   : Application.
+   1111          *
+   1112          * Note(s)     : (1) String buffer NOT modified.
+   1113          *
+   1114          *               (2) String search terminates when :
+   1115          *
+   1116          *                   (a) String pointer passed a NULL pointer.
+   1117          *                       (1) No string search performed; NULL pointer returned.
+   1118          *
+   1119          *                   (b) String pointer points to NULL.
+   1120          *                       (1) String overlaps with NULL address.
+   1121          *                       (2) String searched up to but NOT beyond or including the NULL address.
+   1122          *
+   1123          *                   (c) String's terminating NULL character found.
+   1124          *                       (1) Search character NOT found in search string; NULL pointer returned.
+   1125          *                       (2) Applicable ONLY IF search character is NOT the terminating NULL character.
+   1126          *
+   1127          *                   (d) Search character found.
+   1128          *                       (1) Return pointer to first occurrence of search character in search string.
+   1129          *
+   1130          *                   (e) 'len_max' number of characters searched.
+   1131          *                       (1) 'len_max' number of characters does NOT include terminating NULL character.
+   1132          *
+   1133          *               (3) Ideally, the 'len_max' parameter would be the last parameter in this function's
+   1134          *                   paramter list for consistency with all other custom string library functions.
+   1135          *                   However, the 'len_max' parameter is ordered to comply with the standard library
+   1136          *                   function's parameter list.
+   1137          *********************************************************************************************************
+   1138          */
+   1139          
+   1140          CPU_CHAR  *Str_Char_N (CPU_CHAR    *pstr,
+   1141                                 CPU_SIZE_T   len_max,
+   1142                                 CPU_CHAR     srch_char)
+   1143          {
+   1144              CPU_CHAR    *pstr_next;
+   1145              CPU_SIZE_T   len_srch;
+   1146          
+   1147          
+   1148              if (pstr == (CPU_CHAR *)0) {                                /* Rtn NULL if srch str ptr NULL    (see Note #2a).     */
+   1149                  return ((CPU_CHAR *)0);
+   1150              }
+   1151          
+   1152              if (len_max == (CPU_SIZE_T)0) {                             /* Rtn NULL if srch len equals zero (see Note #2e).     */
+   1153                  return ((CPU_CHAR *)0);
+   1154              }
+   1155          
+   1156          
+   1157              pstr_next = pstr;
+   1158              pstr_next++;
+   1159              len_srch  = 0;
+   1160              while (( pstr_next != (CPU_CHAR *)0)         &&             /* Srch str until NULL ptr(s)  [see Note #2b]  ...      */
+   1161                     (*pstr      != (CPU_CHAR  )0)         &&             /* ... or NULL char            (see Note #2c)  ...      */
+   1162                     (*pstr      != (CPU_CHAR  )srch_char) &&             /* ... or srch char found      (see Note #2d); ...      */
+   1163                     ( len_srch  <  (CPU_SIZE_T)len_max)) {               /* ... or max nbr chars srch'd (see Note #2e).          */
+   1164                  pstr++;
+   1165                  pstr_next++;
+   1166                  len_srch++;
+   1167              }
+   1168          
+   1169          
+   1170              if (*pstr != srch_char) {                                   /* If srch char NOT found, str points to NULL; ...      */
+   1171                   return ((CPU_CHAR *)0);                                /* ... rtn NULL (see Notes #2b & #2c).                  */
+   1172              }
+   1173          
+   1174              return (pstr);                                              /* Else rtn ptr to found srch char (see Note #2d).      */
+   1175          }
+   1176          
+   1177          
+   1178          /*$PAGE*/
+   1179          /*
+   1180          *********************************************************************************************************
+   1181          *                                           Str_Char_Last()
+   1182          *
+   1183          * Description : Search string for last occurrence of specific character.
+   1184          *
+   1185          * Argument(s) : pstr            Pointer to string (see Note #1).
+   1186          *
+   1187          *               srch_char       Search character.
+   1188          *
+   1189          * Return(s)   : Pointer to last occurrence of search character in string, if any.
+   1190          *
+   1191          *               Pointer to NULL,                                          otherwise.
+   1192          *
+   1193          * Caller(s)   : Application.
+   1194          *
+   1195          * Note(s)     : (1) String buffer NOT modified.
+   1196          *
+   1197          *               (2) String search terminates when :
+   1198          *
+   1199          *                   (a) String pointer passed a NULL pointer.
+   1200          *                       (1) No string search performed; NULL pointer returned.
+   1201          *
+   1202          *                   (b) String pointer points to NULL.
+   1203          *                       (1) String overlaps with NULL address.
+   1204          *                       (2) String searched up to but NOT beyond or including the NULL address.
+   1205          *                       (3) NULL address boundary handled in Str_Len().
+   1206          *
+   1207          *                   (c) String searched from end to beginning.
+   1208          *                       (1) Search character NOT found in search string; NULL pointer returned.
+   1209          *                       (2) Applicable ONLY IF search character is NOT the terminating NULL character.
+   1210          *
+   1211          *                   (d) Search character found.
+   1212          *                       (1) Return pointer to first occurrence of search character in search string.
+   1213          *********************************************************************************************************
+   1214          */
+   1215          
+   1216          CPU_CHAR  *Str_Char_Last (CPU_CHAR  *pstr,
+   1217                                    CPU_CHAR   srch_char)
+   1218          {
+   1219              CPU_CHAR    *pstr_next;
+   1220              CPU_SIZE_T   str_len;
+   1221          
+   1222          
+   1223              if (pstr == (CPU_CHAR *)0) {                                /* Rtn NULL if srch str ptr NULL (see Note #2a).        */
+   1224                  return ((CPU_CHAR *)0);
+   1225              }
+   1226          
+   1227          
+   1228              pstr_next  = pstr;
+   1229              str_len    = Str_Len(pstr);
+   1230              pstr_next += str_len;
+   1231              while (( pstr_next != pstr) &&                              /* Srch str from end until begining (see Note #2c) ...  */
+   1232                     (*pstr_next != srch_char)) {                         /* ... until srch char found        (see Note #2d).     */
+   1233                  pstr_next--;
+   1234              }
+   1235          
+   1236          
+   1237              if (*pstr_next != srch_char) {                              /* If srch char NOT found, str points to NULL; ...      */
+   1238                   return ((CPU_CHAR *)0);                                /* ... rtn NULL (see Notes #2b & #2c).                  */
+   1239              }
+   1240          
+   1241              return (pstr_next);                                         /* Else rtn ptr to found srch char (see Note #2d).      */
+   1242          }
+   1243          
+   1244          
+   1245          /*$PAGE*/
+   1246          /*
+   1247          *********************************************************************************************************
+   1248          *                                             Str_Str()
+   1249          *
+   1250          * Description : Search string for first occurence of a specific search string.
+   1251          *
+   1252          * Argument(s) : pstr            Pointer to        string (see Note #1).
+   1253          *
+   1254          *               psrch_str       Pointer to search string (see Note #1).
+   1255          *
+   1256          * Return(s)   : Pointer to first occurrence of search string in string, if any.
+   1257          *
+   1258          *               Pointer to NULL,                                        otherwise.
+   1259          *
+   1260          * Caller(s)   : Application.
+   1261          *
+   1262          * Note(s)     : (1) String buffers NOT modified.
+   1263          *
+   1264          *               (2) String search terminates when :
+   1265          *
+   1266          *                   (a) String pointer passed a NULL pointer.
+   1267          *                       (1) No string search performed; NULL pointer returned.
+   1268          *
+   1269          *                   (b) Search string length greater than string length.
+   1270          *                       (1) No string search performed; NULL pointer returned.
+   1271          *
+   1272          *                   (c) Search string length equal to zero.
+   1273          *                       (1) NULL search string at end of string returned.
+   1274          *
+   1275          *                   (d) Entire string has been searched.
+   1276          *                       (1) Maximum size of the search is defined as the subtraction of the
+   1277          *                           search string length from the string length.
+   1278          *                       (2) Search string not found; NULL pointer returned.
+   1279          *
+   1280          *                   (e) Search string found.
+   1281          *                       (1) Search string found according to Str_Cmp_N() return value.
+   1282          *                       (2) Return pointer to first occurrence of search string in string.
+   1283          *********************************************************************************************************
+   1284          */
+   1285          
+   1286          CPU_CHAR  *Str_Str (CPU_CHAR  *pstr,
+   1287                              CPU_CHAR  *psrch_str)
+   1288          {
+   1289              CPU_SIZE_T    str_len;
+   1290              CPU_SIZE_T    srch_str_len;
+   1291              CPU_SIZE_T    srch_len;
+   1292              CPU_SIZE_T    srch_ix;
+   1293              CPU_BOOLEAN   srch_done;
+   1294              CPU_INT16S    srch_cmp;
+   1295              CPU_CHAR     *pstr_srch_ix;
+   1296          
+   1297                                                                          /* Rtn NULL if str ptr(s) NULL (see Note #2a).          */
+   1298              if (pstr == (CPU_CHAR *)0) {
+   1299                  return ((CPU_CHAR *)0);
+   1300              }
+   1301              if (psrch_str == (CPU_CHAR *)0) {
+   1302                  return ((CPU_CHAR *)0);
+   1303              }
+   1304          
+   1305          
+   1306              str_len      = Str_Len(pstr);
+   1307              srch_str_len = Str_Len(psrch_str);
+   1308              if (srch_str_len > str_len) {                               /* If srch str len > str len, rtn NULL  (see Note #2b). */
+   1309                  return ((CPU_CHAR *)0);
+   1310              }
+   1311              if (srch_str_len == 0) {                                    /* If srch str len = 0, srch str equal NULL str; ...    */
+   1312                  pstr_srch_ix = (CPU_CHAR *)(pstr + str_len);            /* ... rtn ptr to NULL str found in str (see Note #2c). */
+   1313                  return (pstr_srch_ix);
+   1314              }
+   1315          
+   1316              srch_len  = str_len - srch_str_len;                         /* Determine srch len (see Note #2d1).                  */
+   1317              srch_ix   = 0;
+   1318              srch_done = DEF_NO;
+   1319              do {
+   1320                  pstr_srch_ix = (CPU_CHAR *)(pstr + srch_ix);
+   1321                  srch_cmp     =  Str_Cmp_N(pstr_srch_ix, psrch_str, srch_str_len);
+   1322                  srch_done    = (srch_cmp == 0) ? DEF_YES : DEF_NO;
+   1323                  srch_ix++;
+   1324              } while ((srch_done == DEF_NO) && (srch_ix <= srch_len));
+   1325          
+   1326          
+   1327              if (srch_cmp != 0) {                                        /* If srch str NOT found, rtn NULL  (see Note #2d).     */
+   1328                  return ((CPU_CHAR *)0);
+   1329              }
+   1330          
+   1331              return (pstr_srch_ix);                                      /* Rtn ptr to srch str found in str (see Note #2e).     */
+   1332          }
+   1333          
+   1334          
+   1335          /*$PAGE*/
+   1336          /*
+   1337          *********************************************************************************************************
+   1338          *                                         Str_FmtNbr_Int32U()
+   1339          *
+   1340          * Description : Format 32-bit unsigned integer into a multi-digit character string.
+   1341          *
+   1342          * Argument(s) : nbr             Number           to format.
+   1343          *
+   1344          *               nbr_dig         Number of digits to format (see Note #1).
+   1345          *
+   1346          *                               The following may be used to specify the number of digits to format :
+   1347          *
+   1348          *                                   DEF_INT_32U_NBR_DIG_MIN     Minimum number of 32-bit unsigned digits
+   1349          *                                   DEF_INT_32U_NBR_DIG_MAX     Maximum number of 32-bit unsigned digits
+   1350          *
+   1351          *               nbr_base        Base   of number to format (see Note #2).
+   1352          *
+   1353          *                               The following may be used to specify the number base :
+   1354          *
+   1355          *                                   DEF_NBR_BASE_BIN            Base  2
+   1356          *                                   DEF_NBR_BASE_OCT            Base  8
+   1357          *                                   DEF_NBR_BASE_DEC            Base 10
+   1358          *                                   DEF_NBR_BASE_HEX            Base 16
+   1359          *
+   1360          *               lead_zeros      Prepend leading zeros      (see Note #3) :
+   1361          *
+   1362          *                                   DEF_NO          Do NOT prepend leading zeros to string.
+   1363          *                                   DEF_YES                Prepend leading zeros to string.
+   1364          *
+   1365          *               lower_case      Format alphabetic characters (if any) in lower case :
+   1366          *
+   1367          *                                   DEF_NO          Format alphabetic characters in upper case.
+   1368          *                                   DEF_YES         Format alphabetic characters in lower case.
+   1369          *
+   1370          *               nul             Append terminating NULL-character (see Note #4) :
+   1371          *
+   1372          *                                   DEF_NO          Do NOT append terminating NULL-character to string.
+   1373          *                                   DEF_YES                Append terminating NULL-character to string.
+   1374          *
+   1375          *               pstr            Pointer to character array to return formatted number string (see Note #5).
+   1376          *
+   1377          * Return(s)   : Pointer to formatted string, if NO errors.
+   1378          *
+   1379          *               Pointer to NULL,             otherwise.
+   1380          *
+   1381          * Caller(s)   : Application.
+   1382          *
+   1383          * Note(s)     : (1) If the number of digits to format ('nbr_dig') is less than the number of significant
+   1384          *                   integer digits of the number to format ('nbr'); then the most-significant digits of
+   1385          *                   the formatted number will be truncated.
+   1386          *
+   1387          *                       Example :
+   1388          *
+   1389          *                           nbr     = 23456
+   1390          *                           nbr_dig = 3
+   1391          *
+   1392          *                           pstr    = "456"
+   1393          *$PAGE*
+   1394          *               (2) The number's base MUST be between 2 & 36, inclusive.
+   1395          *
+   1396          *               (3) (a) Leading zeros option prepends leading '0's prior to the first non-zero digit.
+   1397          *                       The number of leading zeros is such that the total number integer digits is
+   1398          *                       equal to the requested number of integer digits to format ('nbr_dig').
+   1399          *
+   1400          *                   (b) (1) If leading zeros option is DISABLED,             ...
+   1401          *                       (2) ... number of digits to format is non-zero,      ...
+   1402          *                       (3) ... & the value of the number to format is zero; ...
+   1403          *                       (4) ... then one digit of '0' value is formatted.
+   1404          *
+   1405          *                           This is NOT a leading zero; but a single integer digit of '0' value.
+   1406          *
+   1407          *               (4) (a) NULL-character terminate option DISABLED prevents overwriting previous character
+   1408          *                       array formatting.
+   1409          *
+   1410          *                   (b) WARNING: Unless 'pstr' character array is pre-/post-terminated, NULL-character
+   1411          *                       terminate option DISABLED will cause character string run-on.
+   1412          *
+   1413          *               (5) (a) Format buffer size NOT validated; buffer overruns MUST be prevented by caller.
+   1414          *
+   1415          *                   (b) To prevent character buffer overrun :
+   1416          *
+   1417          *                           Character array size MUST be  >=  ('nbr_dig'         +
+   1418          *                                                              1 'NUL' terminator)  characters
+   1419          *********************************************************************************************************
+   1420          */
+   1421          
+   1422          CPU_CHAR  *Str_FmtNbr_Int32U (CPU_INT32U    nbr,
+   1423                                        CPU_INT08U    nbr_dig,
+   1424                                        CPU_INT08U    nbr_base,
+   1425                                        CPU_BOOLEAN   lead_zeros,
+   1426                                        CPU_BOOLEAN   lower_case,
+   1427                                        CPU_BOOLEAN   nul,
+   1428                                        CPU_CHAR     *pstr)
+   1429          {
+   1430              CPU_CHAR  *pstr_fmt;
+   1431          
+   1432          
+   1433              pstr_fmt = Str_FmtNbr_Int32((CPU_INT32U )nbr,               /* Fmt unsigned int into str.                           */
+   1434                                          (CPU_INT08U )nbr_dig,
+   1435                                          (CPU_INT08U )nbr_base,
+   1436                                          (CPU_BOOLEAN)DEF_NO,
+   1437                                          (CPU_BOOLEAN)lead_zeros,
+   1438                                          (CPU_BOOLEAN)lower_case,
+   1439                                          (CPU_BOOLEAN)nul,
+   1440                                          (CPU_CHAR  *)pstr);
+   1441          
+   1442              return (pstr_fmt);
+   1443          }
+   1444          
+   1445          
+   1446          /*$PAGE*/
+   1447          /*
+   1448          *********************************************************************************************************
+   1449          *                                         Str_FmtNbr_Int32S()
+   1450          *
+   1451          * Description : Format 32-bit signed integer into a multi-digit character string.
+   1452          *
+   1453          * Argument(s) : nbr             Number           to format.
+   1454          *
+   1455          *               nbr_dig         Number of digits to format (see Note #1).
+   1456          *
+   1457          *                               The following may be used to specify the number of digits to format :
+   1458          *
+   1459          *                                   DEF_INT_32S_NBR_DIG_MIN     Minimum number of 32-bit signed digits
+   1460          *                                   DEF_INT_32S_NBR_DIG_MAX     Maximum number of 32-bit signed digits
+   1461          *
+   1462          *               nbr_base        Base   of number to format (see Note #2).
+   1463          *
+   1464          *                               The following may be used to specify the number base :
+   1465          *
+   1466          *                                   DEF_NBR_BASE_BIN            Base  2
+   1467          *                                   DEF_NBR_BASE_OCT            Base  8
+   1468          *                                   DEF_NBR_BASE_DEC            Base 10
+   1469          *                                   DEF_NBR_BASE_HEX            Base 16
+   1470          *
+   1471          *               lead_zeros      Prepend leading zeros      (see Note #3) :
+   1472          *
+   1473          *                                   DEF_NO          Do NOT prepend leading zeros to string.
+   1474          *                                   DEF_YES                Prepend leading zeros to string.
+   1475          *
+   1476          *               lower_case      Format alphabetic characters (if any) in lower case :
+   1477          *
+   1478          *                                   DEF_NO          Format alphabetic characters in upper case.
+   1479          *                                   DEF_YES         Format alphabetic characters in lower case.
+   1480          *
+   1481          *               nul             Append terminating NULL-character (see Note #4) :
+   1482          *
+   1483          *                                   DEF_NO          Do NOT append terminating NULL-character to string.
+   1484          *                                   DEF_YES                Append terminating NULL-character to string.
+   1485          *
+   1486          *               pstr            Pointer to character array to return formatted number string (see Note #5).
+   1487          *
+   1488          * Return(s)   : Pointer to formatted string, if NO errors.
+   1489          *
+   1490          *               Pointer to NULL,             otherwise.
+   1491          *
+   1492          * Caller(s)   : Application.
+   1493          *
+   1494          * Note(s)     : (1) (a) If the number of digits to format ('nbr_dig') is less than the number of significant
+   1495          *                       integer digits of the number to format ('nbr'); then the most-significant digits of
+   1496          *                       the formatted number will be truncated.
+   1497          *
+   1498          *                           Example :
+   1499          *
+   1500          *                               nbr     = 23456
+   1501          *                               nbr_dig = 3
+   1502          *
+   1503          *                               pstr    = "456"
+   1504          *
+   1505          *                   (b) If number to format ('nbr') is negative but the most-significant digits of the
+   1506          *                       formatted number are truncated (see Note #2a); the negative sign still prefixes
+   1507          *                       the truncated formatted number.
+   1508          *
+   1509          *                           Example :
+   1510          *
+   1511          *                               nbr     = -23456
+   1512          *                               nbr_dig =  3
+   1513          *
+   1514          *                               pstr    = "-456"
+   1515          *$PAGE*
+   1516          *               (2) The number's base MUST be between 2 & 36, inclusive.
+   1517          *
+   1518          *               (3) (a) Leading zeros option prepends leading '0's prior to the first non-zero digit.
+   1519          *                       The number of leading zeros is such that the total number integer digits is
+   1520          *                       equal to the requested number of integer digits to format ('nbr_dig').
+   1521          *
+   1522          *                   (b) (1) If leading zeros option is DISABLED,             ...
+   1523          *                       (2) ... number of digits to format is non-zero,      ...
+   1524          *                       (3) ... & the value of the number to format is zero; ...
+   1525          *                       (4) ... then one digit of '0' value is formatted.
+   1526          *
+   1527          *                           This is NOT a leading zero; but a single integer digit of '0' value.
+   1528          *
+   1529          *               (4) (a) NULL-character terminate option DISABLED prevents overwriting previous character
+   1530          *                       array formatting.
+   1531          *
+   1532          *                   (b) WARNING: Unless 'pstr' character array is pre-/post-terminated, NULL-character
+   1533          *                       terminate option DISABLED will cause character string run-on.
+   1534          *
+   1535          *               (5) (a) Format buffer size NOT validated; buffer overruns MUST be prevented by caller.
+   1536          *
+   1537          *                   (b) To prevent character buffer overrun :
+   1538          *
+   1539          *                           Character array size MUST be  >=  ('nbr_dig'         +
+   1540          *                                                              1 negative sign   +
+   1541          *                                                              1 'NUL' terminator)  characters
+   1542          *********************************************************************************************************
+   1543          */
+   1544          
+   1545          CPU_CHAR  *Str_FmtNbr_Int32S (CPU_INT32S    nbr,
+   1546                                        CPU_INT08U    nbr_dig,
+   1547                                        CPU_INT08U    nbr_base,
+   1548                                        CPU_BOOLEAN   lead_zeros,
+   1549                                        CPU_BOOLEAN   lower_case,
+   1550                                        CPU_BOOLEAN   nul,
+   1551                                        CPU_CHAR     *pstr)
+   1552          {
+   1553              CPU_CHAR     *pstr_fmt;
+   1554              CPU_INT32S    nbr_fmt;
+   1555              CPU_BOOLEAN   nbr_neg;
+   1556          
+   1557          
+   1558              nbr_fmt = nbr;
+   1559              if (nbr_fmt < 0) {                                          /* If nbr neg, ...                                      */
+   1560                  nbr_fmt = -nbr_fmt;                                     /* ... negate nbr.                                      */
+   1561                  nbr_neg =  DEF_YES;
+   1562              } else {
+   1563                  nbr_neg =  DEF_NO;
+   1564              }
+   1565          
+   1566              pstr_fmt = Str_FmtNbr_Int32((CPU_INT32U )nbr_fmt,           /* Fmt signed int into str.                             */
+   1567                                          (CPU_INT08U )nbr_dig,
+   1568                                          (CPU_INT08U )nbr_base,
+   1569                                          (CPU_BOOLEAN)nbr_neg,
+   1570                                          (CPU_BOOLEAN)lead_zeros,
+   1571                                          (CPU_BOOLEAN)lower_case,
+   1572                                          (CPU_BOOLEAN)nul,
+   1573                                          (CPU_CHAR  *)pstr);
+   1574          
+   1575              return (pstr_fmt);
+   1576          }
+   1577          
+   1578          
+   1579          /*$PAGE*/
+   1580          /*
+   1581          *********************************************************************************************************
+   1582          *                                           Str_FmtNbr_32()
+   1583          *
+   1584          * Description : Format number into a multi-digit character string.
+   1585          *
+   1586          * Argument(s) : nbr             Number                         to format (see Note #1).
+   1587          *
+   1588          *               nbr_dig         Number of decimal       digits to format (see Note #2).
+   1589          *
+   1590          *               nbr_dp          Number of decimal point digits to format.
+   1591          *
+   1592          *               lead_zeros      Prepend leading zeros (see Note #3) :
+   1593          *
+   1594          *                                   DEF_NO          Do NOT prepend leading zeros to string.
+   1595          *                                   DEF_YES                Prepend leading zeros to string.
+   1596          *
+   1597          *               nul             Append terminating NULL-character (see Note #4) :
+   1598          *
+   1599          *                                   DEF_NO          Do NOT append terminating NULL-character to string.
+   1600          *                                   DEF_YES                Append terminating NULL-character to string.
+   1601          *
+   1602          *               pstr            Pointer to character array to return formatted number string (see Note #5).
+   1603          *
+   1604          * Return(s)   : Pointer to formatted string, if NO errors (see Note #6).
+   1605          *
+   1606          *               Pointer to NULL,             otherwise.
+   1607          *
+   1608          * Caller(s)   : Application.
+   1609          *
+   1610          * Note(s)     : (1) (a) The maximum accuracy for 32-bit floating-point numbers :
+   1611          *
+   1612          *
+   1613          *                                 Maximum Accuracy            log [Internal-Base ^ (Number-Internal-Base-Digits)]
+   1614          *                           32-bit Floating-point Number  =  -----------------------------------------------------
+   1615          *                                                                             log [External-Base]
+   1616          *
+   1617          *                                                             log [2 ^ 24]
+   1618          *                                                         =  --------------
+   1619          *                                                               log [10]
+   1620          *
+   1621          *                                                         <  7.225  Base-10 Digits
+   1622          *
+   1623          *                               where
+   1624          *                                       Internal-Base                   Internal number base of floating-
+   1625          *                                                                           point numbers (i.e.  2)
+   1626          *                                       External-Base                   External number base of floating-
+   1627          *                                                                           point numbers (i.e. 10)
+   1628          *                                       Number-Internal-Base-Digits     Number of internal number base
+   1629          *                                                                           significant digits (i.e. 24)
+   1630          *
+   1631          *                   (b) Some compilers' floating-point routines MAY further reduce the maximum accuracy.
+   1632          *
+   1633          *                   (c) If the total number of digits to format ('nbr_dig + nbr_dp') is greater than the
+   1634          *                       maximum accuracy; digits following the first, significantly-accurate digits will
+   1635          *                       be inaccurate.
+   1636          *$PAGE*
+   1637          *               (2) (a) If the number of digits to format ('nbr_dig') is less than the number of significant
+   1638          *                       integer digits of the number to format ('nbr'); then the most-significant digits of
+   1639          *                       the formatted number will be truncated.
+   1640          *
+   1641          *                           Example :
+   1642          *
+   1643          *                               nbr     = 23456.789
+   1644          *                               nbr_dig = 3
+   1645          *                               nbr_dp  = 2
+   1646          *
+   1647          *                               pstr    = "456.78"
+   1648          *
+   1649          *                   (b) If number to format ('nbr') is negative but the most-significant digits of the
+   1650          *                       formatted number are truncated (see Note #2a); the negative sign still prefixes
+   1651          *                       the truncated formatted number.
+   1652          *
+   1653          *                           Example :
+   1654          *
+   1655          *                               nbr     = -23456.789
+   1656          *                               nbr_dig =  3
+   1657          *                               nbr_dp  =  2
+   1658          *
+   1659          *                               pstr    = "-456.78"
+   1660          *
+   1661          *               (3) (a) Leading zeros option prepends leading '0's prior to the first non-zero digit.
+   1662          *                       The number of leading zeros is such that the total number integer digits is
+   1663          *                       equal to the requested number of integer digits to format ('nbr_dig').
+   1664          *
+   1665          *                   (b) (1) If leading zeros option is DISABLED,                     ...
+   1666          *                       (2) ... number of digits to format is non-zero,              ...
+   1667          *                       (3) ... & the integer value of the number to format is zero; ...
+   1668          *                       (4) ... then one digit of '0' value is formatted.
+   1669          *
+   1670          *                           This is NOT a leading zero; but a single integer digit of '0' value.
+   1671          *
+   1672          *               (4) (a) NULL-character terminate option DISABLED prevents overwriting previous character
+   1673          *                       array formatting.
+   1674          *
+   1675          *                   (b) WARNING: Unless 'pstr' character array is pre-/post-terminated, NULL-character
+   1676          *                       terminate option DISABLED will cause character string run-on.
+   1677          *
+   1678          *               (5) (a) Format buffer size NOT validated; buffer overruns MUST be prevented by caller.
+   1679          *
+   1680          *                   (b) To prevent character buffer overrun :
+   1681          *
+   1682          *                           Character array size MUST be  >=  ('nbr_dig'         +
+   1683          *                                                              'nbr_dp'          +
+   1684          *                                                              1 negative sign   +
+   1685          *                                                              1 decimal point   +
+   1686          *                                                              1 'NUL' terminator)  characters
+   1687          *
+   1688          *               (6) String format terminates when :
+   1689          *
+   1690          *                   (a) Format string pointer is passed a NULL pointer.
+   1691          *                       (1) No string format performed; NULL pointer returned.
+   1692          *
+   1693          *                   (b) Number successfully formatted into character string array.
+   1694          *********************************************************************************************************
+   1695          */
+   1696          /*$PAGE*/
+   1697          #if (LIB_STR_CFG_FP_EN == DEF_ENABLED)
+   1698          CPU_CHAR  *Str_FmtNbr_32 (CPU_FP32      nbr,
+   1699                                    CPU_INT08U    nbr_dig,
+   1700                                    CPU_INT08U    nbr_dp,
+   1701                                    CPU_BOOLEAN   lead_zeros,
+   1702                                    CPU_BOOLEAN   nul,
+   1703                                    CPU_CHAR     *pstr)
+   1704          {
+   1705              CPU_CHAR    *pstr_fmt;
+   1706              CPU_FP32     nbr_fmt;
+   1707              CPU_INT32U   dig_nbr;
+   1708              CPU_INT32U   dig_val;
+   1709              CPU_FP32     dig_exp;
+   1710              CPU_FP32     dp_exp;
+   1711              CPU_INT08U   i;
+   1712          
+   1713          
+   1714              if (pstr == (CPU_CHAR *)0) {                                /* Rtn NULL if str ptr NULL (see Note #6a).             */
+   1715                  return ((CPU_CHAR *)0);
+   1716              }
+   1717          
+   1718          
+   1719              nbr_fmt  = nbr;
+   1720              pstr_fmt = pstr;
+   1721          
+   1722              if (nbr_fmt < 0.0f) {                                       /* If nbr neg,               ...                        */
+   1723                  nbr_fmt = -nbr_fmt;                                     /* ... negate nbr;           ...                        */
+   1724                  if ((nbr_dig > 0) ||                                    /* ... & if at least one dig ...                        */
+   1725                      (nbr_dp  > 0)) {                                    /* ...   or at least one dp; ...                        */
+   1726                      *pstr_fmt++ = '-';                                  /* ... prepend a neg sign (see Note #2b).               */
+   1727                  }
+   1728              }
+   1729          
+   1730              if (nbr_dig > 0) {
+   1731                  dig_exp = 1.0f;
+   1732                  for (i = 1; i < nbr_dig; i++) {
+   1733                      dig_exp *= 10.0f;
+   1734                  }
+   1735                  for (i = nbr_dig; i > 0; i--) {                         /* Fmt str for desired nbr digs.                        */
+   1736                      dig_nbr = (CPU_INT32U)(nbr_fmt / dig_exp);
+   1737                      if ((dig_nbr >  0) ||                               /* If dig nbr > 0,                              ...     */
+   1738                          (nbr_dig == 1) ||                               /* ... OR exactly 1 dig to fmt,                 ...     */
+   1739                          (i       == 1) ||                               /* ... OR on one's  dig to fmt,                 ...     */
+   1740                          (lead_zeros == DEF_YES)) {                      /* ... OR lead zeros opt ENABLED (see Note #3), ...     */
+   1741                                                                          /* ... calc & fmt dig val.                              */
+   1742                           dig_val    = (CPU_INT32U)(dig_nbr % 10 );
+   1743                          *pstr_fmt++ = (CPU_CHAR  )(dig_val + '0');
+   1744                      }
+   1745                      dig_exp /= 10.0f;                                   /* Shift to next least-significant dig.                 */
+   1746                  }
+   1747              }
+   1748          
+   1749              if (nbr_dp > 0) {
+   1750                 *pstr_fmt++ = '.';                                       /* Append dp prior to dp conversion.                    */
+   1751                  dp_exp = 10.0f;
+   1752                  for (i = 0; i < nbr_dp; i++) {                          /* Fmt str for desired nbr dp.                          */
+   1753                      dig_nbr     = (CPU_INT32U)(nbr_fmt * dp_exp);
+   1754                      dig_val     = (CPU_INT32U)(dig_nbr % 10 );
+   1755                     *pstr_fmt++  = (CPU_CHAR  )(dig_val + '0');
+   1756                      dp_exp     *=  10.0f;                               /* Shift to next least-significant dp.                  */
+   1757                  }
+   1758              }
+   1759          
+   1760              if (nul != DEF_NO) {                                        /* If NOT DISABLED, append NULL char (see Note #4).     */
+   1761                 *pstr_fmt = (CPU_CHAR)0;
+   1762              }
+   1763          
+   1764          
+   1765              return (pstr);                                              /* Rtn ptr to fmt'd str (see Note #6b).                 */
+   1766          }
+   1767          #endif
+   1768          
+   1769          
+   1770          /*$PAGE*/
+   1771          /*
+   1772          *********************************************************************************************************
+   1773          *                                        Str_ParseNbr_Int32U()
+   1774          *
+   1775          * Description : Parse 32-bit unsigned integer from string.
+   1776          *
+   1777          * Argument(s) : pstr        Pointer to string (see Notes #1 & #2a).
+   1778          *
+   1779          *               pstr_next   Pointer to a variable to ... :
+   1780          *
+   1781          *                               (a) Return a pointer to first character following the integer string, 
+   1782          *                                       if NO errors (see Note  #2a2B2);
+   1783          *                               (b) Return a pointer to 'pstr', 
+   1784          *                                       otherwise    (see Note  #2a2A2).
+   1785          *
+   1786          *               nbr_base    Base of number to parse  (see Notes #2a1B1 & #2a2B1).
+   1787          *
+   1788          * Return(s)   : Parsed integer,      if integer parsed with NO overflow   (see Note #2a3A).
+   1789          *
+   1790          *               DEF_INT_32U_MAX_VAL, if integer parsed but     overflowed (see Note #2a3A1).
+   1791          *
+   1792          *               0,                   otherwise                            (see Note #2a3B).
+   1793          *
+   1794          * Caller(s)   : Application.
+   1795          *
+   1796          * Note(s)     : (1) String buffer NOT modified.
+   1797          *
+   1798          *               (2) (a) IEEE Std 1003.1, 2004 Edition, Section 'strtoul() : DESCRIPTION' states that "these 
+   1799          *                       functions shall convert the initial portion of the string pointed to by 'str' to a 
+   1800          *                       type unsigned long ... representation" :
+   1801          *
+   1802          *                       (1) "First, they decompose the input string into three parts" :
+   1803          *
+   1804          *                           (A) "An initial, possibly empty, sequence of white-space characters [as specified 
+   1805          *                                by isspace()]."
+   1806          *
+   1807          *                               (1) "The subject sequence is defined as the longest initial subsequence of the 
+   1808          *                                    input string, starting with the first non-white-space character that is of 
+   1809          *                                    the expected form.  The subject sequence shall contain no characters if the 
+   1810          *                                    input string is empty or consists entirely of white-space characters."
+   1811          *
+   1812          *                           (B) (1) "A subject sequence interpreted as an integer represented in some radix 
+   1813          *                                    determined by the value of 'base'" :
+   1814          *
+   1815          *                                   (a) "If the value of 'base' is 0, the expected form of the subject sequence 
+   1816          *                                        is that of a decimal constant, octal constant, or hexadecimal constant" :
+   1817          *
+   1818          *                                       (1) "A decimal constant begins with a non-zero digit, and consists of a 
+   1819          *                                            sequence of decimal digits."
+   1820          *
+   1821          *                                       (2) "An octal constant consists of the prefix '0' optionally followed by 
+   1822          *                                            a sequence of the digits '0' to '7' only."
+   1823          *
+   1824          *                                       (3) "A hexadecimal constant consists of the prefix '0x' or '0X' followed 
+   1825          *                                            by a sequence of the decimal digits and letters 'a' (or 'A') to 'f' 
+   1826          *                                            (or 'F') with values 10 to 15 respectively."
+   1827          *
+   1828          *                                   (b) "If the value of 'base' is between 2 and 36, the expected form of the 
+   1829          *                                        subject sequence is a sequence of letters and digits representing an 
+   1830          *                                        integer with the radix specified by 'base'" :
+   1831          *
+   1832          *                                       (1) (A) "The letters from 'a' (or 'A') to 'z' (or 'Z') inclusive are 
+   1833          *                                                ascribed the values 10 to 35"; ...
+   1834          *                                           (B) "only letters whose ascribed values are less than that of base 
+   1835          *                                                are permitted."
+   1836          *
+   1837          *                                       (2) (A) "If the value of 'base' is 16, the characters '0x' or '0X' may 
+   1838          *                                                optionally precede the sequence of letters and digits."
+   1839          *
+   1840          *                                           (B) Although NO specification states that "if the value of 'base' 
+   1841          *                                               is" 8, the '0' character "may optionally precede the sequence 
+   1842          *                                               of letters and digits"; it seems reasonable to allow the '0'
+   1843          *                                               character to be optionally parsed.
+   1844          *
+   1845          *                               (2) "A subject sequence .... may be preceded by a '+' or '-' sign."
+   1846          *
+   1847          *                                   (a) However, it does NOT seem reasonable to parse & convert a negative number 
+   1848          *                                       integer string into an unsigned integer.
+   1849          *
+   1850          *                           (C) (1) (a) "A final string of one or more unrecognized characters,"  ...
+   1851          *                                   (b) "including the terminating null byte of the input string" ...
+   1852          *                               (2) "other than a sign or a permissible letter or digit."
+   1853          *$PAGE*
+   1854          *                       (2) Second, "they shall attempt to convert the subject sequence to an unsigned integer" :
+   1855          *
+   1856          *                           (A) "If the subject sequence is empty or does not have the expected form" :
+   1857          *
+   1858          *                               (1) "no conversion [is] performed"; ...
+   1859          *                               (2) "the value of 'str' [is] stored in the object pointed to by 'endptr',
+   1860          *                                    provided that 'endptr' is not a null pointer."
+   1861          *
+   1862          *                           (B) "If the subject sequence has the expected form" :
+   1863          *
+   1864          *                               (1) (a) "and the value of 'base' is 0, the sequence of characters starting with 
+   1865          *                                        the first digit shall be interpreted as an integer constant."
+   1866          *
+   1867          *                                   (b) "and the value of 'base' is between 2 and 36, it shall be used as the 
+   1868          *                                        base for conversion, ascribing to each letter its value as given above"
+   1869          *                                        (see Note #2a1B1b1A).
+   1870          *
+   1871          *                               (2) "A pointer to the final string shall be stored in the object pointed to by 
+   1872          *                                   'endptr', provided that 'endptr' is not a null pointer."
+   1873          *
+   1874          *                       (3) Lastly, IEEE Std 1003.1, 2004 Edition, Section 'strtoul() : RETURN VALUE' states that :
+   1875          *
+   1876          *                           (A) "Upon successful completion, these functions shall return the converted value."
+   1877          *                               (1) "If the correct value is outside the range of representable values, {ULONG_MAX} 
+   1878          *                                    ... shall be returned."
+   1879          *
+   1880          *                           (B) "If no conversion could be performed, 0 shall be returned."
+   1881          *
+   1882          *                   (b) (1) IEEE Std 1003.1, 2004 Edition, Section 'strtoul() : ERRORS' states that "these functions 
+   1883          *                           shall fail if" :
+   1884          *
+   1885          *                           (A) "[EINVAL] - The value of 'base' is not supported."
+   1886          *
+   1887          *                           (B) "[ERANGE] - The value to be returned is not representable."
+   1888          *
+   1889          *                       (2) IEEE Std 1003.1, 2004 Edition, Section 'strtoul() : ERRORS' states that "these functions 
+   1890          *                           may fail if" :
+   1891          *
+   1892          *                           (A) "[EINVAL] - No conversion could be performed."
+   1893          *
+   1894          *               (3) Return integer value & next string pointer should be used to diagnose parse success or failure :
+   1895          *
+   1896          *                   (a) Valid parse string integer :
+   1897          *
+   1898          *                           pstr      = "     ABCDE xyz"
+   1899          *                           nbr_base  = 16
+   1900          *
+   1901          *                           nbr       = 703710
+   1902          *                           pstr_next = " xyz"
+   1903          *
+   1904          *
+   1905          *                   (b) Invalid parse string integer :
+   1906          *
+   1907          *                           pstr      = "     ABCDE"
+   1908          *                           nbr_base  = 10
+   1909          *
+   1910          *                           nbr       =  0
+   1911          *                           pstr_next = pstr = "     ABCDE"
+   1912          *
+   1913          *
+   1914          *                   (c) Valid hexadecimal parse string integer :
+   1915          *
+   1916          *                           pstr      = "     0xGABCDE"
+   1917          *                           nbr_base  = 16
+   1918          *
+   1919          *                           nbr       =  0
+   1920          *                           pstr_next = "xGABCDE"
+   1921          *
+   1922          *
+   1923          *                   (d) Valid decimal parse string integer ('0x' prefix ignored 
+   1924          *                               following invalid hexadecimal characters) :
+   1925          *
+   1926          *                           pstr      = "     0xGABCDE"
+   1927          *                           nbr_base  =  0
+   1928          *
+   1929          *                           nbr       =  0
+   1930          *                           pstr_next = "xGABCDE"
+   1931          *
+   1932          *
+   1933          *                   (e) Valid decimal parse string integer ('0'  prefix ignored 
+   1934          *                               following invalid octal       characters) :
+   1935          *
+   1936          *                           pstr      = "     0GABCDE"
+   1937          *                           nbr_base  =  0
+   1938          *
+   1939          *                           nbr       =  0
+   1940          *                           pstr_next = "GABCDE"
+   1941          *
+   1942          *$PAGE*
+   1943          *                   (f) Parse string integer overflow :
+   1944          *
+   1945          *                           pstr      = "   12345678901234567890*123456"
+   1946          *                           nbr_base  = 10
+   1947          *
+   1948          *                           nbr       = DEF_INT_32U_MAX_VAL
+   1949          *                           pstr_next = "*123456"
+   1950          *
+   1951          *
+   1952          *                   (g) Invalid negative unsigned parse string :
+   1953          *
+   1954          *                           pstr      = "  -12345678901234567890*123456"
+   1955          *                           nbr_base  = 10
+   1956          *
+   1957          *                           nbr       = 0
+   1958          *                           pstr_next = pstr = "  -12345678901234567890*123456"
+   1959          *
+   1960          *********************************************************************************************************
+   1961          */
+   1962          
+   1963          CPU_INT32U  Str_ParseNbr_Int32U (CPU_CHAR     *pstr,
+   1964                                           CPU_CHAR    **pstr_next,
+   1965                                           CPU_INT08U    nbr_base)
+   1966          {
+   1967              CPU_INT32U  nbr;
+   1968          
+   1969          
+   1970              nbr = Str_ParseNbr_Int32((CPU_CHAR    *)pstr,               /* Parse/convert str ...                                */
+   1971                                       (CPU_CHAR   **)pstr_next,
+   1972                                       (CPU_INT08U   )nbr_base,
+   1973                                       (CPU_BOOLEAN  )DEF_NO,             /* ... as unsigned int (see Note #2a2).                 */
+   1974                                       (CPU_BOOLEAN *)0);
+   1975          
+   1976              return (nbr);
+   1977          }
+   1978          
+   1979          
+   1980          /*$PAGE*/
+   1981          /*
+   1982          *********************************************************************************************************
+   1983          *                                        Str_ParseNbr_Int32S()
+   1984          *
+   1985          * Description : Parse 32-bit signed integer from string.
+   1986          *
+   1987          * Argument(s) : pstr        Pointer to string (see Notes #1 & #2a).
+   1988          *
+   1989          *               pstr_next   Pointer to a variable to ... :
+   1990          *
+   1991          *                               (a) Return a pointer to first character following the integer string, 
+   1992          *                                       if NO errors (see Note  #2a2B2);
+   1993          *                               (b) Return a pointer to 'pstr', 
+   1994          *                                       otherwise    (see Note  #2a2A2).
+   1995          *
+   1996          *               nbr_base    Base of number to parse  (see Notes #2a1B1 & #2a2B1).
+   1997          *
+   1998          * Return(s)   : Parsed integer,      if integer parsed with NO over- or underflow (see Note #2a3A).
+   1999          *
+   2000          *               DEF_INT_32S_MIN_VAL, if integer parsed but negatively underflowed (see Note #2a3A1a).
+   2001          *
+   2002          *               DEF_INT_32U_MAX_VAL, if integer parsed but positively overflowed  (see Note #2a3A1b).
+   2003          *
+   2004          *               0,                   otherwise                                    (see Note #2a3B).
+   2005          *
+   2006          * Caller(s)   : Application.
+   2007          *
+   2008          * Note(s)     : (1) String buffer NOT modified.
+   2009          *
+   2010          *               (2) (a) IEEE Std 1003.1, 2004 Edition, Section 'strtol() : DESCRIPTION' states that "these 
+   2011          *                       functions shall convert the initial portion of the string pointed to by 'str' to a 
+   2012          *                       type long ... representation" :
+   2013          *
+   2014          *                       (1) "First, they decompose the input string into three parts" :
+   2015          *
+   2016          *                           (A) "An initial, possibly empty, sequence of white-space characters [as specified 
+   2017          *                                by isspace()]."
+   2018          *
+   2019          *                               (1) "The subject sequence is defined as the longest initial subsequence of the 
+   2020          *                                    input string, starting with the first non-white-space character that is of 
+   2021          *                                    the expected form.  The subject sequence shall contain no characters if the 
+   2022          *                                    input string is empty or consists entirely of white-space characters."
+   2023          *
+   2024          *                           (B) (1) "A subject sequence interpreted as an integer represented in some radix 
+   2025          *                                    determined by the value of 'base'" :
+   2026          *
+   2027          *                                   (a) "If the value of 'base' is 0, the expected form of the subject sequence 
+   2028          *                                        is that of a decimal constant, octal constant, or hexadecimal constant" :
+   2029          *
+   2030          *                                       (1) "A decimal constant begins with a non-zero digit, and consists of a 
+   2031          *                                            sequence of decimal digits."
+   2032          *
+   2033          *                                       (2) "An octal constant consists of the prefix '0' optionally followed by 
+   2034          *                                            a sequence of the digits '0' to '7' only."
+   2035          *
+   2036          *                                       (3) "A hexadecimal constant consists of the prefix '0x' or '0X' followed 
+   2037          *                                            by a sequence of the decimal digits and letters 'a' (or 'A') to 'f' 
+   2038          *                                            (or 'F') with values 10 to 15 respectively."
+   2039          *
+   2040          *                                   (b) "If the value of 'base' is between 2 and 36, the expected form of the 
+   2041          *                                        subject sequence is a sequence of letters and digits representing an 
+   2042          *                                        integer with the radix specified by 'base'" :
+   2043          *
+   2044          *                                       (1) (A) "The letters from 'a' (or 'A') to 'z' (or 'Z') inclusive are 
+   2045          *                                                ascribed the values 10 to 35"; ...
+   2046          *                                           (B) "only letters whose ascribed values are less than that of base 
+   2047          *                                                are permitted."
+   2048          *
+   2049          *                                       (2) (A) "If the value of 'base' is 16, the characters '0x' or '0X' may 
+   2050          *                                                optionally precede the sequence of letters and digits."
+   2051          *
+   2052          *                                           (B) Although NO specification states that "if the value of 'base' 
+   2053          *                                               is" 8, the '0' character "may optionally precede the sequence 
+   2054          *                                               of letters and digits"; it seems reasonable to allow the '0'
+   2055          *                                               character to be optionally parsed.
+   2056          *
+   2057          *                               (2) "A subject sequence .... may be preceded by a '+' or '-' sign."
+   2058          *
+   2059          *                                   (a) However, it does NOT seem reasonable to parse & convert a negative number 
+   2060          *                                       integer string into an unsigned integer.
+   2061          *
+   2062          *                           (C) (1) (a) "A final string of one or more unrecognized characters,"  ...
+   2063          *                                   (b) "including the terminating null byte of the input string" ...
+   2064          *                               (2) "other than a sign or a permissible letter or digit."
+   2065          *$PAGE*
+   2066          *                       (2) Second, "they shall attempt to convert the subject sequence to an integer" :
+   2067          *
+   2068          *                           (A) "If the subject sequence is empty or does not have the expected form" :
+   2069          *
+   2070          *                               (1) "no conversion is performed"; ...
+   2071          *                               (2) "the value of 'str' is stored in the object pointed to by 'endptr',
+   2072          *                                    provided that 'endptr' is not a null pointer."
+   2073          *
+   2074          *                           (B) "If the subject sequence has the expected form" :
+   2075          *
+   2076          *                               (1) (a) "and the value of 'base' is 0, the sequence of characters starting with 
+   2077          *                                        the first digit shall be interpreted as an integer constant."
+   2078          *
+   2079          *                                   (b) "and the value of 'base' is between 2 and 36, it shall be used as the 
+   2080          *                                        base for conversion, ascribing to each letter its value as given above"
+   2081          *                                        (see Note #2a1B1b1A).
+   2082          *
+   2083          *                               (2) "A pointer to the final string shall be stored in the object pointed to by 
+   2084          *                                   'endptr', provided that 'endptr' is not a null pointer."
+   2085          *
+   2086          *                       (3) Lastly, IEEE Std 1003.1, 2004 Edition, Section 'strtol() : RETURN VALUE' states that :
+   2087          *
+   2088          *                           (A) "Upon successful completion, these functions shall return the converted value."
+   2089          *
+   2090          *                               (1) "If the correct value is outside the range of representable values", either 
+   2091          *                                    of the following "shall be returned" :
+   2092          *                                   (a) "{LONG_MIN}" or ...
+   2093          *                                   (b) "{LONG_MAX}"
+   2094          *
+   2095          *                           (B) "If no conversion could be performed, 0 shall be returned."
+   2096          *
+   2097          *                   (b) (1) IEEE Std 1003.1, 2004 Edition, Section 'strtoul() : ERRORS' states that "these functions 
+   2098          *                           shall fail if" :
+   2099          *
+   2100          *                           (A) "[EINVAL] - The value of 'base' is not supported."
+   2101          *
+   2102          *                           (B) "[ERANGE] - The value to be returned is not representable."
+   2103          *
+   2104          *                       (2) IEEE Std 1003.1, 2004 Edition, Section 'strtoul() : ERRORS' states that "these functions 
+   2105          *                           may fail if" :
+   2106          *
+   2107          *                           (A) "[EINVAL] - No conversion could be performed."
+   2108          *
+   2109          *               (3) Return integer value & next string pointer should be used to diagnose parse success or failure :
+   2110          *
+   2111          *                   (a) Valid parse string integer :
+   2112          *
+   2113          *                           pstr      = "     ABCDE xyz"
+   2114          *                           nbr_base  = 16
+   2115          *
+   2116          *                           nbr       = 703710
+   2117          *                           pstr_next = " xyz"
+   2118          *
+   2119          *
+   2120          *                   (b) Invalid parse string integer :
+   2121          *
+   2122          *                           pstr      = "     ABCDE"
+   2123          *                           nbr_base  = 10
+   2124          *
+   2125          *                           nbr       =  0
+   2126          *                           pstr_next = pstr = "     ABCDE"
+   2127          *
+   2128          *
+   2129          *                   (c) Valid hexadecimal parse string integer :
+   2130          *
+   2131          *                           pstr      = "     0xGABCDE"
+   2132          *                           nbr_base  = 16
+   2133          *
+   2134          *                           nbr       =  0
+   2135          *                           pstr_next = "xGABCDE"
+   2136          *
+   2137          *
+   2138          *                   (d) Valid decimal parse string integer ('0x' prefix ignored 
+   2139          *                               following invalid hexadecimal characters) :
+   2140          *
+   2141          *                           pstr      = "     0xGABCDE"
+   2142          *                           nbr_base  =  0
+   2143          *
+   2144          *                           nbr       =  0
+   2145          *                           pstr_next = "xGABCDE"
+   2146          *
+   2147          *
+   2148          *                   (e) Valid decimal parse string integer ('0'  prefix ignored 
+   2149          *                               following invalid octal       characters) :
+   2150          *
+   2151          *                           pstr      = "     0GABCDE"
+   2152          *                           nbr_base  =  0
+   2153          *
+   2154          *                           nbr       =  0
+   2155          *                           pstr_next = "GABCDE"
+   2156          *
+   2157          *$PAGE*
+   2158          *                   (f) Parse string integer overflow :
+   2159          *
+   2160          *                           pstr      = "   12345678901234567890*123456"
+   2161          *                           nbr_base  = 10
+   2162          *
+   2163          *                           nbr       = DEF_INT_32U_MAX_VAL
+   2164          *                           pstr_next = "*123456"
+   2165          *
+   2166          *
+   2167          *                   (g) Parse string integer underflow :
+   2168          *
+   2169          *                           pstr     = "  -12345678901234567890*123456"
+   2170          *                           nbr_base = 10
+   2171          *
+   2172          *                           nbr       = DEF_INT_32S_MIN_VAL
+   2173          *                           pstr_next = "*123456"
+   2174          *
+   2175          *********************************************************************************************************
+   2176          */
+   2177          
+   2178          CPU_INT32S  Str_ParseNbr_Int32S (CPU_CHAR     *pstr,
+   2179                                           CPU_CHAR    **pstr_next,
+   2180                                           CPU_INT08U    nbr_base)
+   2181          {
+   2182              CPU_INT32S   nbr;
+   2183              CPU_INT32U   nbr_abs;
+   2184              CPU_BOOLEAN  nbr_neg;
+   2185          
+   2186          
+   2187              nbr_abs = Str_ParseNbr_Int32((CPU_CHAR    *) pstr,          /* Parse/convert str ...                                */
+   2188                                           (CPU_CHAR   **) pstr_next,
+   2189                                           (CPU_INT08U   ) nbr_base,
+   2190                                           (CPU_BOOLEAN  ) DEF_YES,       /* ... as signed int (see Note #2a2).                   */
+   2191                                           (CPU_BOOLEAN *)&nbr_neg);
+   2192          
+   2193              if (nbr_neg == DEF_NO) {                                    /* Chk for neg nbr & ovf/undf (see Note #2a3A1).        */
+   2194                  nbr = (nbr_abs > (CPU_INT32U) DEF_INT_32S_MAX_VAL)          ?  (CPU_INT32S)DEF_INT_32S_MAX_VAL
+   2195                                                                              :  (CPU_INT32S)nbr_abs;
+   2196              } else {
+   2197                  nbr = (nbr_abs > (CPU_INT32U)-DEF_INT_32S_MIN_VAL_ONES_CPL) ?  (CPU_INT32S)DEF_INT_32S_MIN_VAL
+   2198                                                                              : -(CPU_INT32S)nbr_abs;
+   2199              }
+   2200          
+   2201              return (nbr);
+   2202          }
+   2203          
+   2204          
+   2205          /*$PAGE*/
+   2206          /*
+   2207          *********************************************************************************************************
+   2208          *********************************************************************************************************
+   2209          *                                           LOCAL FUNCTIONS
+   2210          *********************************************************************************************************
+   2211          *********************************************************************************************************
+   2212          */
+   2213          
+   2214          /*
+   2215          *********************************************************************************************************
+   2216          *                                         Str_FmtNbr_Int32()
+   2217          *
+   2218          * Description : Format 32-bit integer into a multi-digit character string.
+   2219          *
+   2220          * Argument(s) : nbr             Number           to format.
+   2221          *
+   2222          *               nbr_dig         Number of digits to format (see Note #1).
+   2223          *
+   2224          *               nbr_base        Base   of number to format (see Note #2).
+   2225          *
+   2226          *               nbr_neg         Indicates whether number to format is negative :
+   2227          *
+   2228          *                                   DEF_NO          Number is non-negative.
+   2229          *                                   DEF_YES         Number is     negative.
+   2230          *
+   2231          *               lead_zeros      Prepend leading zeros      (see Note #3) :
+   2232          *
+   2233          *                                   DEF_NO          Do NOT prepend leading zeros to string.
+   2234          *                                   DEF_YES                Prepend leading zeros to string.
+   2235          *
+   2236          *               lower_case      Format alphabetic characters (if any) in lower case :
+   2237          *
+   2238          *                                   DEF_NO          Format alphabetic characters in upper case.
+   2239          *                                   DEF_YES         Format alphabetic characters in lower case.
+   2240          *
+   2241          *               nul             Append terminating NULL-character (see Note #4) :
+   2242          *
+   2243          *                                   DEF_NO          Do NOT append terminating NULL-character to string.
+   2244          *                                   DEF_YES                Append terminating NULL-character to string.
+   2245          *
+   2246          *               pstr            Pointer to character array to return formatted number string (see Note #5).
+   2247          *
+   2248          * Return(s)   : Pointer to formatted string, if NO errors (see Note #6).
+   2249          *
+   2250          *               Pointer to NULL,             otherwise.
+   2251          *
+   2252          * Caller(s)   : Str_FmtNbr_Int32U(),
+   2253          *               Str_FmtNbr_Int32S().
+   2254          *
+   2255          * Note(s)     : (1) (a) The maximum number of digits to format for 32-bit integer numbers :
+   2256          *
+   2257          *
+   2258          *                               Maximum Number of             [  log (Number)      ]
+   2259          *                             32-bit Integer Digits  =  floor [ -------------- + 1 ]
+   2260          *                                   to Format                 [   log (Base)       ]
+   2261          *
+   2262          *                               where
+   2263          *                                       Number                  Number to format
+   2264          *                                       Base            Base of number to format
+   2265          *
+   2266          *                   (b) (1) If the number of digits to format ('nbr_dig') is less than the number of 
+   2267          *                           significant integer digits of the number to format ('nbr'); then the most-
+   2268          *                           significant digits of the formatted number will be truncated.
+   2269          *
+   2270          *                               Example :
+   2271          *
+   2272          *                                   nbr     = 23456
+   2273          *                                   nbr_dig = 3
+   2274          *
+   2275          *                                   pstr    = "456"
+   2276          *
+   2277          *                       (2) If number to format ('nbr') is negative but the most-significant digits of 
+   2278          *                           the formatted number are truncated (see Note #2a); the negative sign still 
+   2279          *                           prefixes the truncated formatted number.
+   2280          *
+   2281          *                               Example :
+   2282          *
+   2283          *                                   nbr     = -23456
+   2284          *                                   nbr_dig =  3
+   2285          *
+   2286          *                                   pstr    = "-456"
+   2287          *$PAGE*
+   2288          *               (2) The number's base MUST be between 2 & 36, inclusive.
+   2289          *
+   2290          *               (3) (a) Leading zeros option prepends leading '0's prior to the first non-zero digit.
+   2291          *                       The number of leading zeros is such that the total number integer digits is
+   2292          *                       equal to the requested number of integer digits to format ('nbr_dig').
+   2293          *
+   2294          *                   (b) (1) If leading zeros option is DISABLED,             ...
+   2295          *                       (2) ... number of digits to format is non-zero,      ...
+   2296          *                       (3) ... & the value of the number to format is zero; ...
+   2297          *                       (4) ... then one digit of '0' value is formatted.
+   2298          *
+   2299          *                           This is NOT a leading zero; but a single integer digit of '0' value.
+   2300          *
+   2301          *               (4) (a) NULL-character terminate option DISABLED prevents overwriting previous character
+   2302          *                       array formatting.
+   2303          *
+   2304          *                   (b) WARNING: Unless 'pstr' character array is pre-/post-terminated, NULL-character
+   2305          *                       terminate option DISABLED will cause character string run-on.
+   2306          *
+   2307          *               (5) (a) Format buffer size NOT validated; buffer overruns MUST be prevented by caller.
+   2308          *
+   2309          *                   (b) To prevent character buffer overrun :
+   2310          *
+   2311          *                           Character array size MUST be  >=  ('nbr_dig'         +
+   2312          *                                                              1 negative sign   +
+   2313          *                                                              1 'NUL' terminator)  characters
+   2314          *               (6) String format terminates when :
+   2315          *
+   2316          *                   (a) Format string pointer is passed a NULL pointer.
+   2317          *                       (1) No string format performed; NULL pointer returned.
+   2318          *
+   2319          *                   (b) Base is passed an invalid base (see Note #2).
+   2320          *                       (1) No string format performed; NULL pointer returned.
+   2321          *
+   2322          *                   (c) Number successfully formatted into character string array.
+   2323          *********************************************************************************************************
+   2324          */
+   2325          /*$PAGE*/
+   2326          static  CPU_CHAR  *Str_FmtNbr_Int32 (CPU_INT32U    nbr,
+   2327                                               CPU_INT08U    nbr_dig,
+   2328                                               CPU_INT08U    nbr_base,
+   2329                                               CPU_BOOLEAN   nbr_neg,
+   2330                                               CPU_BOOLEAN   lead_zeros,
+   2331                                               CPU_BOOLEAN   lower_case,
+   2332                                               CPU_BOOLEAN   nul,
+   2333                                               CPU_CHAR     *pstr)
+   2334          {
+   2335              CPU_CHAR     *pstr_fmt;
+   2336              CPU_INT32U    nbr_fmt;
+   2337              CPU_INT32U    nbr_exp;
+   2338              CPU_INT32U    nbr_dig_val;
+   2339              CPU_INT08U    log_floor;
+   2340              CPU_INT08U    i;
+   2341              CPU_BOOLEAN   ovf;
+   2342          
+   2343          
+   2344              if (pstr == (CPU_CHAR *)0) {                                /* Rtn NULL if str ptr NULL (see Note #6a).             */
+   2345                  return ((CPU_CHAR *)0);
+   2346              }
+   2347                                                                          /* Rtn NULL if invalid base (see Note #6b).             */
+   2348              if ((nbr_base <  2) ||
+   2349                  (nbr_base > 36)) {
+   2350                  return ((CPU_CHAR *)0);
+   2351              }
+   2352          
+   2353          
+   2354              if (lead_zeros != DEF_YES) {                                /* If lead zeros NOT ENABLED,                ...        */
+   2355                  log_floor = 1;                                          /* ... calc floor of nbr digs (see Note #1a) ...        */
+   2356                  nbr_exp   = nbr_base;
+   2357                  ovf       = DEF_NO;
+   2358                  while ((nbr_exp <= nbr) &&
+   2359                         (ovf     == DEF_NO)) {
+   2360                      if (nbr_exp <= Str_MultOvfThTbl_Int32U[nbr_base]) {
+   2361                          nbr_exp *= nbr_base;
+   2362                      } else {
+   2363                          ovf      = DEF_YES;
+   2364                      }
+   2365                      log_floor++;
+   2366                  }
+   2367                  if (nbr_dig > log_floor) {
+   2368                      nbr_dig = log_floor;                                /* ... & lim max nbr digs.                              */
+   2369                  }
+   2370              }
+   2371          
+   2372              nbr_fmt  = nbr;
+   2373              pstr_fmt = pstr;
+   2374          
+   2375              if (nbr_neg == DEF_YES) {                                   /* If nbr neg                 ...                       */
+   2376                  if (nbr_dig > 0) {                                      /* ... & if at least one dig, ...                       */
+   2377                     *pstr_fmt++ = '-';                                   /* ... prepend a neg sign.                              */
+   2378                  }
+   2379              }
+   2380          
+   2381              pstr_fmt += nbr_dig;                                        /* Start fmt from least significant dig.                */
+   2382          
+   2383              if (nul != DEF_NO) {                                        /* If NOT DISABLED, append NULL char (see Note #4).     */
+   2384                 *pstr_fmt = (CPU_CHAR)0;
+   2385              }
+   2386              pstr_fmt--;
+   2387          
+   2388              if (nbr_dig > 0) {
+   2389                  for (i = 1; i <= nbr_dig; i++) {                        /* Fmt str for desired nbr digs.                        */
+   2390                      nbr_dig_val = nbr_fmt % nbr_base;
+   2391                      if (nbr_dig_val <= 9) {
+   2392                         *pstr_fmt-- = (CPU_CHAR)(nbr_dig_val + '0');
+   2393                      } else {
+   2394                          if (lower_case !=  DEF_YES) {
+   2395                             *pstr_fmt--  = (CPU_CHAR)(nbr_dig_val + 'A' - 10);
+   2396                          } else {
+   2397                             *pstr_fmt--  = (CPU_CHAR)(nbr_dig_val + 'a' - 10);
+   2398                          }
+   2399                      }
+   2400                      nbr_fmt /= nbr_base;                                /* Shift nbr to next more significant dig.              */
+   2401                  }
+   2402              }
+   2403          
+   2404          
+   2405              return (pstr);                                              /* Rtn ptr to fmt'd str (see Note #6c).                 */
+   2406          }
+   2407          
+   2408          
+   2409          /*$PAGE*/
+   2410          /*
+   2411          *********************************************************************************************************
+   2412          *                                        Str_ParseNbr_Int32()
+   2413          *
+   2414          * Description : Parse 32-bit integer from string.
+   2415          *
+   2416          * Argument(s) : pstr            Pointer to string (see Notes #1 & #2a).
+   2417          *
+   2418          *               pstr_next       Pointer to a variable to ... :
+   2419          *
+   2420          *                                   (a) Return a pointer to first character following the integer string, 
+   2421          *                                           if NO errors (see Note  #2a2B2);
+   2422          *                                   (b) Return a pointer to 'pstr', 
+   2423          *                                           otherwise    (see Note  #2a2A2).
+   2424          *
+   2425          *               nbr_base        Base of number to parse  (see Notes #2a1B1 & #2a2B1).
+   2426          *
+   2427          *               nbr_signed      Indicates whether number to parse is signed :
+   2428          *
+   2429          *                                   DEF_NO                  Number is unsigned.
+   2430          *                                   DEF_YES                 Number is   signed.
+   2431          *
+   2432          *               pnbr_neg        Pointer to a variable to return if the parsed (signed) number is negative :
+   2433          *
+   2434          *                                   DEF_NO                  Number is non-negative.
+   2435          *                                   DEF_YES                 Number is     negative.
+   2436          *
+   2437          * Return(s)   : Parsed integer,      if integer parsed with NO overflow   (see Note #2a3A).
+   2438          *
+   2439          *               DEF_INT_32U_MAX_VAL, if integer parsed but     overflowed (see Note #2a3A1).
+   2440          *
+   2441          *               0,                   otherwise                            (see Note #2a3B).
+   2442          *
+   2443          * Caller(s)   : Str_ParseNbr_Int32U(),
+   2444          *               Str_ParseNbr_Int32S().
+   2445          *
+   2446          * Note(s)     : (1) String buffer NOT modified.
+   2447          *
+   2448          *               (2) (a) IEEE Std 1003.1, 2004 Edition, Section 'strtol() : DESCRIPTION' states that "these 
+   2449          *                       functions shall convert the initial portion of the string pointed to by 'str' to a 
+   2450          *                       type long ... representation" :
+   2451          *
+   2452          *                       (1) "First, they decompose the input string into three parts" :
+   2453          *
+   2454          *                           (A) "An initial, possibly empty, sequence of white-space characters [as specified 
+   2455          *                                by isspace()]."
+   2456          *
+   2457          *                               (1) "The subject sequence is defined as the longest initial subsequence of the 
+   2458          *                                    input string, starting with the first non-white-space character that is of 
+   2459          *                                    the expected form.  The subject sequence shall contain no characters if the 
+   2460          *                                    input string is empty or consists entirely of white-space characters."
+   2461          *
+   2462          *                           (B) (1) "A subject sequence interpreted as an integer represented in some radix 
+   2463          *                                    determined by the value of 'base'" :
+   2464          *
+   2465          *                                   (a) "If the value of 'base' is 0, the expected form of the subject sequence 
+   2466          *                                        is that of a decimal constant, octal constant, or hexadecimal constant" :
+   2467          *
+   2468          *                                       (1) "A decimal constant begins with a non-zero digit, and consists of a 
+   2469          *                                            sequence of decimal digits."
+   2470          *
+   2471          *                                       (2) "An octal constant consists of the prefix '0' optionally followed by 
+   2472          *                                            a sequence of the digits '0' to '7' only."
+   2473          *
+   2474          *                                       (3) "A hexadecimal constant consists of the prefix '0x' or '0X' followed 
+   2475          *                                            by a sequence of the decimal digits and letters 'a' (or 'A') to 'f' 
+   2476          *                                            (or 'F') with values 10 to 15 respectively."
+   2477          *
+   2478          *                                   (b) "If the value of 'base' is between 2 and 36, the expected form of the 
+   2479          *                                        subject sequence is a sequence of letters and digits representing an 
+   2480          *                                        integer with the radix specified by 'base'" :
+   2481          *
+   2482          *                                       (1) (A) "The letters from 'a' (or 'A') to 'z' (or 'Z') inclusive are 
+   2483          *                                                ascribed the values 10 to 35"; ...
+   2484          *                                           (B) "only letters whose ascribed values are less than that of base 
+   2485          *                                                are permitted."
+   2486          *
+   2487          *                                       (2) (A) "If the value of 'base' is 16, the characters '0x' or '0X' may 
+   2488          *                                                optionally precede the sequence of letters and digits."
+   2489          *
+   2490          *                                           (B) Although NO specification states that "if the value of 'base' 
+   2491          *                                               is" 8, the '0' character "may optionally precede the sequence 
+   2492          *                                               of letters and digits"; it seems reasonable to allow the '0'
+   2493          *                                               character to be optionally parsed.
+   2494          *$PAGE*
+   2495          *                               (2) "A subject sequence .... may be preceded by a '+' or '-' sign."
+   2496          *
+   2497          *                                   (a) It does NOT seem reasonable to parse & convert a negative number 
+   2498          *                                       integer string into an unsigned integer.  However, a negative sign 
+   2499          *                                       for an unsigned integer will automatically be parsed as an invalid 
+   2500          *                                       character (see Note #2aC1).
+   2501          *
+   2502          *                           (C) (1) (a) "A final string of one or more unrecognized characters,"  ...
+   2503          *                                   (b) "including the terminating null byte of the input string" ...
+   2504          *                               (2) "other than a sign or a permissible letter or digit."
+   2505          *
+   2506          *                       (2) Second, "they shall attempt to convert the subject sequence to an integer" :
+   2507          *
+   2508          *                           (A) "If the subject sequence is empty or does not have the expected form" :
+   2509          *
+   2510          *                               (1) "no conversion is performed"; ...
+   2511          *                               (2) "the value of 'str' is stored in the object pointed to by 'endptr',
+   2512          *                                    provided that 'endptr' is not a null pointer."
+   2513          *
+   2514          *                           (B) "If the subject sequence has the expected form" :
+   2515          *
+   2516          *                               (1) (a) "and the value of 'base' is 0, the sequence of characters starting with 
+   2517          *                                        the first digit shall be interpreted as an integer constant."
+   2518          *
+   2519          *                                   (b) "and the value of 'base' is between 2 and 36, it shall be used as the 
+   2520          *                                        base for conversion, ascribing to each letter its value as given above"
+   2521          *                                        (see Note #2a1B1b1A).
+   2522          *
+   2523          *                               (2) "A pointer to the final string shall be stored in the object pointed to by 
+   2524          *                                   'endptr', provided that 'endptr' is not a null pointer."
+   2525          *
+   2526          *                       (3) Lastly, IEEE Std 1003.1, 2004 Edition, Section 'strtol() : RETURN VALUE' states that :
+   2527          *
+   2528          *                           (A) "Upon successful completion, these functions shall return the converted value."
+   2529          *                               (1) "If the correct value is outside the range of representable values, {LONG_MIN}
+   2530          *                                    [or] {LONG_MAX} ... shall be returned."
+   2531          *
+   2532          *                           (B) "If no conversion could be performed, 0 shall be returned."
+   2533          *
+   2534          *                   (b) (1) IEEE Std 1003.1, 2004 Edition, Section 'strtoul() : ERRORS' states that "these functions 
+   2535          *                           shall fail if" :
+   2536          *
+   2537          *                           (A) "[EINVAL] - The value of 'base' is not supported."
+   2538          *
+   2539          *                           (B) "[ERANGE] - The value to be returned is not representable."
+   2540          *
+   2541          *                       (2) IEEE Std 1003.1, 2004 Edition, Section 'strtoul() : ERRORS' states that "these functions 
+   2542          *                           may fail if" :
+   2543          *
+   2544          *                           (A) "[EINVAL] - No conversion could be performed."
+   2545          *$PAGE*
+   2546          *               (3) Return integer value & next string pointer should be used to diagnose parse success or failure :
+   2547          *
+   2548          *                   (a) Valid parse string integer :
+   2549          *
+   2550          *                           pstr      = "     ABCDE xyz"
+   2551          *                           nbr_base  = 16
+   2552          *
+   2553          *                           nbr       = 703710
+   2554          *                           pstr_next = " xyz"
+   2555          *
+   2556          *
+   2557          *                   (b) Invalid parse string integer :
+   2558          *
+   2559          *                           pstr      = "     ABCDE"
+   2560          *                           nbr_base  = 10
+   2561          *
+   2562          *                           nbr       =  0
+   2563          *                           pstr_next = pstr = "     ABCDE"
+   2564          *
+   2565          *
+   2566          *                   (c) Valid hexadecimal parse string integer :
+   2567          *
+   2568          *                           pstr      = "     0xGABCDE"
+   2569          *                           nbr_base  = 16
+   2570          *
+   2571          *                           nbr       =  0
+   2572          *                           pstr_next = "xGABCDE"
+   2573          *
+   2574          *
+   2575          *                   (d) Valid decimal parse string integer ('0x' prefix ignored 
+   2576          *                               following invalid hexadecimal characters) :
+   2577          *
+   2578          *                           pstr      = "     0xGABCDE"
+   2579          *                           nbr_base  =  0
+   2580          *
+   2581          *                           nbr       =  0
+   2582          *                           pstr_next = "xGABCDE"
+   2583          *
+   2584          *
+   2585          *                   (e) Valid decimal parse string integer ('0'  prefix ignored 
+   2586          *                               following invalid octal       characters) :
+   2587          *
+   2588          *                           pstr      = "     0GABCDE"
+   2589          *                           nbr_base  =  0
+   2590          *
+   2591          *                           nbr       =  0
+   2592          *                           pstr_next = "GABCDE"
+   2593          *
+   2594          *
+   2595          *                   (f) Parse string integer overflow :
+   2596          *
+   2597          *                           pstr      = "   12345678901234567890*123456"
+   2598          *                           nbr_base  = 10
+   2599          *
+   2600          *                           nbr       = DEF_INT_32U_MAX_VAL
+   2601          *                           pstr_next = "*123456"
+   2602          *
+   2603          *
+   2604          *                   (g) Parse string integer underflow :
+   2605          *
+   2606          *                           pstr      = "  -12345678901234567890*123456"
+   2607          *                           nbr_base  = 10
+   2608          *
+   2609          *                           nbr       = DEF_INT_32S_MIN_VAL
+   2610          *                           pstr_next = "*123456"
+   2611          *
+   2612          *
+   2613          *               (4) String parse terminates when :
+   2614          *
+   2615          *                   (a) Base passed an invalid base (see Note #2a1B1b).
+   2616          *                       (1) No conversion performed; zero returned.
+   2617          *
+   2618          *                   (b) (1) Parse string passed a NULL pointer OR empty integer sequence (see Note #2a2A).
+   2619          *                           (A) No conversion performed; zero returned.
+   2620          *
+   2621          *                       (2) Invalid parse string character found (see Note #2a1C).
+   2622          *                           (A) Parsed integer returned.
+   2623          *                           (B) 'pstr_next' points to invalid character.
+   2624          *
+   2625          *                       (3) Entire  parse string converted (see Note #2a2B).
+   2626          *                           (A) Parsed integer returned.
+   2627          *                           (B) 'pstr_next' points to terminating NULL character.
+   2628          *
+   2629          *               (5) Pointers to variables that return values MUST be initialized PRIOR to all other
+   2630          *                   validation or function handling in case of any error(s).
+   2631          *********************************************************************************************************
+   2632          */
+   2633          /*$PAGE*/
+   2634          static  CPU_INT32U  Str_ParseNbr_Int32 (CPU_CHAR      *pstr,
+   2635                                                  CPU_CHAR     **pstr_next,
+   2636                                                  CPU_INT08U     nbr_base,
+   2637                                                  CPU_BOOLEAN    nbr_signed,
+   2638                                                  CPU_BOOLEAN   *pnbr_neg)
+   2639          {
+   2640              CPU_CHAR     *pstr_parse;
+   2641              CPU_CHAR     *pstr_parse_nbr;
+   2642              CPU_CHAR      parse_char;
+   2643              CPU_INT08U    parse_dig;
+   2644              CPU_INT32U    nbr;
+   2645              CPU_BOOLEAN   nbr_dig;
+   2646              CPU_BOOLEAN   nbr_alpha;
+   2647              CPU_BOOLEAN   nbr_hex;
+   2648              CPU_BOOLEAN   nbr_hex_lower;
+   2649              CPU_BOOLEAN   whitespace;
+   2650              CPU_BOOLEAN   neg;
+   2651              CPU_BOOLEAN   ovf;
+   2652              CPU_BOOLEAN   done;
+   2653          
+   2654                                                                          /* Init rtn vals for err (see Note #5).                  */
+   2655              if (pstr_next != (CPU_CHAR **)0) {
+   2656                 *pstr_next  = (CPU_CHAR  *)pstr;
+   2657              }
+   2658          
+   2659              if (pnbr_neg != (CPU_BOOLEAN *)0) {
+   2660                 *pnbr_neg  = (CPU_BOOLEAN  )DEF_NO;
+   2661              }
+   2662          
+   2663          
+   2664              if (pstr == (CPU_CHAR *)0) {                                /* Rtn zero if str ptr NULL (see Note #4b1).            */
+   2665                  return ((CPU_INT32U)0);
+   2666              }
+   2667                                                                          /* Rtn zero if invalid base (see Note #4a).             */
+   2668              if ((nbr_base == 1) ||
+   2669                  (nbr_base > 36)) {
+   2670                  return ((CPU_INT32U)0);
+   2671              }
+   2672          
+   2673          
+   2674                                                                          /* ------------- IGNORE PRECEDING CHAR(S) ------------- */
+   2675              pstr_parse = pstr;                                          /* Save ptr to init'l str for err (see Note #2a2A2).    */
+   2676          
+   2677              whitespace = ASCII_IS_SPACE(*pstr_parse);
+   2678              while (whitespace == DEF_YES) {                             /* Ignore initial white-space char(s) [see Note #2a1A]. */
+   2679                  pstr_parse++;
+   2680                  whitespace = ASCII_IS_SPACE(*pstr_parse);
+   2681              }
+   2682          
+   2683              switch (*pstr_parse) {                                      
+   2684                  case '+':                                               /* Ignore   pos sign (see Note #2a1B2).                 */
+   2685                       pstr_parse++;
+   2686                       neg = DEF_NO;
+   2687                       break;
+   2688          
+   2689          
+   2690                  case '-':                                               /* Validate neg sign (see Note #2a1B2a).                */
+   2691                       if (nbr_signed == DEF_YES) {
+   2692                           pstr_parse++;
+   2693                           neg = DEF_YES;
+   2694                       }
+   2695                       break;
+   2696          
+   2697          
+   2698                  default:
+   2699                       neg = DEF_NO;
+   2700                       break;
+   2701              }
+   2702          
+   2703          
+   2704          /*$PAGE*/
+   2705                                                                          /* --------- IGNORE NBR BASE PRECEDING CHAR(S) -------- */
+   2706              pstr_parse_nbr = pstr_parse;                                /* Save ptr to str's nbr (see Note #2a1A1).             */
+   2707          
+   2708              switch (nbr_base) {
+   2709                  case  0:                                                /* Determine unspecified nbr base (see Notes #2a1B1a).  */
+   2710                       if (*pstr_parse == '0') {                          /* If avail, ...                                        */
+   2711                            pstr_parse++;                                 /* ... adv past '0'  prefix (see Note #2a1B1b2).        */
+   2712                            switch (*pstr_parse) {
+   2713                                case 'x':                                 /* For '0x' prefix, ...                                 */
+   2714                                case 'X':
+   2715                                     nbr_base   = 16;                     /* ... set nbr base = 16    (see Note #2a1B1a3).        */
+   2716                                     parse_char = (CPU_CHAR)(*(pstr_parse + 1));
+   2717                                     nbr_hex    =  ASCII_IS_DIG_HEX(parse_char);
+   2718                                     if (nbr_hex == DEF_YES) {            /* If next char is valid hex dig, ...                   */
+   2719                                         pstr_parse++;                    /* ... adv past '0x' prefix (see Note #2a1B1b2A).       */
+   2720                                     }
+   2721                                     break;
+   2722          
+   2723          
+   2724                                default:                                  /* For '0'  prefix, ...                                 */
+   2725                                     nbr_base =  8;                       /* ... set nbr base =  8    (see Note #2a1B1a2).        */
+   2726                                     break;
+   2727                            }
+   2728          
+   2729                       } else {                                           /* For non-'0' prefix, ...                              */
+   2730                           nbr_base = 10;                                 /* ... set nbr base = 10    (see Note #2a1B1a1).        */
+   2731                       }
+   2732                       break;
+   2733          
+   2734          
+   2735                  case  8:                                                /* See Note #2a1B1a2.                                   */
+   2736                       if (*pstr_parse == '0') {                          /* If avail, ...                                        */
+   2737                            pstr_parse++;                                 /* ... adv past '0'  prefix (see Note #2a1B1b2B).       */
+   2738                       }
+   2739                       break;
+   2740          
+   2741          
+   2742                  case 16:                                                /* See Note #2a1B1a3.                                   */
+   2743                       if (*pstr_parse == '0') {                          /* If avail, ...                                        */
+   2744                            pstr_parse++;                                 /* ... adv past '0'  prefix (see Note #2a1B1b2).        */
+   2745                            switch (*pstr_parse) {
+   2746                                case 'x':
+   2747                                case 'X':
+   2748                                     parse_char = (CPU_CHAR)(*(pstr_parse + 1));
+   2749                                     nbr_hex    =  ASCII_IS_DIG_HEX(parse_char);
+   2750                                     if (nbr_hex == DEF_YES) {            /* If next char is valid hex dig, ...                   */
+   2751                                         pstr_parse++;                    /* ... adv past '0x' prefix (see Note #2a1B1b2A).       */
+   2752                                     }
+   2753                                     break;
+   2754          
+   2755          
+   2756                                default:
+   2757                                     break;
+   2758                            }
+   2759                       }
+   2760                       break;
+   2761          
+   2762          
+   2763                  default:                                                /* See Note #2a1B1b.                                    */
+   2764                       break;
+   2765              }
+   2766          
+   2767          
+   2768          /*$PAGE*/
+   2769                                                                          /* ------------------ PARSE INT STR ------------------- */
+   2770              nbr  = 0;
+   2771              ovf  = DEF_NO;
+   2772              done = DEF_NO;
+   2773          
+   2774              while (done == DEF_NO) {                                    /* Parse str for desired nbr base digs (see Note #2a2). */
+   2775                  parse_char = (CPU_CHAR)*pstr_parse;
+   2776                  nbr_alpha  =  ASCII_IS_ALNUM(parse_char);
+   2777                  if (nbr_alpha == DEF_YES) {                             /* If valid alpha num nbr dig avail, ...                */
+   2778                                                                          /* ... convert parse char into nbr dig.                 */
+   2779                      nbr_dig = ASCII_IS_DIG(parse_char);
+   2780                      if (nbr_dig == DEF_YES) {
+   2781                          parse_dig = (CPU_INT08U)(parse_char - '0');
+   2782                      } else {
+   2783                          nbr_hex_lower = ASCII_IS_LOWER(parse_char);
+   2784                          if (nbr_hex_lower == DEF_YES) {
+   2785                              parse_dig = (CPU_INT08U)(parse_char - 'a' + 10);
+   2786                          } else {
+   2787                              parse_dig = (CPU_INT08U)(parse_char - 'A' + 10);
+   2788                          }
+   2789                      }
+   2790          
+   2791                      if (parse_dig < nbr_base) {                         /* If parse char valid for nbr base ...                 */
+   2792                          if (ovf == DEF_NO) {                            /* ... & nbr NOT yet ovf'd,         ...                 */
+   2793                              if (nbr <= Str_MultOvfThTbl_Int32U[nbr_base]) {
+   2794                                                                          /* ... merge parse char dig into nbr.                   */
+   2795                                  nbr *= nbr_base;
+   2796                                  nbr += parse_dig;
+   2797                                  if (nbr < parse_dig) {
+   2798                                      ovf = DEF_YES;
+   2799                                  }
+   2800                              } else {
+   2801                                  ovf = DEF_YES;
+   2802                              }
+   2803                          }
+   2804                          pstr_parse++;
+   2805          
+   2806                      } else {                                            /* Invalid         char parsed (see Note #2a1C1a).      */
+   2807                          done = DEF_YES;
+   2808                      }
+   2809          
+   2810                  } else {                                                /* Invalid OR NULL char parsed (see Note #2a1C1).       */
+   2811                      done = DEF_YES;
+   2812                  }
+   2813              }
+   2814          
+   2815              if (ovf == DEF_YES) {                                       /* If nbr ovf'd, ...                                    */
+   2816                  nbr  = DEF_INT_32U_MAX_VAL;                             /* ... rtn max int val (see Note #2a3A1).               */
+   2817              }
+   2818          
+   2819          
+   2820              if (pstr_next != (CPU_CHAR **)0) {
+   2821                  if (pstr_parse != pstr_parse_nbr) {                     /* If final parse str != init'l parse nbr str,       .. */
+   2822                     *pstr_next   = pstr_parse;                           /* .. rtn   parse str's next char (see Note #2a2B2); .. */
+   2823                  } else {
+   2824                     *pstr_next   = pstr;                                 /* .. else rtn initial parse str  (see Note #2a2A2).    */
+   2825                  }
+   2826              }
+   2827          
+   2828              if (pnbr_neg != (CPU_BOOLEAN *)0) {
+   2829                 *pnbr_neg  = (CPU_BOOLEAN  )neg;                         /* Rtn neg nbr status.                                  */
+   2830              }
+   2831          
+   2832          
+   2833              return (nbr);
+   2834          }
+   2835          
+
+   Maximum stack usage in bytes:
+
+     Function            .cstack
+     --------            -------
+     Str_Cat                  8
+     Str_Cat_N               16
+     Str_Char                 8
+     Str_Char_Last           16
+     Str_Char_N               8
+     Str_Cmp                  8
+     Str_CmpIgnoreCase        8
+     Str_CmpIgnoreCase_N     16
+     Str_Cmp_N               16
+     Str_Copy                 8
+     Str_Copy_N              16
+     Str_FmtNbr_Int32        24
+     Str_FmtNbr_Int32S       40
+     Str_FmtNbr_Int32U       32
+     Str_Len                  0
+     Str_ParseNbr_Int32      32
+     Str_ParseNbr_Int32S     16
+     Str_ParseNbr_Int32U     16
+     Str_Str                 32
+
+
+   Section sizes:
+
+     Function/Label          Bytes
+     --------------          -----
+     Str_MultOvfThTbl_Int32U  148
+     Str_Len                   22
+     Str_Copy                  12
+     Str_Copy_N                74
+     Str_Cat                   12
+     Str_Cat_N                 96
+     Str_Cmp                   14
+     Str_Cmp_N                148
+     Str_CmpIgnoreCase         14
+     Str_CmpIgnoreCase_N      404
+     Str_Char                  16
+     Str_Char_N                70
+     Str_Char_Last             56
+     Str_Str                  122
+     Str_FmtNbr_Int32U         44
+     Str_FmtNbr_Int32S         60
+     Str_ParseNbr_Int32U       18
+     Str_ParseNbr_Int32S       56
+     Str_FmtNbr_Int32         224
+     Str_ParseNbr_Int32       816
+     ??DataTable1               4
+
+ 
+   148 bytes in section .rodata
+ 2 282 bytes in section .text
+ 
+ 2 282 bytes of CODE  memory
+   148 bytes of CONST memory
+
+Errors: none
+Warnings: none

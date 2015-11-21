@@ -1,0 +1,842 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     30/Sep/2015  17:04:45 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\Drivers\HJ5000_scanner.c                 #
+#    Command line =  E:\H520B\FW\src\Drivers\HJ5000_scanner.c -D DEBUG_VER    #
+#                    -lcN E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o      #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\HJ5000_scanne #
+#                    r.lst                                                    #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\HJ5000_scanner #
+#                    .o                                                       #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\Drivers\HJ5000_scanner.c
+      1          /**
+      2          * @file  HJ5000_scanner.c
+      3          * @brief HJ5000红光CCD条码扫描引擎的驱动模块
+      4          * @version 1.0
+      5          * @author joe.zhou
+      6          * @date 2015年08月22日
+      7          * @note
+      8          * 
+      9          */
+     10          #include <string.h>
+     11          #include "stm32f10x_lib.h"
+     12          #include "ucos_ii.h"
+     13          #include "HJ5000_scanner.h"
+     14          #include "TimeBase.h"
+     15          #include "keypad.h"
+     16          #include "PCUsart.h"
+     17          
+     18          #define HJ5000_FRAME_MAX_LEN		257
+     19          
+     20          #define USART_RX_DMA_MODE		1
+     21          #define USART_RX_ISR_MODE		2
+     22          
+     23          //#define USART_RX_MODE		USART_RX_DMA_MODE
+     24          #define USART_RX_MODE		USART_RX_ISR_MODE
+     25          
+     26          
+     27          #define HJ5000_START_DECODE		1
+     28          #define HJ5000_STOP_DECODE		2
+     29          #define HJ5000_READ_CFG			3
+     30          #define HJ5000_SET_ALL_DEFAULT	4
+     31          
+     32          
+     33          #define ENABLE		1
+     34          #define DISABLE		0
+     35          
+     36          #define HJ5000_START_DECODE		1
+     37          #define HJ5000_STOP_DECODE		2
+     38          #define HJ5000_READ_CFG			3
+     39          #define HJ5000_SET_ALL_DEFAULT	4
+     40          
+     41          
+     42          #define ENABLE		1
+     43          #define DISABLE		0
+     44          
+     45          	
+     46          #define InterfaceType	0x00	//00H KB  01H RS232   02H USB_KB  03H   USB_RS232 
+     47          #define KBType			0x01	//00H	键盘类型
+     48          #define KBLanguage		0x02	//00H 	键盘语言
+     49          #define DspCodeMark		0x03	//00H	显示所有条形码代码
+     50          #define KBWedge			0x04	//00H	键盘功能设置		
+     51          #define KBEmulation		0x05	//00H	仿真键盘响应(for notebook)		
+     52          #define KBCLKSpeed		0x06	//10H	Clock(实际频率)=20+KBCLKSpeed. Default=0x10.		
+     53          #define InterCharDel	0x07	//00H	0 ~ 99mS (输入值乘  1mS)		
+     54          #define InterMessDel	0x08	//00H	0 ~  5 S (输入值乘100mS)		
+     55          #define KBTerminator	0x09	//01H	00H=NONE, 01H=0DH, 02H=09H.		
+     56          #define RSFlowCtrl		0x0A	//00H	00H=NONE, 01H=CTS/RTS,02H=Xon/Xoff.		
+     57          #define RSHshakingDel	0x0B	//00H	Handshaking Delay		0x0C				
+     58          #define RSACKDel		0x0D	//00H			
+     59          #define RSParity		0x0E	//00H	(00H=None, 01H=Even, 02H=Odd) 01H Without odd		
+     60          #define RSStop			0x0F	//00H	(00H=1 Stop Bit, 01H=2 Stop Bit)		
+     61          #define RSData			0x10	//01H	(00H=7 Data Bits, 01H=8 Data Bits)		
+     62          #define RSBaudRate		0x11	//04H	(00H=9600, 01H=9600, 02H=2400, 03H=4800, 04H=9600 , 05H=19200, 06H=57600, 07H=38400, 08H=115200)		
+     63          #define RSTerminator	0x12	//01H	(00H=NONE, 01H=0DH&0AH, 02H=0DH, 03H=0AH, 04H=09H, 05H=03H, 06H=04H)		
+     64          #define FlashSW			0x13	//00H	00H=长亮模式时不闪烁, 01H=长亮模式时闪烁		
+     65          		
+     66          #define GoodReadBeep	0x17	//01H	读取声, 00H=Disable, 01H=Enable		
+     67          #define PowerUpTone		0x18	//01H	开机声, 00H=Disable, 01H=Enable		
+     68          #define ScanMode		0x19	//01H	00H=Trigger On/Off, 01H=Trigger On/Good read off, 02H=Continuous/Trigger off, 04H=continuous/LED always ON, 05H=Continuous/timeout off, 06=Flash ON, 07=Continuous/No Trigger, 08=Software trigger and trigger pin=Low,0A=Software trigger		
+     69          #define SoundFre		0x1A	//09H	0~15音频对应(1.5KHz~3KHz)		
+     70          #define SoundLeng		0x1B	//04H	0~99 mS		
+     71          #define PrefixChar_L	0x1C	//00H	 Prefix目前输入字数		
+     72          #define PrefixChar		0x1D	//00H	1DH~26H位置数据		
+     73          
+     74          #define PostfixChar_L	0x27	//00H	Postfix目前输入字数		
+     75          #define PostfixChar		0x28	//00H	28H~31H位置数据		
+     76          					
+     77          #define UAEnable		0x32	//01H	// UPC-A     ON/OFF ( 00H=Disable, 01H=Enable)		
+     78          #define UAIdent			0x33	//46H	// UPC-A     ID code		
+     79          #define UAInsertCode	0x34	//00H	// UPA-A     insert G1 or G2 code ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+     80          #define UAtoE13			0x35	//00H	// UPC-A     convert to EAN13  ( 00H=Disable, 01H=Enable)		
+     81          #define UATranCheck		0x36	//01H	// UPC-A     transmit CC(check character)  ( 00H=Disable, 01H=Enable)		
+     82          #define UACut0			0x37	//00H	// UPC-A     cut first Zero  ( 00H=Disable, 01H=Enable)		
+     83          #define UACutFNum		0x38	//00H	// UPC-A     cut front number		
+     84          #define UACutBNum		0x39	//00H	// UPC-A     cut back number		
+     85          #define UAAddendum		0x3A	//00H	// UPC-A     Add on 2/5		
+     86          #define UAAddForce		0x3B	//00H	// UPC-A     enforce Add on 2/5		
+     87          					
+     88          #define UEEnable		0x3C	//01H	// UPC-E     ON/OFF ( 00H=Disable, 01H=Enable)		
+     89          #define UEIdent			0x3D	//47H	// UPC-E     ID code		
+     90          #define UEInsertCode	0x3E	//00H	// UPA-E     insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+     91          #define UEtoUA			0x3F	//00H	// UPC-E     convert to UPC-A ( 00H=Disable, 01H=Enable)		
+     92          #define UETranCheck		0x40	//01H	// UPC-E     transmit CC ( 00H=Disable, 01H=Enable)		
+     93          #define UECut0			0x41	//00H	// UPC-E     cut first Zero ( 00H=Disable, 01H=Enable)		
+     94          #define UECutFNum		0x42	//00H	// UPC-E     cut front number		
+     95          #define UECutBNum		0x43	//00H	// UPC-E     cut back number		
+     96          #define UEAddendum		0x44	//00H	// UPC-E     Add on 2/5		
+     97          #define UEAddForce		0x45	//00H	// UPC-E     enforce Add on 2/5		
+     98          					
+     99          #define E13Enable		0x46	//01H	// EAN13     ON/OFF ( 00H=Disable, 01H=Enable)		
+    100          #define E13Ident		0x47	//48H	// EAN13     ID code		
+    101          #define E13InsertCode	0x48	//00H	// EAN13     insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    102          #define E13TranCheck	0x49	//01H	// EAN13     transmit CC ( 00H=Disable, 01H=Enable)		
+    103          #define E13CutFNum		0x4A	//00H	// EAN13     cut front number		
+    104          #define E13CutBNum		0x4B	//00H	// EAN13     cut back number		
+    105          #define E13Addendum		0x4C	//00H	// EAN13     Add on 2/5		
+    106          #define E13AddForce		0x4D	//00H	// EAN13     enforce Add on 2/5		
+    107          #define E13ISEnable		0x4E	//00H	// ISBNISSN  exchange ( 00H=Disable, 01H=Enable)		
+    108          #define E13ISBNAdd		0x4F	//00H	// ISBN      insert 间隔符号 ( 00H=Disable, 01H=Enable)		
+    109          					
+    110          #define E8Enable		0x50	//01H	// EAN-8     ON/OFF ( 00H=Disable, 01H=Enable)		
+    111          #define E8Ident			0x51	//49H	// EAN-8     ID code		
+    112          #define E8InsertCode	0x52	//00H	// EAN-8     insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    113          #define E8TranCheck		0x53	//01H	// EAN-8     transmit CC ( 00H=Disable, 01H=Enable)		
+    114          #define E8CutFNum		0x54	//00H	// EAN-8     cut front number		
+    115          #define E8CutBNum		0x55	//00H	// EAN-8     cut back number		
+    116          #define E8Addendum		0x56	//00H	// EAN-8     Add on 2/5		
+    117          #define E8AddForce		0x57	//00H	// EAN-8     enforce Add on 2/5		
+    118          					
+    119          #define Addendum		0x58	//00H	// UPC_EAN   Add on 2/5  (same time open UPC/EAN all add on 2/5)		
+    120          #define AddendForce		0x59	//00H	// UPC_EAN   enforce Add on 2/5 (同时强制UPC/EAN所有附加码)		
+    121          					
+    122          #define C39Enable		0x5A	//01H	// Code39    ON/OFF ( 00H=Disable, 01H=Enable)		
+    123          #define C39Ident		0x5B	//4AH	// Code39    ID code		
+    124          #define C39InsertCode	0x5C	//00H	// Code39    insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    125          #define C39Check		0x5D	//00H	// Code39    Check CS ( 00H=Disable, 01H=Enable)		
+    126          #define C39TranCheck	0x5E	//00H	// Code39    transmit CC ( 00H=Disable, 01H=Enable)		
+    127          #define C39Concat		0x5F	//00H	// Code39    当C39第一字符是"space"时,close message terminator transmit ( 00H=Disable, 01H=Enable)		
+    128          #define C39Format		0x60	//00H	// Code39    格式(standard or Full code) ( 00H=Standard C39, 01H=Full C39)		
+    129          #define C39TranOEChar	0x61	//00H	// Code39    传送起始&结束符号 ( 00H=Disable, 01H=Enable)		
+    130          #define C39CutFNum		0x62	//00H	// Code39    cut front number		
+    131          #define C39CutBNum		0x63	//00H	// Code39    cut back number		
+    132          #define C39SLeng		0x64	//00H	// Code39    min length		
+    133          #define C39DLeng		0x65	//50H	// Code39    max length		
+    134          					
+    135          #define CdaEnable		0x66	//01H	// Codabar   ON/OFF ( 00H=Disable, 01H=Enable)		
+    136          #define CdaIdent		0x67	//4BH	// Codabar   ID code		
+    137          #define CdaInsertCode	0x68	//00H	// Codabar   insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    138          #define CdaCheck		0x69	//00H	// Codabar   Check CS ( 00H=Disable, 01H=Enable)		
+    139          #define CdaTranCheck	0x6A	//01H	// Codabar   transmit CC ( 00H=Disable, 01H=Enable)		
+    140          #define CdaConcat		0x6B	//00H	//		
+    141          #define CdaOECharType	0x6C	//00H	// Codabar   传送起始&结束类型(00H=ABCD/ABCD,01H=abcd/abcd,02H=abcd/tn*e)		
+    142          #define CdaTranOEChar	0x6D	//01H	// Codabar   传送起始&结束符号 ( 00H=Disable, 01H=Enable)		
+    143          #define CdaCutFNum		0x6E	//00H	// Codabar   cut front number		
+    144          #define CdaCutBNum		0x6F	//00H	// Codabar   cut back number		
+    145          #define CdaSLeng		0x70	//06H	// Codabar   min length		
+    146          #define CdaDLeng		0x71	//50H	// Codabar   max length		
+    147          					
+    148          #define C93Enable		0x72	//01H	// Code93    ON/OFF ( 00H=Disable, 01H=Enable)		
+    149          #define C93Ident		0x73	//4CH	// Code93    ID code		
+    150          #define C93InsertCode	0x74	//00H	// Code93    insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    151          #define C93Check		0x75	//01H	// Code93    Check CS ( 00H=Disable, 01H=Enable)		
+    152          #define C93TranCheck	0x76	//00H	// Code93    transmit CC ( 00H=Disable, 01H=Enable)		
+    153          #define C93CutFNum		0x77	//00H	// Code93    cut front number		
+    154          #define C93CutBNum		0x78	//00H	// Code93    cut back number		
+    155          #define C93SLeng		0x79	//03H	// Code93    min length		
+    156          #define C93DLeng		0x7A	//50H	// Code93    max length		
+    157          					
+    158          #define C128Enable		0x7B	//01H	// Code128   ON/OFF ( 00H=Disable, 01H=Enable)		
+    159          #define C128Ident		0x7C	//4DH	// Code128   ID code		
+    160          #define C128InsertCode	0x7D	//00H	// Code128   insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    161          #define C128Check		0x7E	//01H	// Code128   Check CS ( 00H=Disable, 01H=Enable)		
+    162          #define C128TranCheck	0x7F	//00H	// Code128   transmit CC ( 00H=Disable, 01H=Enable)		
+    163          #define C128Fuc1		0x80	//00H	// Code128    当C128第一字符是"FUC1"时,结合下一组条形码 message ( 00H=Disable, 01H=Enable)		
+    164          #define C128Fuc2		0x81	//00H	// Code128    当C128中有"FUC2"时, FUC2转换为"1DH" ( 00H=Disable, 01H=Enable)		
+    165          #define EAN128En		0x82	//00H	// Code128 转换为EAN128 ( 00H=Disable, 01H=Enable)		
+    166          #define C128CutFNum		0x83	//00H	// Code128   cut front number		
+    167          #define C128CutBNum		0x84	//00H	// Code128   cut back number		
+    168          #define C128SLeng		0x85	//03H	// Code128   min length		
+    169          #define C128DLeng		0x86	//50H	// Code128   max length		
+    170          					
+    171          #define It25Enable		0x87	//01H	// It25      ON/OFF ( 00H=Disable, 01H=Enable)		
+    172          #define It25Ident		0x88	//4EH	// It25      ID code		
+    173          #define It25InsertCode	0x89	//00H	// It25      insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    174          #define It25Check		0x8A	//00H	// It25      Check CS ( 00H=Disable, 01H=Enable)		
+    175          #define It25TranCheck	0x8B	//00H	// It25      transmit CC ( 00H=Disable, 01H=Enable)		
+    176          #define It25CutFNum		0x8C	//00H	// It25      cut front number		
+    177          #define It25CutBNum		0x8D	//00H	// It25      cut back number		
+    178          #define It25SLeng		0x8E	//04H	// It25      min length		
+    179          #define It25DLeng		0x8F	//50H	// It25      max length		
+    180          					
+    181          #define Id25Enable		0x90	//00H	// Id25      ON/OFF ( 00H=Disable, 01H=Enable)		
+    182          #define Id25Ident		0x91	//4FH	// Id25      ID code		
+    183          #define Id25InsertCode	0x92	//00H	// Id25      insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    184          #define Id25Check		0x93	//00H	// Id25      Check CS ( 00H=Disable, 01H=Enable)		
+    185          #define Id25TranCheck	0x94	//00H	// Id25      transmit CC ( 00H=Disable, 01H=Enable)		
+    186          #define Id25CutFNum		0x95	//00H	// ID25      cut front number		
+    187          #define Id25CutBNum		0x96	//00H	// ID25      cut back number		
+    188          #define Id25SLeng		0x97	//06H	// Id25      min length		
+    189          #define Id25DLeng		0x98	//50H	// Id25      max length		
+    190          					
+    191          #define S25Enable		0x99	//00H	// S25       ON/OFF ( 00H=Disable, 01H=Enable)		
+    192          #define S25Ident		0x9A	//57H	// S25       ID code		
+    193          #define S25InsertCode	0x9B	//00H	// S25       insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    194          #define S25CutFNum		0x9C	//00H	// S25       cut front number		
+    195          #define S25CutBNum		0x9D	//00H	// S25       cut back number		
+    196          #define S25SLeng		0x9E	//06H	// S25       min length		
+    197          #define S25DLeng		0x9F	//50H	// S25       max length		
+    198          					
+    199          #define M25Enable		0xA0	//00H	// M25       ON/OFF ( 00H=Disable, 01H=Enable)		
+    200          #define M25Ident		0xA1	//50H	// M25       ID code		
+    201          #define M25InsertCode	0xA2	//00H	// M25       insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    202          #define M25Check		0xA3	//00H	// M25       Check CS ( 00H=Disable, 01H=Enable)		
+    203          #define M25TranCheck	0xA4	//01H	// M25       transmit CC ( 00H=Disable, 01H=Enable)		
+    204          #define M25CutFNum		0xA5	//00H	// M25       cut front number		
+    205          #define M25CutBNum		0xA6	//00H	// M25       cut back number		
+    206          #define M25SLeng		0xA7	//06H	// M25       min length		
+    207          #define M25DLeng		0xA8	//50H	// M25       max length		
+    208          					
+    209          #define CPEnable		0xA9	//00H	// CPC       ON/OFF ( 00H=Disable, 01H=Enable)		
+    210          #define CPIdent			0xAA	//51H	// CPC       ID code		
+    211          #define CPInsertCode	0xAB	//00H	// CPC       insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    212          #define CPCheck			0xAC	//00H	// CPC       Check CS ( 00H=Disable, 01H=Enable)		
+    213          #define CPTranCheck		0xAD	//00H	// CPC       transmit CC ( 00H=Disable, 01H=Enable)		
+    214          #define CPCutFNum		0xAE	//00H	// CPC       cut front number		
+    215          #define CPCutBNum		0xAF	//00H	// CPC       cut back number		
+    216          #define CPSLeng			0xB0	//06H	// CPC       min length		
+    217          #define CPDLeng			0xB1	//50H	// CPC       max length		
+    218          					
+    219          #define C11Enable		0xB2	//00H	// Code11    ON/OFF ( 00H=Disable, 01H=Enable)		
+    220          #define C11Ident		0xB3	//54H	// Code11    ID code		
+    221          #define C11InsertCode	0xB4	//00H	// Code11    insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    222          #define C11Check		0xB5	//00H	// Code11    Check CS ( 00H=Disable, 01H=Enable)		
+    223          #define C11TranCheck	0xB6	//00H	// Code11    transmit CC ( 00H=Disable, 01H=Enable)		
+    224          #define C11CutFNum		0xB7	//00H	// Code11    cut front number		
+    225          #define C11CutBNum		0xB8	//00H	// Code11    cut back number		
+    226          #define C11SLeng		0xB9	//06H	// Code11    min length		
+    227          #define C11DLeng		0xBA	//50H	// Code11    max length		
+    228          					
+    229          #define MSEnable		0xBB	//00H	// MSI       ON/OFF ( 00H=Disable, 01H=Enable)		
+    230          #define MSIdent			0xBC	//52H	// MSI       ID code		
+    231          #define MSInsertCode	0xBD	//00H	// MSI       insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    232          #define MSCheck			0xBE	//00H	// MSI       Check CS ( 00H=Disable, 01H=Enable)		
+    233          #define MSTranCheck		0xBF	//01H	// MSI       transmit CC ( 00H=Disable, 01H=Enable)		
+    234          #define MSCutFNum		0xC0	//00H	// MSI       cut front number		
+    235          #define MSCutBNum		0xC1	//00H	// MSI       cut back number		
+    236          #define MSSLeng			0xC2	//06H	// MSI       min length		
+    237          #define MSDLeng			0xC3	//50H	// MSI       max length		
+    238          					
+    239          #define C32Enable		0xC4	//00H	// Code32    ON/OFF ( 00H=Disable, 01H=Enable)		
+    240          #define C32Ident		0xC5	//53H	// Code32    ID code		
+    241          #define C32InsertCode	0xC6	//00H	// Code32    insert G1 or G2 code  ( 00H=Disable, 01H=G1 code, 02H=G2 code)		
+    242          #define C32Check		0xC7	//00H	// Code32    Check CS ( 00H=Disable, 01H=Enable)		
+    243          #define C32TranCheck	0xC8	//00H	// Code32    transmit CC ( 00H=Disable, 01H=Enable)		
+    244          #define C32CutFNum		0xC9	//00H	// Code32    cut front number		
+    245          #define C32CutBNum		0xCA	//00H	// Code32    cut back number		
+    246          					
+    247          #define G1InsertPosit	0xDA	//00H	//  G1插入位置		
+    248          #define G1InsertCode	0xDB	//00H	// DAH~E3H   G1插入码		
+    249          #define G1InsertCode_L	0xE4	//00H	目前输入字数		
+    250          #define G2InsertPosit	0xE5	//00H	//  G2插入位置		
+    251          #define G2InsertCode	0xE6	//00H	// E5H~EEH   G2插入码		
+    252          #define G2InsertCode_L	0xEF	//00H	目前输入字数	
+    253          
+    254          /**
+    255          * @brief uE988 命令定义  decoder->host
+    256          */
+    257          typedef struct {
+    258          	unsigned short			CmdPos;
+    259          	unsigned short			DataLength;
+    260          	unsigned char			status;
+    261          	unsigned char			*CmdBuffer;
+    262          }THJ5000Command;
+    263          
+    264          #define		RES_CHECKFAILURE			1
+    265          #define		RES_UNKOWN_MSG				2
+    266          #define		RESPONSE_SUCCESS			3
+    267          #define		RESPONSE_ACK				4
+    268          #define		RESPONSE_NAK				5
+    269          
+    270          
+    271          
+    272          //static unsigned char	g_ack_enable;							//indicate whether ack/nck handshaking is enabled  1: enable; 0: disable
+    273          #define MAX_DECODE_DATA		50
+    274          
+    275          THJ5000Command	g_resCmd;		//scan decoder -> host
+    276          unsigned char	*g_pReqCmd;		//host -> scan decoder
+    277          static	unsigned int	wait_time_out;			//get_barcode命令的等待超时设置
+    278          
+    279          
+    280          
+    281          #define G_SEND_BUF_LENGTH     32
+    282          #define G_RECEIV_BUF_LENGTH   128
+    283          
+    284          unsigned char		g_send_buff[G_SEND_BUF_LENGTH];
+    285          unsigned char		g_receive_buff[G_RECEIV_BUF_LENGTH];
+    286          
+    287          static int write_cmd_to_scanner(const unsigned char *pData, unsigned short length);
+    288          static int pack_set_command(unsigned char param_offset, unsigned char param_value);
+    289          static int pack_ctrl_command(unsigned char cmd_type);
+    290          int HJ5000_RxISRHandler(unsigned char c);
+    291          
+    292          
+    293          /*
+    294           * @brief: 初始化模块端口
+    295          */
+    296          static void HJ5000_GPIO_config(void)
+    297          {
+    298          	GPIO_InitTypeDef				GPIO_InitStructure;
+    299          	USART_InitTypeDef				USART_InitStructure;
+    300          
+    301          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB |
+    302          		RCC_APB2Periph_AFIO, ENABLE);
+    303          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
+    304          
+    305          
+    306          	/* PWRDWN PA.5 WAKE	PA.6 TRIG PA.7 */
+    307          	//GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_5;
+    308          	//GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    309          	//GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    310          	//GPIO_Init(GPIOA, &GPIO_InitStructure);
+    311          
+    312          	//GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_6 | GPIO_Pin_7;
+    313          	//GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+    314          	//GPIO_Init(GPIOA, &GPIO_InitStructure);
+    315          	//GPIO_SetBits(GPIOA, GPIO_Pin_6 | GPIO_Pin_7);
+    316          
+    317          	// 使用UART3, PB10,PB11
+    318          	/* Configure USART3 Tx (PB.10) as alternate function push-pull */
+    319          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+    320          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    321          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    322          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    323          
+    324          	/* Configure USART3 Rx (PB.11) as input floating				*/
+    325          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_11;
+    326          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    327          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    328          
+    329          #if(USART_RX_MODE == USART_RX_DMA_MODE)
+    330          	DMA_InitTypeDef DMA_InitStructure;
+    331                  NVIC_InitTypeDef NVIC_InitStructure;
+    332          
+    333          	/* DMA clock enable */
+    334          	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+    335          
+    336          
+    337          	/* fill init structure */
+    338          	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    339          	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    340          	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    341          	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    342          	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+    343          	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+    344          	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+    345          
+    346          	/* DMA1 Channel2 (triggered by USART3 Tx event) Config */
+    347          	DMA_DeInit(DMA1_Channel2);
+    348          	DMA_InitStructure.DMA_PeripheralBaseAddr =(u32)(&USART3->DR);
+    349          	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+    350          	/* As we will set them before DMA actually enabled, the DMA_MemoryBaseAddr
+    351          	 * and DMA_BufferSize are meaningless. So just set them to proper values
+    352          	 * which could make DMA_Init happy.
+    353          	 */
+    354          	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0;
+    355          	DMA_InitStructure.DMA_BufferSize = 1;
+    356          	DMA_Init(DMA1_Channel2, &DMA_InitStructure);
+    357          
+    358          
+    359          	//DMA1通道3配置  
+    360          	DMA_DeInit(DMA1_Channel3);  
+    361          	//外设地址  
+    362          	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&USART3->DR);  
+    363          	//内存地址  
+    364          	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)g_receive_buff;  
+    365          	//dma传输方向单向  
+    366          	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;  
+    367          	//设置DMA在传输时缓冲区的长度  
+    368          	DMA_InitStructure.DMA_BufferSize = G_RECEIV_BUF_LENGTH;  
+    369          	//设置DMA的外设递增模式，一个外设  
+    370          	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  
+    371          	//设置DMA的内存递增模式  
+    372          	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  
+    373          	//外设数据字长  
+    374          	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  
+    375          	//内存数据字长  
+    376          	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;  
+    377          	//设置DMA的传输模式  
+    378          	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  
+    379          	//设置DMA的优先级别  
+    380          	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
+    381          	//设置DMA的2个memory中的变量互相访问  
+    382          	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  
+    383          	DMA_Init(DMA1_Channel3,&DMA_InitStructure);  
+    384          
+    385          	//使能通道3 
+    386          	DMA_Cmd(DMA1_Channel3,ENABLE);  
+    387          
+    388          #endif
+    389          
+    390          	//初始化参数    
+    391          	//USART_InitStructure.USART_BaudRate = DEFAULT_BAUD;    
+    392          	USART_InitStructure.USART_WordLength = USART_WordLength_8b;    
+    393          	USART_InitStructure.USART_StopBits = USART_StopBits_1;    
+    394          	USART_InitStructure.USART_Parity = USART_Parity_No;    
+    395          	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;    
+    396          	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;      
+    397          	USART_InitStructure.USART_BaudRate = 9600;   
+    398          	//初始化串口   
+    399          	USART_Init(USART3,&USART_InitStructure); 
+    400          
+    401          
+    402          #if(USART_RX_MODE == USART_RX_DMA_MODE)
+    403          	//中断配置  
+    404          	USART_ITConfig(USART3,USART_IT_TC,DISABLE);  
+    405          	USART_ITConfig(USART3,USART_IT_RXNE,DISABLE);  
+    406          	USART_ITConfig(USART3,USART_IT_IDLE,ENABLE);    
+    407          
+    408          	//配置UART3中断  
+    409          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+    410          	NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQChannel;               //通道设置为串口1中断    
+    411          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
+    412          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+    413          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
+    414          	NVIC_Init(&NVIC_InitStructure);  
+    415          
+    416          	/* Enable the DMA1 Channel2 Interrupt */
+    417          	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel2_IRQChannel;
+    418          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    419          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+    420          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    421          	NVIC_Init(&NVIC_InitStructure);
+    422          
+    423          	DMA_ITConfig(DMA1_Channel2, DMA_IT_TC | DMA_IT_TE, ENABLE);
+    424          	DMA_ClearFlag(DMA1_FLAG_TC2);
+    425          
+    426          	//采用DMA方式接收  
+    427          	USART_DMACmd(USART3,USART_DMAReq_Rx,ENABLE); 
+    428          
+    429          	/* Enable USART3 DMA Tx request */
+    430          	USART_DMACmd(USART3, USART_DMAReq_Tx , ENABLE);
+    431          
+    432          #endif
+    433          	//启动串口    
+    434          	USART_Cmd(USART3, ENABLE);
+    435          }
+    436          
+    437          static void HJ5000_NVIC_config(void)
+    438          {
+    439          #if(USART_RX_MODE == USART_RX_ISR_MODE)
+    440          	NVIC_InitTypeDef NVIC_InitStructure;
+    441          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+    442          
+    443          	/* Enable the USART1 Interrupt */
+    444          	NVIC_InitStructure.NVIC_IRQChannel				=USART3_IRQChannel;
+    445          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority	= 0;
+    446          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 5;
+    447          	NVIC_InitStructure.NVIC_IRQChannelCmd			= ENABLE;
+    448          	NVIC_Init(&NVIC_InitStructure);
+    449          
+    450          	USART_ClearITPendingBit(USART3, USART_IT_RXNE); 
+    451          	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
+    452          #endif
+    453          }
+    454          
+    455          static void reset_resVar(void)
+    456          {
+    457          	g_resCmd.CmdPos = 0;
+    458          	g_resCmd.DataLength = 0;
+    459          	g_resCmd.status	 = 0;
+    460          }
+    461          
+    462          /**
+    463          * @brief  发数据给条形码扫描仪
+    464          * @param[in] unsigned char *pData 要发送的数据
+    465          * @param[in] int length 要发送数据的长度
+    466          */
+    467          static void send_data_to_scanner(const unsigned char *pData, unsigned short length)
+    468          {
+    469          #if (USART_RX_MODE == USART_RX_ISR_MODE)
+    470          	while(length--)
+    471          	{
+    472          		USART_SendData(USART3, *pData++);
+    473          		while(USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET)
+    474          		{
+    475          		}
+    476          	}
+    477          	while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET){};
+    478          #else
+    479          	/* disable DMA */
+    480          	DMA_Cmd(DMA1_Channel2, DISABLE);
+    481          
+    482          	/* set buffer address */
+    483          	memcpy(g_send_buff,pData,length);
+    484          
+    485          	DMA1_Channel2->CMAR = (u32)&g_send_buff[0];
+    486          	/* set size */
+    487          	DMA1_Channel2->CNDTR = length;
+    488          
+    489          	USART_DMACmd(USART3, USART_DMAReq_Tx , ENABLE);
+    490          	/* enable DMA */
+    491          	DMA_Cmd(DMA1_Channel2, ENABLE);
+    492          
+    493          	 while(DMA1_Channel2->CNDTR);
+    494                   while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET){};
+    495          #endif
+    496          }
+    497          
+    498          /**
+    499          * @brief  发命令给条形码扫描仪
+    500          * @param[in] unsigned char *pData 要发送的数据
+    501          * @param[in] int length 要发送数据的长度
+    502          * @param[out]	0: 成功
+    503          *				-1: 失败
+    504          */
+    505          static int write_cmd_to_scanner(const unsigned char *pData, unsigned short length)
+    506          {
+    507          
+    508          	//HJ5000_wakeup();		//先唤醒模块
+    509          
+    510          	send_data_to_scanner(pData, length);
+    511          
+    512          	//if (g_ack_enable == 0)	//ack/nak handshaking disabled
+    513          	//{
+    514          	//	return 0;
+    515          	//}
+    516          	
+    517          	return 0;
+    518          }
+    519          
+    520          
+    521          /**
+    522          * @brief  打包命令(host->scanner)
+    523          * @param[in] unsigned char cmd_code 命令代码
+    524          * @param[in] unsigned char cmd_status 
+    525          * @param[in] unsigned char *pCmddata 命令数据
+    526          * @param[in] unsigned char data_len 命令数据长度
+    527          * @note: 共4种命令格式（都是9Bytes）
+    528          *     1. 设置命令:0xff 0x55 0x55 0x98 (参数位置)(1byte) (参数值)(1byte) 0x11 0x22 0x33
+    529          *	  2. Trig命令：0xff 0x55 0x55 0xaf 0x11 0x22 0x33 0x44 0x55
+    530          *	  3. Read CFG命令：0xff 0x55 0x55 0x92 0x11 0x22 0x33 0x44 0x55
+    531          *     4. Set ALL Default命令：0xff 0x55 0x55 0xa1 0x11 0x22 0x33 0x44 0x55 		//reponse : 0x79 0x00 0x11 0x22 0x33 0x44
+    532          */
+    533          static int pack_set_command(unsigned char param_offset, unsigned char param_value)
+    534          {       
+    535              memset(g_pReqCmd,0,10);
+    536          
+    537          	g_pReqCmd[0] = 0xff;
+    538          	g_pReqCmd[1] = 0x55;	
+    539          	g_pReqCmd[2] = 0x55;	
+    540          	g_pReqCmd[3] = 0x98;
+    541          	g_pReqCmd[4] = param_offset;
+    542          	g_pReqCmd[5] = param_value;
+    543          	g_pReqCmd[6] = 0x11;
+    544          	g_pReqCmd[7] = 0x22;
+    545          	g_pReqCmd[8] = 0x33;
+    546          	
+    547          	return 9;
+    548          }
+    549          
+    550          static int pack_ctrl_command(unsigned char cmd_type)
+    551          {       
+    552              memset(g_pReqCmd,0,10);
+    553          
+    554          	g_pReqCmd[0] = 0xff;
+    555          	g_pReqCmd[1] = 0x55;	
+    556          	g_pReqCmd[2] = 0x55;
+    557          	switch(cmd_type)
+    558          	{
+    559          		case HJ5000_START_DECODE:
+    560          			g_pReqCmd[3] = 0xaf;
+    561          			break;
+    562          		case HJ5000_READ_CFG:
+    563          			g_pReqCmd[3] = 0x92;
+    564          			break;
+    565          		case HJ5000_SET_ALL_DEFAULT:
+    566          			g_pReqCmd[3] = 0xA1;
+    567          			break;
+    568          		default:
+    569          			return 0;
+    570          	}
+    571          	g_pReqCmd[4] = 0x11;
+    572          	g_pReqCmd[5] = 0x22;
+    573          	g_pReqCmd[6] = 0x33;
+    574          	g_pReqCmd[7] = 0x44;
+    575          	g_pReqCmd[8] = 0x55;
+    576          	
+    577          	return 9;
+    578          }
+    579          
+    580          
+    581          void scanner_mod_reset(void)
+    582          {
+    583          	//GPIO_ResetBits(GPIOA,GPIO_Pin_3);
+    584          	g_resCmd.CmdPos = 0;
+    585          	g_resCmd.DataLength = 0;
+    586          	g_resCmd.status	 = 0;
+    587          }
+    588          
+    589          /*
+    590          * @brief: 模块初始化
+    591          */
+    592          void scanner_mod_init(void)
+    593          {
+    594          	int	ret;
+    595          	HJ5000_GPIO_config();
+    596          	HJ5000_NVIC_config();
+    597          	
+    598          	g_pReqCmd	= g_send_buff;
+    599          	g_resCmd.CmdBuffer	= g_receive_buff;
+    600          
+    601          	reset_resVar();
+    602          	//初始化串口配置
+    603          	//Comm_SetReceiveProc(COMM3, (CommIsrInByte)HJ5000_RxISRHandler);						//设置串口回调函数
+    604          
+    605          	ret = pack_set_command(ScanMode,0x0a);
+    606          	write_cmd_to_scanner(g_pReqCmd, ret);
+    607          	OSTimeDlyHMSM(0, 0, 0, 100);
+    608          	ret = pack_set_command(RSTerminator,0x02);
+    609          	write_cmd_to_scanner(g_pReqCmd, ret);
+    610          	OSTimeDlyHMSM(0, 0, 0, 100);
+    611          	wait_time_out = 28;
+    612          	//scan_start = 0;
+    613          }
+    614          
+    615          
+    616          /**
+    617          * @brief 处理host收到scanner的数据
+    618          * @param[in] unsigned char c 读入的字符
+    619          * @return 0:success put in buffer
+    620          *        -1:fail
+    621          */
+    622          int HJ5000_RxISRHandler(unsigned char c)
+    623          {
+    624          	//unsigned short checksum = 0;
+    625          
+    626          	if(g_resCmd.status == 0)
+    627          	{
+    628          		g_resCmd.CmdBuffer[g_resCmd.CmdPos++] = c;
+    629          	}
+    630          	
+    631          
+    632          	//if (g_resCmd.CmdPos == 1)
+    633          	//{
+    634          	//	if (g_resCmd.CmdBuffer[0] == 0x06)
+    635          	//	{
+    636          	//		g_resCmd.status = RESPONSE_ACK;
+    637          	//	}
+    638          	//	else if (g_resCmd.CmdBuffer[0] == 0x15)
+    639          	//	{
+    640          	//		g_resCmd.status = RESPONSE_NAK;
+    641          	//	}
+    642          	//}
+    643          
+    644          	//if ((g_resCmd.CmdBuffer[g_resCmd.CmdPos-1] == 0x0a)&&(g_resCmd.CmdBuffer[g_resCmd.CmdPos-2] == 0x0d))
+    645          	if (g_resCmd.CmdBuffer[g_resCmd.CmdPos-1] == 0x0d)
+    646          	{
+    647          		g_resCmd.status = RESPONSE_SUCCESS;
+    648          	}
+    649          
+    650          	if (g_resCmd.CmdPos >= G_RECEIV_BUF_LENGTH)
+    651          	{
+    652          		reset_resVar();
+    653          		g_resCmd.status = RES_UNKOWN_MSG;
+    654          		return -1;
+    655          	}
+    656          
+    657          	return 0;
+    658          }
+    659          
+    660          
+    661          /*
+    662          * @breif:  开始 或 停止扫描条码
+    663          * @param[in]: ctrl_type: UE988_START_DECODE  UE988_STOP_DECODE
+    664          */
+    665          void HJ5000_start_stop_decode(unsigned char ctrl_type)
+    666          {
+    667          	int ret;
+    668          	if (ctrl_type == HJ5000_START_DECODE)
+    669          	{
+    670          		ret = pack_ctrl_command(HJ5000_START_DECODE);
+    671          	}
+    672          	else
+    673          	{
+    674          		ret = pack_ctrl_command(HJ5000_STOP_DECODE);
+    675          	}
+    676          	if(ret)
+    677          	{
+    678          		//g_ack_enable = 0;
+    679          		ret = write_cmd_to_scanner(g_pReqCmd, ret);
+    680          		//g_ack_enable = 1;
+    681          	}
+    682          
+    683          	return;
+    684          }
+    685          
+    686          /*
+    687          * @breif:  获取条形码
+    688          * @param[out]: unsigned char *code_type: 条形码类型		10个字节
+    689          * @param[out]: unsigned char *code_buf: 存储条形码的缓存, code Type + decode data
+    690          * @param[in]:  unsigned char inbuf_size: 传进来用来存放decode_data的buf大小
+    691          * @param[out]  unsigned char *code_len:	 实际获取的条形码的长度，如果实际获取的长度比传进来的buf大，那么只返回传进来的buf大小的数据
+    692          */
+    693          int scanner_get_barcode(unsigned char *barcode,unsigned int max_num,unsigned char *barcode_type,unsigned int *barcode_len)
+    694          {
+    695          	int		i = 0;
+    696          
+    697          	//start decode
+    698          	HJ5000_start_stop_decode(HJ5000_START_DECODE);
+    699          	reset_resVar();
+    700              for(i = 0; i < wait_time_out; i++)   //新扫描头的超时只有3S左右
+    701          	{
+    702          		if (g_resCmd.status == RESPONSE_SUCCESS) //成功收到响应
+    703          		{
+    704          			HJ5000_start_stop_decode(HJ5000_STOP_DECODE);
+    705          			*barcode_len	= g_resCmd.CmdPos-1;
+    706          			i = ((*barcode_len > max_num)?max_num:*barcode_len);
+    707          			memcpy(barcode, &g_resCmd.CmdBuffer[0], i);
+    708          			barcode[i] = 0;
+    709          			strcpy((char*)barcode_type, "");
+    710          			//Beep(400);
+    711          			return 0;
+    712          		}//成功收到响应
+    713          		//else if (g_resCmd.status == RESPONSE_NAK)	//响应失败
+    714          		//{
+    715          		//	lineccd_start_stop_decode(LINECCD_STOP_DECODE);
+    716          		//	return -1;
+    717          		//}
+    718          		//else if (g_resCmd.status == RES_CHECKFAILURE)
+    719          		//{
+    720          		//	send_nak_to_sanner(RES_CHECKFAILURE);	
+    721          		//	lineccd_start_stop_decode(LINECCD_STOP_DECODE);
+    722          		//	return -1;
+    723          		//}
+    724          		else if (g_resCmd.status == RES_UNKOWN_MSG)
+    725          		{
+    726          			HJ5000_start_stop_decode(HJ5000_STOP_DECODE);
+    727          			return -1;
+    728          		}
+    729          
+    730          		OSTimeDlyHMSM(0, 0, 0, 100);
+    731          	}//延时
+    732          
+    733          	HJ5000_start_stop_decode(HJ5000_STOP_DECODE);
+    734          	return -1;
+    735          }
+    736          
+    737          
+    738          void scanner_power_off(void)
+    739          {
+    740          	//GPIO_SetBits(SCANNER_POWER_EN_GPIO_PORT,SCANNER_POWER_EN_PIN);
+    741          }
+
+   Maximum stack usage in bytes:
+
+     Function                 .cstack
+     --------                 -------
+     HJ5000_GPIO_config           24
+     HJ5000_NVIC_config            8
+     HJ5000_RxISRHandler           8
+     HJ5000_start_stop_decode      8
+     memcpy                        8
+     memset                        8
+     pack_ctrl_command             8
+     pack_set_command             16
+     reset_resVar                  0
+     scanner_get_barcode          24
+     scanner_mod_init              8
+     scanner_mod_reset             0
+     scanner_power_off             0
+     send_data_to_scanner         16
+     write_cmd_to_scanner          8
+
+
+   Section sizes:
+
+     Function/Label           Bytes
+     --------------           -----
+     memcpy                     14
+     memset                     20
+     g_resCmd                   12
+     g_pReqCmd                   4
+     wait_time_out               4
+     g_send_buff                32
+     g_receive_buff            128
+     HJ5000_GPIO_config        132
+     HJ5000_NVIC_config         58
+     reset_resVar               20
+     send_data_to_scanner       56
+     write_cmd_to_scanner       12
+     pack_set_command           90
+     pack_ctrl_command         132
+     scanner_mod_reset          20
+     scanner_mod_init          108
+     HJ5000_RxISRHandler        82
+     HJ5000_start_stop_decode   40
+     scanner_get_barcode       152
+     scanner_power_off           2
+     ??DataTable9                4
+     ??DataTable50               4
+     ??DataTable51               4
+     ??DataTable55               4
+     ?<Constant "">              1
+
+ 
+ 180 bytes in section .bss
+   1 byte  in section .rodata
+ 954 bytes in section .text
+ 
+ 920 bytes of CODE  memory (+ 34 bytes shared)
+   1 byte  of CONST memory
+ 180 bytes of DATA  memory
+
+Errors: none
+Warnings: 5

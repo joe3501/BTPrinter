@@ -1,0 +1,486 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     13/Oct/2015  16:03:27 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\Drivers\keypad.c                         #
+#    Command line =  E:\H520B\FW\src\Drivers\keypad.c -D DEBUG_VER -lcN       #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o           #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\keypad.lst    #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\keypad.o       #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\Drivers\keypad.c
+      1          /**
+      2          * @file keypad.c
+      3          * @brief 按键驱动程序
+      4          * @version V0.0.1
+      5          * @author joe.zhou
+      6          * @date 2015年08月28日
+      7          * @note
+      8          * @copy
+      9          *
+     10          * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     11          * 本公司以外的项目。本司保留一切追究权利。
+     12          *
+     13          * <h1><center>&copy; COPYRIGHT 2015 heroje</center></h1>
+     14          *
+     15          */
+     16          #include "stm32f10x_lib.h"
+     17          #include "ucos_ii.h"
+     18          #include <stdio.h>
+     19          #include "keypad.h"
+     20          #include "cpu.h"
+     21          #include "app.h"
+     22          #include "TimeBase.h"
+     23          #include "hw_platform.h"
+     24          
+     25          static  unsigned char		current_press_key;
+     26          static  unsigned int		press_cnt;
+     27          static  unsigned int		release_cnt; 
+     28          static  unsigned char		keypad_state;
+     29          
+     30          
+     31          extern	unsigned int	device_current_state;		//设备主状态机
+     32          extern	OS_EVENT		*pEvent_Queue;			//事件消息队列
+     33          extern unsigned int		keypress_timeout;
+     34          /**
+     35          * @brief   		Intialize the KeyBoard IO
+     36          * @param[in]   none
+     37          * @return      none
+     38          * @note   
+     39          *		按键的硬件连接如下图所示：
+     40          *		ScanKey -- PA0
+     41          *		EraseKey -- PB3
+     42          */
+     43          static void Keypad_Initport(void)
+     44          {
+     45          	GPIO_InitTypeDef  gpio_init;
+     46          	EXTI_InitTypeDef EXTI_InitStructure;    
+     47          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB, ENABLE);
+     48          
+     49          	//ScanKey  PA.0
+     50          	gpio_init.GPIO_Pin   = GPIO_Pin_0;
+     51          	gpio_init.GPIO_Speed = GPIO_Speed_10MHz;
+     52          	gpio_init.GPIO_Mode  = GPIO_Mode_IPU;
+     53          	GPIO_Init(GPIOA, &gpio_init);		
+     54          
+     55          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+     56          	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+     57          
+     58          	//EraseKey PB3
+     59          	gpio_init.GPIO_Pin   = GPIO_Pin_3;
+     60          	GPIO_Init(GPIOB, &gpio_init);
+     61          
+     62          	/* Connect EXTI Line0 to PA0 */
+     63          	GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource0);
+     64          	/* Connect EXTI Line3 to PB3 */
+     65          	GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource3);
+     66          
+     67          	/* Configure EXTI LineX to generate an interrupt on falling edge */
+     68          	EXTI_ClearITPendingBit(EXTI_Line0| EXTI_Line3);
+     69          	EXTI_InitStructure.EXTI_Line = EXTI_Line0 | EXTI_Line3;
+     70          	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+     71          	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
+     72          	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+     73          	EXTI_Init(&EXTI_InitStructure);
+     74          	EXTI_GenerateSWInterrupt(EXTI_Line0 | EXTI_Line3);
+     75          }
+     76          
+     77          /**
+     78          * @brief   	Enable the keypad interrupt
+     79          * @return      none
+     80          */
+     81          void Keypad_Int_Enable(void)
+     82          {
+     83          	NVIC_InitTypeDef	NVIC_InitStructure;
+     84          	EXTI_ClearITPendingBit(EXTI_Line0| EXTI_Line3);
+     85          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);    // 抢占式优先级别
+     86          
+     87          	NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQChannel;
+     88          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+     89          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+     90          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     91          	NVIC_Init(&NVIC_InitStructure);
+     92          
+     93          	NVIC_InitStructure.NVIC_IRQChannel = EXTI3_IRQChannel;
+     94          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     95          	NVIC_Init(&NVIC_InitStructure);
+     96          }
+     97          
+     98          /**
+     99          * @brief   	Disable the keypad interrupt
+    100          * @return      none
+    101          */
+    102          void Keypad_Int_Disable(void)
+    103          {
+    104          	NVIC_InitTypeDef	NVIC_InitStructure;
+    105          	EXTI_ClearITPendingBit(EXTI_Line0| EXTI_Line3);
+    106          
+    107          	NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQChannel;
+    108          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+    109          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+    110          	NVIC_InitStructure.NVIC_IRQChannelCmd = DISABLE;
+    111          	NVIC_Init(&NVIC_InitStructure);
+    112          
+    113          	NVIC_InitStructure.NVIC_IRQChannel = EXTI3_IRQChannel;
+    114          	NVIC_InitStructure.NVIC_IRQChannelCmd = DISABLE;
+    115          	NVIC_Init(&NVIC_InitStructure);
+    116          }
+    117          
+    118          
+    119          /**
+    120          * @brief 初始化按键检测需要使用到的定时器,20ms定时器，用以检测按键的按下时长
+    121          */
+    122          void Keypad_Timer_Init(void)
+    123          {
+    124          	TIM_TimeBaseInitTypeDef						TIM_TimeBaseStructure;
+    125          	TIM_OCInitTypeDef							TIM_OCInitStructure;
+    126          	NVIC_InitTypeDef							NVIC_InitStructure;
+    127          
+    128          	//初始化结构体变量
+    129          	TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
+    130          	TIM_OCStructInit(&TIM_OCInitStructure);
+    131          
+    132          	/*开启相应时钟 */
+    133          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);  
+    134          
+    135          
+    136          	//定时计算公式：(（1+Prescaler）/72M ) *(Period+1) = ((1+39)/72M) * (72000/2-1+1) = 20ms
+    137          	/* Time Base configuration */
+    138          	TIM_TimeBaseStructure.TIM_Prescaler			= 39;      
+    139          	TIM_TimeBaseStructure.TIM_CounterMode		= TIM_CounterMode_Up; //向上计数
+    140          	TIM_TimeBaseStructure.TIM_Period			= (72000/2-1);      
+    141          	TIM_TimeBaseStructure.TIM_ClockDivision		= TIM_CKD_DIV1;
+    142          	//TIM_TimeBaseStructure.TIM_RepetitionCounter = 0;
+    143          
+    144          	TIM_TimeBaseInit(TIM3, &TIM_TimeBaseStructure);
+    145          
+    146          	/* Channel 1, 2, 3 and 4 Configuration in Timing mode */
+    147          	TIM_OCInitStructure.TIM_OCMode				= TIM_OCMode_Timing;
+    148          	TIM_OCInitStructure.TIM_Pulse				= 0x0;
+    149          
+    150          	TIM_OC1Init(TIM3, &TIM_OCInitStructure);
+    151          
+    152          	TIM_ClearFlag(TIM3,TIM_FLAG_Update);
+    153          	TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
+    154          
+    155          	/* Enable the TIM2 Interrupt */
+    156          	NVIC_InitStructure.NVIC_IRQChannel			= TIM3_IRQChannel;
+    157          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+    158          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 1;
+    159          	NVIC_InitStructure.NVIC_IRQChannelCmd		= ENABLE;
+    160          	NVIC_Init(&NVIC_InitStructure);
+    161          }
+    162          
+    163          /**
+    164          * @brief 使能按键检测需要使用到的定时器
+    165          */
+    166          void Keypad_Timer_Enable(void)
+    167          {
+    168          	TIM_ClearFlag(TIM3,TIM_FLAG_Update);
+    169          	TIM_Cmd(TIM3, ENABLE);
+    170          }
+    171          
+    172          /**
+    173          * @brief 关闭按键检测需要使用到的定时器
+    174          */
+    175          void Keypad_Timer_Disable(void)
+    176          {
+    177          	TIM_Cmd(TIM3, DISABLE);
+    178          }
+    179          
+    180          /**
+    181          * @brief 初始化按键
+    182          */
+    183          void Keypad_Init(void)
+    184          {
+    185          	Keypad_Initport();
+    186          	Keypad_Timer_Init();
+    187          	Keypad_Int_Enable();
+    188          }
+    189          
+    190          
+    191          #define KEYPAD_STATE_INIT					0
+    192          #define KEYPAD_STATE_AT_LEAST_CLICK			1
+    193          #define KEYPAD_STATE_FIRST_CLICK_RELEASE	2
+    194          #define KEYPAD_STATE_SECOND_CLICK			3
+    195          #define KEYPAD_STATE_LONG_PRESS				4
+    196          
+    197          /**
+    198           * @brief keypad 2个Key对应的IO外部中断ISR
+    199           * @note  EXIT0、EXTI3的中断服务函数调用
+    200          */
+    201          void Keypad_EXTI_ISRHandler(unsigned char	exti_line)
+    202          {
+    203          	//一进入中断，表示检测到有按键被按下，此时需要先关闭所有按键的IO中断，直到此次判断结束再开启
+    204          	Keypad_Int_Disable();
+    205          
+    206          	//再开启定时器及其中断，判断按键是单击还是长按
+    207          	Keypad_Timer_Enable();
+    208          
+    209          	if (exti_line == SCAN_KEY_EXTI_INT)
+    210          	{
+    211          		current_press_key = SCAN_KEY;
+    212          	}
+    213          	else if (exti_line == ERASE_KEY_EXTI_INT)
+    214          	{
+    215          		current_press_key = ERASE_KEY;
+    216          	}
+    217          	press_cnt = 0;
+    218          	keypad_state = KEYPAD_STATE_INIT;
+    219          }
+    220          
+    221          
+    222          /**
+    223           * @brief 读取keypad IO，返回IO状态
+    224           * @param[in] unsigned char key		需要读取的是哪个Key对应的IO
+    225           * @return  0: low  else: high  
+    226          */
+    227          static unsigned char Keypad_ReadIO(unsigned char key)
+    228          {
+    229          	unsigned char h1=0,h2=0;
+    230          	unsigned int	i;
+    231          reread:
+    232          	if (key == SCAN_KEY)
+    233          	{
+    234          		h1 = GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_0);
+    235          	}
+    236          	else if (key == ERASE_KEY)
+    237          	{
+    238          		h1 = GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_3);
+    239          	}
+    240          
+    241          	//hw_platform_trip_io();
+    242          	for(i=0;i < 10000;i++);	//约1ms(在72M频率下，实测972us)
+    243          	//hw_platform_trip_io();
+    244          
+    245          	if (key == SCAN_KEY)
+    246          	{
+    247          		h2 = GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_0);
+    248          	}
+    249          	else if (key == ERASE_KEY)
+    250          	{
+    251          		h2 = GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_3);
+    252          	}
+    253          
+    254          	if(h1 == h2)
+    255          	{
+    256          		return h1;
+    257          	}
+    258          	else
+    259          	{
+    260          		goto  reread;
+    261          	}
+    262          }
+    263          
+    264          //按住超过2个按键低电平判断周期即认为至少是一次按键单击事件的发生，以20ms周期为例，就是只要按住超过40ms即认为至少发生了有效的按键单击事件
+    265          #define SINGLE_CLICK_TH			2		
+    266          #define LONG_PRESS_TH			150		//按住超过250个按键低电平判断周期即认为是一次按键长按事件的发生，按住超过5S即认为按键长按
+    267          #define DOUBLE_CLICK_INTERVAL	4		//双击，连续两次按键之间的时间不超过80ms即认为是双击
+    268          //定义一个回调函数指针，以供中断处理函数在获取到按键键值时post给其余模块使用时，可以提供不同的方法
+    269          //typedef void (* post_key_method)(unsigned char key_value);
+    270          
+    271          //static void post_key(unsigned char key)
+    272          //{
+    273          //	OSQPost(pEvent_Queue,(void*)key);
+    274          //}
+    275          
+    276          /**
+    277           * @brief 定时器中断处理程序
+    278           * @note 真正判断按键是在20ms定时器中断处理程序完成的
+    279          */
+    280          void Keypad_Timer_ISRHandler(void)
+    281          {
+    282          	if (Keypad_ReadIO(current_press_key) == 0)
+    283          	{
+    284          		if (keypad_state == KEYPAD_STATE_INIT)
+    285          		{
+    286          			press_cnt++;
+    287          			if (press_cnt == SINGLE_CLICK_TH)
+    288          			{
+    289          				keypress_timeout = 0;
+    290          				keypad_state = KEYPAD_STATE_AT_LEAST_CLICK;
+    291          				if (current_press_key == SCAN_KEY)
+    292          				{
+    293          					hw_platform_start_led_blink(LED_GREEN,3);
+    294          					if (device_current_state == STATE_HID_Mode)
+    295          					{
+    296          						OSQPost(pEvent_Queue,(void*)EVENT_SCAN_KEY_SINGLE_CLICK);
+    297          						//keypad_state = KEYPAD_STATE_INIT;
+    298          						Keypad_Timer_Disable();
+    299          						Keypad_Int_Enable();
+    300          					}
+    301          				}
+    302          			}
+    303          		}
+    304          		else if (keypad_state == KEYPAD_STATE_AT_LEAST_CLICK)
+    305          		{
+    306          			press_cnt++;
+    307          			if (press_cnt == LONG_PRESS_TH)
+    308          			{
+    309          				if (current_press_key == SCAN_KEY)
+    310          				{
+    311          					OSQPost(pEvent_Queue,(void*)EVENT_SCAN_KEY_LONG_PRESS);
+    312          				}
+    313          				else if (current_press_key == ERASE_KEY)
+    314          				{
+    315          					OSQPost(pEvent_Queue,(void*)EVENT_ERASE_KEY_LONG_PRESS);
+    316          				}
+    317          				
+    318          				//keypad_state = KEYPAD_STATE_INIT;
+    319          				Keypad_Timer_Disable();
+    320          				Keypad_Int_Enable();
+    321          			}
+    322          		}
+    323          		else if (keypad_state == KEYPAD_STATE_FIRST_CLICK_RELEASE)
+    324          		{
+    325          			keypad_state = KEYPAD_STATE_SECOND_CLICK;
+    326          			press_cnt = 0;
+    327          		}
+    328          		else if (keypad_state == KEYPAD_STATE_SECOND_CLICK)
+    329          		{
+    330          			press_cnt++;
+    331          			if (press_cnt == LONG_PRESS_TH)
+    332          			{
+    333          				OSQPost(pEvent_Queue,(void*)EVENT_SCAN_KEY_LONG_PRESS);
+    334          				Keypad_Timer_Disable();
+    335          				Keypad_Int_Enable();
+    336          			}
+    337          		}
+    338          	}
+    339          	else
+    340          	{
+    341          		if (keypad_state == KEYPAD_STATE_INIT)
+    342          		{
+    343          			//keypad_state = KEYPAD_STATE_INIT;
+    344          			Keypad_Timer_Disable();
+    345          			Keypad_Int_Enable();
+    346          		}
+    347          		else if (keypad_state == KEYPAD_STATE_AT_LEAST_CLICK)
+    348          		{
+    349          			if (current_press_key == SCAN_KEY)
+    350          			{
+    351          				//OSQPost(pEvent_Queue,(void*)EVENT_SCAN_KEY_SINGLE_CLICK);
+    352          				if (device_current_state == STATE_BT_Mode_Connect)
+    353          				{
+    354          					//只有在蓝牙连接状态下，才需要检测SCAN键的双击行为
+    355          					keypad_state = 	KEYPAD_STATE_FIRST_CLICK_RELEASE;
+    356          					release_cnt = 0;
+    357          				}
+    358          				else
+    359          				{
+    360          					//其余状态下没有必要检测SCAN键的双击行为
+    361          					hw_platform_start_led_blink(LED_GREEN,3);
+    362          					OSQPost(pEvent_Queue,(void*)EVENT_SCAN_KEY_SINGLE_CLICK);
+    363          					Keypad_Timer_Disable();
+    364          					Keypad_Int_Enable();
+    365          				}
+    366          				
+    367          			}
+    368          			else if (current_press_key == ERASE_KEY)
+    369          			{
+    370          				OSQPost(pEvent_Queue,(void*)EVENT_ERASE_KEY_SINGLE_CLICK);
+    371          				//keypad_state = KEYPAD_STATE_INIT;
+    372          				Keypad_Timer_Disable();
+    373          				Keypad_Int_Enable();
+    374          			}
+    375          		}
+    376          		else if (keypad_state == KEYPAD_STATE_FIRST_CLICK_RELEASE)
+    377          		{
+    378          			release_cnt++;
+    379          			if (release_cnt == DOUBLE_CLICK_INTERVAL)
+    380          			{
+    381          				//单击后，在双击间隔时间内没有再次按下按键，及可以确认单击事件的发生
+    382          				hw_platform_start_led_blink(LED_GREEN,3);
+    383          				OSQPost(pEvent_Queue,(void*)EVENT_SCAN_KEY_SINGLE_CLICK);
+    384          				//keypad_state = KEYPAD_STATE_INIT;
+    385          				Keypad_Timer_Disable();
+    386          				Keypad_Int_Enable();
+    387          			}
+    388          		}
+    389          		else if (keypad_state == KEYPAD_STATE_SECOND_CLICK)
+    390          		{
+    391          			OSQPost(pEvent_Queue,(void*)EVENT_SCAN_KEY_DOUBLE_CLICK);
+    392          			//keypad_state = KEYPAD_STATE_INIT;
+    393          			Keypad_Timer_Disable();
+    394          			Keypad_Int_Enable();
+    395          			hw_platform_stop_led_blink(LED_GREEN);
+    396          		}
+    397          	}
+    398          }
+    399          
+
+   Maximum stack usage in bytes:
+
+     Function                .cstack
+     --------                -------
+     Keypad_EXTI_ISRHandler       8
+     Keypad_Init                  8
+     Keypad_Initport             16
+     Keypad_Int_Disable           8
+     Keypad_Int_Enable            8
+     Keypad_ReadIO               16
+     Keypad_Timer_Disable         8
+     Keypad_Timer_Enable          8
+     Keypad_Timer_ISRHandler      8
+     Keypad_Timer_Init           40
+
+
+   Section sizes:
+
+     Function/Label          Bytes
+     --------------          -----
+     current_press_key          1
+     press_cnt                  4
+     release_cnt                4
+     keypad_state               1
+     Keypad_Initport          128
+     Keypad_Int_Enable         66
+     Keypad_Int_Disable        58
+     Keypad_Timer_Init        124
+     Keypad_Timer_Enable       20
+     Keypad_Timer_Disable      12
+     Keypad_Init               16
+     Keypad_EXTI_ISRHandler    52
+     Keypad_ReadIO            106
+     Keypad_Timer_ISRHandler  456
+     ??DataTable8               4
+     ??DataTable15              4
+     ??DataTable16              4
+     ??DataTable36              4
+     ??DataTable41              4
+     ??DataTable43              4
+
+ 
+    10 bytes in section .bss
+ 1 062 bytes in section .text
+ 
+ 1 062 bytes of CODE memory
+    10 bytes of DATA memory
+
+Errors: none
+Warnings: none

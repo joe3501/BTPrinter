@@ -1,0 +1,135 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     17/Nov/2015  15:49:48 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_mem.c                   #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_mem.c" -D DEBUG_VER    #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_mem. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_mem.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_mem.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : usb_mem.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.2.1
+      5          * Date               : 09/22/2008
+      6          * Description        : Utility functions for memory transfers to/from PMA
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "usb_lib.h"
+     18          
+     19          /* Private typedef -----------------------------------------------------------*/
+     20          /* Private define ------------------------------------------------------------*/
+     21          /* Private macro -------------------------------------------------------------*/
+     22          /* Private variables ---------------------------------------------------------*/
+     23          /* Extern variables ----------------------------------------------------------*/
+     24          /* Private function prototypes -----------------------------------------------*/
+     25          /* Private functions ---------------------------------------------------------*/
+     26          /*******************************************************************************
+     27          * Function Name  : UserToPMABufferCopy
+     28          * Description    : Copy a buffer from user memory area to packet memory area (PMA)
+     29          * Input          : - pbUsrBuf: pointer to user memory area.
+     30          *                  - wPMABufAddr: address into PMA.
+     31          *                  - wNBytes: no. of bytes to be copied.
+     32          * Output         : None.
+     33          * Return         : None	.
+     34          *******************************************************************************/
+     35          void UserToPMABufferCopy(u8 *pbUsrBuf, u16 wPMABufAddr, u16 wNBytes)
+     36          {
+     37            u32 n = (wNBytes + 1) >> 1;   /* n = (wNBytes + 1) / 2 */
+     38            u32 i, temp1, temp2;
+     39            u16 *pdwVal;
+     40            pdwVal = (u16 *)(wPMABufAddr * 2 + PMAAddr);
+     41            for (i = n; i != 0; i--)
+     42            {
+     43              temp1 = (u16) * pbUsrBuf;
+     44              pbUsrBuf++;
+     45              temp2 = temp1 | (u16) * pbUsrBuf << 8;
+     46              *pdwVal++ = temp2;
+     47              pdwVal++;
+     48              pbUsrBuf++;
+     49            }
+     50          }
+     51          /*******************************************************************************
+     52          * Function Name  : PMAToUserBufferCopy
+     53          * Description    : Copy a buffer from user memory area to packet memory area (PMA)
+     54          * Input          : - pbUsrBuf    = pointer to user memory area.
+     55          *                  - wPMABufAddr = address into PMA.
+     56          *                  - wNBytes     = no. of bytes to be copied.
+     57          * Output         : None.
+     58          * Return         : None.
+     59          *******************************************************************************/
+     60          void PMAToUserBufferCopy(u8 *pbUsrBuf, u16 wPMABufAddr, u16 wNBytes)
+     61          {
+     62            u32 n = (wNBytes + 1) >> 1;/* /2*/
+     63            u32 i;
+     64            u32 *pdwVal;
+     65            pdwVal = (u32 *)(wPMABufAddr * 2 + PMAAddr);
+     66            for (i = n; i != 0; i--)
+     67            {
+     68              *(u16*)pbUsrBuf++ = *pdwVal++;
+     69              pbUsrBuf++;
+     70            }
+     71          }
+     72          
+     73          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function            .cstack
+     --------            -------
+     PMAToUserBufferCopy      0
+     UserToPMABufferCopy      8
+
+
+   Section sizes:
+
+     Function/Label      Bytes
+     --------------      -----
+     UserToPMABufferCopy   46
+     PMAToUserBufferCopy   34
+     ??DataTable1           4
+
+ 
+ 84 bytes in section .text
+ 
+ 84 bytes of CODE memory
+
+Errors: none
+Warnings: none

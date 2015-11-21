@@ -1,0 +1,708 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     21/Nov/2015  17:20:25 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\font.c                          #
+#    Command line =  "E:\BT Printer\FW\src\App\font.c" -D DEBUG_VER -lcN      #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\font.lst #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\font.o    #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\font.c
+      1          #include "Type.h"
+      2          #include "Esc_p.h"
+      3          #include "font.h"
+      4          //#include "font8x16.h"
+      5          #include "res_spi.h"
+      6          #include "config.h"
+      7          #include "DotFill.h"
+      8          #include "basic_fun.h"
+      9          #include <string.h>
+     10          // #define FONT_BYTE_SWAP
+     11          //======================================================================================================
+     12          //#define MAX_GBK_ADDR                0x183870
+     13          //#define GB2312_16x16_START_ADDR     0x183870
+     14          
+     15          //////////////////////////////////////////////////////////////////////////////
+     16          
+     17          static void ByteSwap(uint8_t  *p, uint8_t len)
+     18          {
+     19          	uint8_t  ByteSwapTable[] =
+     20          	{
+     21          		0x00,0x80,0x40,0xC0,0x20,0xA0,0x60,0xE0,0x10,0x90,0x50,0xD0,0x30,0xB0,0x70,0xF0,
+     22          		0x08,0x88,0x48,0xC8,0x28,0xA8,0x68,0xE8,0x18,0x98,0x58,0xD8,0x38,0xB8,0x78,0xF8,
+     23          		0x04,0x84,0x44,0xC4,0x24,0xA4,0x64,0xE4,0x14,0x94,0x54,0xD4,0x34,0xB4,0x74,0xF4,
+     24          		0x0C,0x8C,0x4C,0xCC,0x2C,0xAC,0x6C,0xEC,0x1C,0x9C,0x5C,0xDC,0x3C,0xBC,0x7C,0xFC,
+     25          		0x02,0x82,0x42,0xC2,0x22,0xA2,0x62,0xE2,0x12,0x92,0x52,0xD2,0x32,0xB2,0x72,0xF2,
+     26          		0x0A,0x8A,0x4A,0xCA,0x2A,0xAA,0x6A,0xEA,0x1A,0x9A,0x5A,0xDA,0x3A,0xBA,0x7A,0xFA,
+     27          		0x06,0x86,0x46,0xC6,0x26,0xA6,0x66,0xE6,0x16,0x96,0x56,0xD6,0x36,0xB6,0x76,0xF6,
+     28          		0x0E,0x8E,0x4E,0xCE,0x2E,0xAE,0x6E,0xEE,0x1E,0x9E,0x5E,0xDE,0x3E,0xBE,0x7E,0xFE,
+     29          		0x01,0x81,0x41,0xC1,0x21,0xA1,0x61,0xE1,0x11,0x91,0x51,0xD1,0x31,0xB1,0x71,0xF1,
+     30          		0x09,0x89,0x49,0xC9,0x29,0xA9,0x69,0xE9,0x19,0x99,0x59,0xD9,0x39,0xB9,0x79,0xF9,
+     31          		0x05,0x85,0x45,0xC5,0x25,0xA5,0x65,0xE5,0x15,0x95,0x55,0xD5,0x35,0xB5,0x75,0xF5,
+     32          		0x0D,0x8D,0x4D,0xCD,0x2D,0xAD,0x6D,0xED,0x1D,0x9D,0x5D,0xDD,0x3D,0xBD,0x7D,0xFD,
+     33          		0x03,0x83,0x43,0xC3,0x23,0xA3,0x63,0xE3,0x13,0x93,0x53,0xD3,0x33,0xB3,0x73,0xF3,
+     34          		0x0B,0x8B,0x4B,0xCB,0x2B,0xAB,0x6B,0xEB,0x1B,0x9B,0x5B,0xDB,0x3B,0xBB,0x7B,0xFB,
+     35          		0x07,0x87,0x47,0xC7,0x27,0xA7,0x67,0xE7,0x17,0x97,0x57,0xD7,0x37,0xB7,0x77,0xF7,
+     36          		0x0F,0x8F,0x4F,0xCF,0x2F,0xAF,0x6F,0xEF,0x1F,0x9F,0x5F,0xDF,0x3F,0xBF,0x7F,0xFF,
+     37          	};
+     38          
+     39          	do
+     40          	{
+     41          		*p = ByteSwapTable[*p];
+     42          		p++;
+     43          	}while(--len);
+     44          }
+     45          //======================================================================================================
+     46          //	字体加粗
+     47          //======================================================================================================
+     48          static void FontBold(uint8_t font)
+     49          {
+     50              uint32_t i,j,k;
+     51          	if ((esc_sts[current_channel].bold) || (esc_sts[current_channel].double_strike))
+     52          	{
+     53                  switch(font)
+     54                      {
+     55                      case FONT_A_WIDTH:  // FONT A
+     56                          for(i=FONT_A_WIDTH-1;i;i--)
+     57                          {
+     58                              for (j=0;j<FONT_A_HEIGHT/8;j++)
+     59                              {
+     60                                  k= 7;
+     61                                  do{
+     62                                      if(esc_sts[current_channel].font_buf.font_a[i-1][j]&(1<<k))
+     63                                      {
+     64                                         esc_sts[current_channel].font_buf.font_a[i][j] |=(1<<k);
+     65                                      }
+     66                                  }while(k--);
+     67                              }
+     68                          }
+     69                          break;
+     70                      case FONT_B_WIDTH:  // FONT B
+     71                          for(i=FONT_B_WIDTH-1;i;i--)
+     72                          {
+     73                              for (j=0;j<FONT_B_HEIGHT/8;j++)
+     74                              {
+     75                                  k= 7;
+     76                                  do{
+     77                                      if(esc_sts[current_channel].font_buf.font_b[i-1][j]&(1<<k))
+     78                                      {
+     79                                         esc_sts[current_channel].font_buf.font_b[i][j] |=(1<<k);
+     80                                      }
+     81                                  }while(k--);
+     82                              }
+     83                          }
+     84                          break;
+     85                      case FONT_CN_A_WIDTH:  // FONT A
+     86                          for(i=FONT_CN_A_WIDTH-1;i;i--)
+     87                          {
+     88                              for (j=0;j<FONT_CN_A_HEIGHT/8;j++)
+     89                              {
+     90                                  k= 7;
+     91                                  do{
+     92                                      if(esc_sts[current_channel].font_buf.font_cn_a[i-1][j]&(1<<k))
+     93                                      {
+     94                                         esc_sts[current_channel].font_buf.font_cn_a[i][j] |=(1<<k);
+     95                                      }
+     96                                  }while(k--);
+     97                              }
+     98                          }
+     99                          break;
+    100                      case FONT_CN_B_WIDTH:  // FONT B
+    101                          for(i=FONT_CN_B_WIDTH-1;i;i--)
+    102                          {
+    103                              for (j=0;j<FONT_CN_B_HEIGHT/8;j++)
+    104                              {
+    105                                  k= 7;
+    106                                  do{
+    107                                      if(esc_sts[current_channel].font_buf.font_cn_b[i-1][j]&(1<<k))
+    108                                      {
+    109                                         esc_sts[current_channel].font_buf.font_cn_b[i][j] |=(1<<k);
+    110                                      }
+    111                                  }while(k--);
+    112                              }
+    113                          }
+    114                          break;
+    115                      }
+    116          	}
+    117          }
+    118          
+    119          //======================================================================================================
+    120          //	字体放大
+    121          //======================================================================================================
+    122          extern void FontEnlarge(uint8_t *dot, uint8_t *buf, uint8_t row)          //纵向放大，变高
+    123          {
+    124          	uint8_t r, ratio;
+    125          	uint8_t i, j;
+    126          	uint16_t bit;
+    127          	uint8_t c;
+    128          
+    129          	ratio = (esc_sts[current_channel].larger & 0x0f)+1;                          //高放大比例
+    130          	if (ratio == 1)
+    131          	{
+    132          		memcpy(dot, buf, row);
+    133          		return;
+    134          	}
+    135          	bit = 0;
+    136          	//memset(dot, 0, row * (ratio+1));
+    137          	memset(dot, 0, row * ratio);
+    138          	for (i=0; i<row; i++)              //纵向有三个字节，每次一个一个字节取
+    139          	{
+    140          		c = *buf++;                   //51中数据是一个一个字节存的
+    141          		j = 7;
+    142          		do
+    143          		{
+    144          			if (c & (1 << j))
+    145          			{
+    146          				r = 0;
+    147          				do
+    148          				{
+    149          					dot[bit >> 3] |= (1 << (7-(bit & 0x07)));
+    150          					bit++;
+    151          				}
+    152          				while ((++r) < ratio);
+    153          			}
+    154          			else
+    155          			{
+    156          				bit += ratio;
+    157          			}
+    158          		}
+    159          		while (j--);
+    160          	}
+    161          //	printf("fang da");
+    162          }
+    163          //======================================================================================================
+    164          //	字体平滑
+    165          //======================================================================================================
+    166          static void FontSmoothing(uint8_t font)
+    167          {
+    168          	if (esc_sts[current_channel].smoothing_mode)
+    169          	{
+    170          
+    171          	}
+    172          }
+    173          
+    174          //======================================================================================================
+    175          //	下划线
+    176          //======================================================================================================
+    177          //===> 从此函数可以推断出字模数据是从上往下扫描的，而且高位表示上面的点
+    178          extern void FontUnderline(uint16_t start_col, uint16_t end_col)
+    179          {
+    180          	uint8_t c;
+    181          
+    182          	if ((esc_sts[current_channel].rotate) || (esc_sts[current_channel].revert))
+    183          	{
+    184          		return;
+    185          	}
+    186          	switch (esc_sts[current_channel].underline)
+    187          	{
+    188          	case 0x81:                    //细下划线
+    189          		c = 0x01;
+    190          		break;
+    191          	case 0x82:                   //粗下划线
+    192          		c = 0x03;
+    193          		break;
+    194          	case 0:
+    195          	default:
+    196          		return;
+    197          	}
+    198          
+    199          	for (; (start_col < end_col) && (start_col < ARRAY_SIZE(esc_sts[current_channel].dot)); start_col++)
+    200          	{
+    201          		esc_sts[current_channel].dot[start_col][ARRAY_SIZE(esc_sts[current_channel].dot[0])-1] |= c;
+    202          	}
+    203          }
+    204          //======================================================================================================
+    205          //	反白显示
+    206          //======================================================================================================
+    207          static void FontRevertProc(uint8_t *p, uint16_t len)
+    208          {
+    209          	uint8_t i;
+    210          
+    211          	for (i=0; i<len; i++)
+    212          	{
+    213          		*p++ ^= 0xff;                                  //异或，如:1010 1100^1111 1111=0101 0011
+    214          	}
+    215          }
+    216          
+    217          static void FontRevert(uint8_t font)
+    218          {
+    219          	if (esc_sts[current_channel].revert)
+    220          	{
+    221          		switch (font)
+    222          		{
+    223          		case FONT_A_WIDTH:
+    224          			FontRevertProc(&esc_sts[current_channel].font_buf.font_a[0][0], sizeof(esc_sts[current_channel].font_buf.font_a));
+    225          			break;
+    226          		case FONT_B_WIDTH:
+    227          			FontRevertProc(&esc_sts[current_channel].font_buf.font_b[0][0], sizeof(esc_sts[current_channel].font_buf.font_b));
+    228          			break;
+    229          #if defined(GB18030) || defined(GBK) || defined(GB2312)
+    230          		case FONT_CN_A_WIDTH:
+    231          			FontRevertProc(&esc_sts[current_channel].font_buf.font_cn_a[0][0], sizeof(esc_sts[current_channel].font_buf.font_cn_a));
+    232          			break;
+    233          		case FONT_CN_B_WIDTH:
+    234          			FontRevertProc(&esc_sts[current_channel].font_buf.font_cn_b[0][0], sizeof(esc_sts[current_channel].font_buf.font_cn_b));
+    235          			break;
+    236          #endif
+    237          		}
+    238          	}
+    239          }
+    240          //======================================================================================================
+    241          //	旋转
+    242          //======================================================================================================
+    243          extern void FontCircumvolve(uint8_t *dot, uint8_t *buf, uint8_t row,uint8_t col,uint16_t angle)//把buf的缓冲区转换后送入dot缓冲区，row高度，col宽度
+    244          {                               //在旋转九十和两百七十度时，我们的临时buffer要大一点
+    245          	//uint8_t temp;
+    246          	uint16_t bit;
+    247          	uint16_t i,j,k;
+    248              uint16_t max_rowbyte;
+    249              max_rowbyte= (row+7)/8;
+    250          	switch(angle)
+    251          	{
+    252          		case ANTITYPE:                                                     //原型
+    253          			for(i=0;i<col;i++)
+    254          	       		{
+    255          				for(j=0;j<max_rowbyte;j++)
+    256          				{
+    257          					*dot=*buf;
+    258          					dot++;
+    259          					buf++;
+    260          				}
+    261          	      	 	}
+    262          			 break;
+    263          		case CIR_NINETY_DEGREE:                                    //顺旋转九十度
+    264          			bit=0;
+    265          			for(i=max_rowbyte;i>0;i--)
+    266          			{
+    267          				k=0;
+    268          				do
+    269          				{
+    270          					for(j=0;j<col;j++)
+    271          					{
+    272          						if (buf[j*max_rowbyte+i-1] & (1<<k))
+    273          						{
+    274          							dot[bit>>3] |= (1<<(7-(bit&0x07)));
+    275          						}
+    276                                  			bit++;
+    277          						if(j == (col-1))
+    278          						{
+    279          							if(col & 0x07)
+    280          							{
+    281          								bit=bit+(8-(col&0x07));
+    282          							}
+    283          						}
+    284          					}
+    285          				}while((++k)<8);
+    286          			}
+    287          			break;
+    288          		case CIR_TWO_NINETY_DEGREE:                               //顺时钟旋转一百八十度
+    289          			for(i=col;i>0;i--)
+    290          			{
+    291          				for(j=max_rowbyte;j>0;j--)
+    292          				{
+    293          					k=7;
+    294          					do
+    295          					{
+    296          						if (buf[(i-1)*max_rowbyte+j-1] & (1<<k))
+    297          						{
+    298          							dot[(col-i)*max_rowbyte+(max_rowbyte-j)] |= (1<<(7-k));
+    299          						}
+    300          					}while(k--);
+    301          
+    302          				}
+    303          			}
+    304          			break;
+    305          		case CIR_THREE_NINETY_DEGREE:                            //顺时钟旋转两百七十度
+    306          			bit=0;
+    307          			for(i=0;i<max_rowbyte;i++)
+    308          			{
+    309          				k=7;
+    310          				do
+    311          				{
+    312          					for(j=col;j>0;j--)
+    313          					{
+    314          						if (buf[(j-1)*max_rowbyte+i] & (1<<k))
+    315          						{
+    316          							dot[bit>>3] |= (1<<(7-(bit&0x07)));
+    317          						}
+    318                                  			bit++;
+    319          						if(j == 1)
+    320          						{
+    321          							bit=bit+(8-(col&0x07));
+    322          						}
+    323          					}
+    324          				}while(k--);
+    325          			}
+    326          			break;
+    327          		default :
+    328          			break;
+    329          	}
+    330          
+    331          }
+    332          
+    333          #if defined(GB18030) || defined(GBK) || defined(GB2312)
+    334          #if 0
+    335          static unsigned long gt (unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4)
+    336          {
+    337          	unsigned long h=0;
+    338          
+    339          	if (c2==0x7f) return (0);
+    340          
+    341          	if ((c1 >= 0xa1) && (c1 <= 0xab) && (c2 >= 0xa1)) //Section 1
+    342          	{
+    343          		h = (c1 - 0xa1) * 94 + (c2 - 0xa1);
+    344          	}
+    345          	else if ((c1 >= 0xa8) && (c1 <= 0xa9) && (c2 < 0xa1)) //Section 5
+    346          	{
+    347          		if (c2>0x7f)
+    348          		{
+    349          			c2--;
+    350          		}
+    351          		h = (c1-0xa8)*96 + (c2-0x40)+846;
+    352          	}
+    353          	if ((c1 >= 0xb0) && (c1 <= 0xf7) && (c2 >= 0xa1)) //Section 2
+    354          	{
+    355          		h = (c1 - 0xb0) * 94 + (c2 - 0xa1)+1038;
+    356          	}
+    357          	else if ((c1 < 0xa1) && (c1 >= 0x81)) //Section 3
+    358          	{
+    359          		if (c2 > 0x7f)
+    360          		{
+    361          			c2--;
+    362          		}
+    363          		h = (c1-0x81)*190 + (c2-0x40) + 1038 +6768;
+    364          	}
+    365          	else if ((c1>=0xaa) && (c2<0xa1)) //Section 4
+    366          	{
+    367          		if (c2 > 0x7f)
+    368          		{
+    369          			c2--;
+    370          		}
+    371          		h = (c1-0xaa)*96 + (c2-0x40) + 1038 +12848;
+    372          	}
+    373          	if ((c2 >= 0x30) && (c2 <= 0x39)) //Extended Section (With 4 BYTES InCode)
+    374          	{
+    375          		if ((c4 < 0x30) || (c4 > 0x39))
+    376          		{
+    377          			return (0);
+    378          		}
+    379          		h=(c3-0x81)*12600+(c4-0x39)*1260+(c1-0xee)*10+(c2-0x39)+22046;
+    380          		if (h>=22046 && h<=22046+6530)
+    381          		{
+    382          			return(h);
+    383          		}
+    384          		else
+    385          		{
+    386          			return (0);
+    387          		}
+    388          	}
+    389          	return(h);
+    390          }
+    391          #endif
+    392          #endif
+    393          //======================================================================================================
+    394          //----chang
+    395          #define CODE_PAGE_START_ADR     (0x3600UL)
+    396          #define FONTEN_9X24_ADR         (0x50000UL)
+    397          #define CODE_PAGE_START_ADR_9_24     (0X50A20UL)
+    398          
+    399          #if defined(CODEPAGE)
+    400          
+    401          static uint8_t ChToInternaionalCharSetIdx(uint8_t ch)
+    402          {
+    403              switch(ch)
+    404              {
+    405                  case 0x23:
+    406                      return 0;
+    407                  case 0x24:
+    408                      return 1;
+    409                  case 0x40:
+    410                      return 2;
+    411                  case 0x5B:
+    412                      return 3;
+    413                  case 0x5C:
+    414                      return 4;
+    415                  case 0x5D:
+    416                      return 5;
+    417                  case 0x5E:
+    418                      return 6;
+    419                  case 0x60:
+    420                      return 7;
+    421                  case 0x7B:
+    422                      return 8;
+    423                  case 0x7C:
+    424                      return 9;
+    425                  case 0x7D:
+    426                      return 10;
+    427                  case 0x7E:
+    428                      return 11;
+    429                  default:
+    430                      return 0xff;
+    431              }
+    432          }
+    433          #endif
+    434          
+    435          extern void GetEnglishFont(uint8_t ascii)
+    436          {
+    437          
+    438          	uint8_t buf1[FONT_A_HEIGHT*((FONT_A_WIDTH+7)/8)];
+    439          	switch (esc_sts[current_channel].font_en)
+    440          	{
+    441          	case FONT_A_WIDTH:	// FONT A
+    442              //----chang
+    443                    {
+    444                      #if defined(CODEPAGE)
+    445                      if(ChToInternaionalCharSetIdx(ascii)!= 0xff)
+    446                      {
+    447                          F25L_Read(((uint16_t)ChToInternaionalCharSetIdx(ascii))*FONT_A_WIDTH*((FONT_A_HEIGHT+7)/8) + esc_sts[current_channel].international_character_set*12UL*FONT_A_WIDTH*((FONT_A_HEIGHT+7)/8),
+    448                                              esc_sts[current_channel].font_buf.font_a[0], sizeof(esc_sts[current_channel].font_buf.font_a));
+    449                      }
+    450                      else
+    451                      #endif
+    452                      {
+    453                          #if defined(CODEPAGE)
+    454                          if(ascii < 0x80)
+    455                          {
+    456                              F25L_Read((ascii)*FONT_A_WIDTH*((FONT_A_HEIGHT+7)/8) + font_en_addr, esc_sts[current_channel].font_buf.font_a[0], sizeof(esc_sts[current_channel].font_buf.font_a));       // get font from sflash
+    457                          }
+    458                          else
+    459                          {
+    460                              uint32_t adr;
+    461                              adr = CODE_PAGE_START_ADR + esc_sts[current_channel].character_code_page *(0x80UL*sizeof(esc_sts[current_channel].font_buf.font_a))+ (ascii - 0x80)*sizeof(esc_sts[current_channel].font_buf.font_a);
+    462                              F25L_Read(adr, esc_sts[current_channel].font_buf.font_a[0], sizeof(esc_sts[current_channel].font_buf.font_a));       // get font from sflash
+    463          
+    464                          }
+    465              			// TODO: esc_sts[current_channel].international_character_set
+    466                          #elif defined(FONT9x24)
+    467                          if(ascii >= 0x20 && ascii<0x80)
+    468                          {
+    469                              memcpy(esc_sts[current_channel].font_buf.font_a, (const void*)(FontList[FNT_ASC_9_24].address)[ascii-0x20], sizeof(esc_sts[current_channel].font_buf.font_a));
+    470                          }
+    471                          else
+    472                          {
+    473                              memset(esc_sts[current_channel].font_buf.font_a, 0xff, sizeof(esc_sts[current_channel].font_buf.font_a));
+    474                          }
+    475                          #else
+    476              			memcpy(esc_sts[current_channel].font_buf.font_a, (const unsigned char*)(FontList[FNT_ASC_12_24].address)+(ascii-0x20)*FontList[FNT_ASC_12_24].size, sizeof(esc_sts[current_channel].font_buf.font_a));
+    477                          #endif
+    478          	         	}
+    479                    }
+    480          		 break;
+    481          	case FONT_B_WIDTH:	// FONT B
+    482          		{
+    483          			// TODO: esc_sts[current_channel].international_character_set
+    484          			memcpy(esc_sts[current_channel].font_buf.font_b, (const unsigned char*)(FontList[FNT_ASC_8_16].address)+(ascii-0x20)*FontList[FNT_ASC_8_16].size, sizeof(esc_sts[current_channel].font_buf.font_b));
+    485                      #ifdef ASCII9X24
+    486                      LeftRightSwap(esc_sts[current_channel].font_buf.font_b[0], sizeof(esc_sts[current_channel].font_buf.font_b));
+    487                      #endif
+    488          		}
+    489          		break;
+    490          	}
+    491          	FontBold(esc_sts[current_channel].font_en);
+    492          	FontSmoothing(esc_sts[current_channel].font_cn);
+    493          	FontRevert(esc_sts[current_channel].font_en);
+    494          
+    495          
+    496          	// TODO: 需要考虑放大后的位图大小
+    497          
+    498          
+    499          	switch (esc_sts[current_channel].font_en)
+    500          	{
+    501          	case FONT_A_WIDTH:	// FONT A
+    502          		memset(buf1,0,sizeof(buf1));
+    503          		if(esc_sts[current_channel].rotate==1||esc_sts[current_channel].rotate==3)
+    504          		{
+    505          			FontCircumvolve(&buf1[0], &esc_sts[current_channel].font_buf.font_a[0][0], FONT_A_HEIGHT,FONT_A_WIDTH,esc_sts[current_channel].rotate);
+    506          			DotFillToBuf(&buf1[0], FONT_A_HEIGHT,( FONT_A_WIDTH+7)/8*8, 1);
+    507          		}
+    508          		else
+    509          		{
+    510          			FontCircumvolve(&buf1[0], &esc_sts[current_channel].font_buf.font_a[0][0],FONT_A_HEIGHT,FONT_A_WIDTH,esc_sts[current_channel].rotate);
+    511          			DotFillToBuf(&buf1[0], FONT_A_WIDTH,( FONT_A_HEIGHT+7)/8*8, 1);
+    512          		}
+    513          		break;
+    514          	case FONT_B_WIDTH:	// FONT B
+    515          		DotFillToBuf(&esc_sts[current_channel].font_buf.font_b[0][0], FONT_B_WIDTH, FONT_B_HEIGHT, 1);
+    516          		break;
+    517          
+    518              #if defined(CODEPAGE)
+    519              case FONT_C_WIDTH:
+    520                  DotFillToBuf(&esc_sts[current_channel].font_buf.font_c[0][0], FONT_C_WIDTH, FONT_C_HEIGHT, 1);
+    521               #endif
+    522          
+    523          
+    524          
+    525          	}
+    526          
+    527          
+    528          }
+    529          //======================================================================================================
+    530          #if defined(GB18030) || defined(GBK) || defined(GB2312)
+    531          extern void GetChineseFont(uint8_t *c, uint8_t charset)
+    532          {
+    533          	//uint32_t loc;
+    534          	uint8_t buf2[FONT_CN_A_HEIGHT*((FONT_CN_A_WIDTH+7)/8)];
+    535          	switch (esc_sts[current_channel].font_cn)
+    536          	{
+    537          	case FONT_CN_A_WIDTH:
+    538          		{
+    539          			//switch (charset)
+    540          			//{
+    541          			//case CHINESE_FONT_GB2312:
+    542          			//case CHINESE_FONT_GB13000:
+    543          			//default:
+    544          			//	loc = gt(c[0], c[1], 0, 0) * sizeof(esc_sts[current_channel].font_buf.font_cn_a);
+    545          			//	break;
+    546          			//case CHINESE_FONT_GB18030:
+    547          			//	loc = gt(c[0], c[1], c[2], c[3]) * sizeof(esc_sts[current_channel].font_buf.font_cn_a);
+    548          			//	break;
+    549          			//}
+    550          			font_data_read(FNT_CHN_24_24, c,esc_sts[current_channel].font_buf.font_cn_a[0], sizeof(esc_sts[current_channel].font_buf.font_cn_a));		// get font from sflash
+    551          			//ByteSwap(esc_sts[current_channel].font_buf.font_cn_a[0], sizeof(esc_sts[current_channel].font_buf.font_cn_a));
+    552          		}
+    553          		break;
+    554          	case FONT_CN_B_WIDTH:
+    555          		{
+    556          			// TODO: change flash offset
+    557          			//loc = GB2312_16x16_START_ADDR + ((c[0]-0xA1)*(0xfe - 0xA0) + (c[1]-0xA1) )* sizeof(esc_sts[current_channel].font_buf.font_cn_b);//GB2312
+    558          			font_data_read(FNT_CHN_16_16, c,esc_sts[current_channel].font_buf.font_cn_b[0], sizeof(esc_sts[current_channel].font_buf.font_cn_b));
+    559          		}
+    560          		break;
+    561          	}
+    562          	FontBold(esc_sts[current_channel].font_cn);
+    563          	FontSmoothing(esc_sts[current_channel].font_cn);
+    564          	FontRevert(esc_sts[current_channel].font_cn);
+    565          	// TODO: 需要考虑放大后的位图大小
+    566          	switch (esc_sts[current_channel].font_cn)
+    567          	{
+    568          	case FONT_CN_A_WIDTH:	// FONT A
+    569          		memset(buf2,0,sizeof(buf2));
+    570          		if(esc_sts[current_channel].rotate==1||esc_sts[current_channel].rotate==3)
+    571          		{
+    572          			FontCircumvolve(&buf2[0], &esc_sts[current_channel].font_buf.font_cn_a[0][0], FONT_CN_A_HEIGHT,FONT_CN_A_WIDTH,esc_sts[current_channel].rotate);
+    573          			DotFillToBuf(&buf2[0], FONT_CN_A_HEIGHT,( FONT_CN_A_WIDTH+7)/8*8, 1);
+    574          		}
+    575          		else
+    576          		{
+    577          			FontCircumvolve(&buf2[0], &esc_sts[current_channel].font_buf.font_cn_a[0][0],FONT_CN_A_HEIGHT,FONT_CN_A_WIDTH,esc_sts[current_channel].rotate);
+    578          			DotFillToBuf(&buf2[0], FONT_CN_A_WIDTH, ( FONT_CN_A_HEIGHT+7)/8*8, 1);
+    579          		}
+    580          		break;
+    581          	case FONT_CN_B_WIDTH:	// FONT B
+    582          		DotFillToBuf(&esc_sts[current_channel].font_buf.font_cn_b[0][0], FONT_CN_B_WIDTH, FONT_CN_B_HEIGHT, 1);
+    583          		break;
+    584          	}
+    585          }
+    586          #endif
+    587          extern void GetEnglishHRIFont(uint8_t ascii)
+    588          {
+    589          	uint8_t larger;
+    590          	larger = esc_sts[current_channel].larger;
+    591          	esc_sts[current_channel].larger = 0;
+    592          	switch(esc_sts[current_channel].font_en)
+    593          	{
+    594          	case FONT_A_WIDTH:	// FONT A
+    595          #if defined(MP2_BLUETOOTH_DENMARK)
+    596              F25L_Read((ascii)*FONT_A_WIDTH*((FONT_A_HEIGHT+7)/8) + font_en_addr, esc_sts[current_channel].font_buf.font_a[0], sizeof(esc_sts[current_channel].font_buf.font_a));       // get font from sflash
+    597          #else
+    598          
+    599              #if defined(CODEPAGE)
+    600              F25L_Read((ascii)*FONT_A_WIDTH*((FONT_A_HEIGHT+7)/8) + font_en_addr, esc_sts[current_channel].font_buf.font_a[0], sizeof(esc_sts[current_channel].font_buf.font_a));
+    601              #else
+    602          	memcpy(esc_sts[current_channel].font_buf.font_a, (const unsigned char*)(FontList[FNT_ASC_12_24].address)+(ascii-0x20)*FontList[FNT_ASC_12_24].size, sizeof(esc_sts[current_channel].font_buf.font_a));
+    603              #endif
+    604          #endif
+    605          		break;
+    606          	case FONT_B_WIDTH:	// FONT B
+    607          		memcpy(esc_sts[current_channel].font_buf.font_b, (const unsigned char*)(FontList[FNT_ASC_8_16].address)+(ascii-0x20)*FontList[FNT_ASC_8_16].size, sizeof(esc_sts[current_channel].font_buf.font_b));
+    608                  #ifdef ASCII9X24
+    609                  LeftRightSwap(esc_sts[current_channel].font_buf.font_b[0], sizeof(esc_sts[current_channel].font_buf.font_b));
+    610                  #endif
+    611          		break;
+    612          	}
+    613          	switch(esc_sts[current_channel].font_en)
+    614          	{
+    615          	case FONT_A_WIDTH:	// FONT A
+    616          		DotFillToBuf(&esc_sts[current_channel].font_buf.font_a[0][0], FONT_A_WIDTH, FONT_A_HEIGHT, 0);
+    617          		break;
+    618          	case FONT_B_WIDTH:	// FONT B
+    619          		DotFillToBuf(&esc_sts[current_channel].font_buf.font_b[0][0], FONT_B_WIDTH, FONT_B_HEIGHT, 0);
+    620          		break;
+    621          	}
+    622          	esc_sts[current_channel].larger = larger;
+    623          }
+    624          
+    625          
+
+   Maximum stack usage in bytes:
+
+     Function          .cstack
+     --------          -------
+     FontBold              24
+     FontCircumvolve       24
+     FontEnlarge           32
+     FontRevert             8
+     FontRevertProc         8
+     FontSmoothing          0
+     FontUnderline         16
+     GetChineseFont        96
+     GetEnglishFont        72
+     GetEnglishHRIFont     16
+     memcpy                 8
+     memset                 8
+
+
+   Section sizes:
+
+     Function/Label    Bytes
+     --------------    -----
+     memcpy              14
+     memset              20
+     FontBold           608
+     FontEnlarge        190
+     FontSmoothing        2
+     FontUnderline      178
+     FontRevertProc      36
+     FontRevert         158
+     FontCircumvolve    514
+     GetEnglishFont     434
+     GetChineseFont     378
+     GetEnglishHRIFont  234
+     ??DataTable121       4
+     ??DataTable130       4
+     ??DataTable131       4
+
+ 
+ 2 778 bytes in section .text
+ 
+ 2 744 bytes of CODE memory (+ 34 bytes shared)
+
+Errors: none
+Warnings: 1

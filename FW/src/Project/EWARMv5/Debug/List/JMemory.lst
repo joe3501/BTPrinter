@@ -1,0 +1,154 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     17/Nov/2015  15:49:36 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\JMemory.c                       #
+#    Command line =  "E:\BT Printer\FW\src\App\JMemory.c" -D DEBUG_VER -lcN   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\JMemory. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\JMemory.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\JMemory.c
+      1          /**
+      2          * @file JMemory.c
+      3          * @brief 管理动态申请内存的模块
+      4          *
+      5          * @version V0.0.1
+      6          * @author joe
+      7          * @date 2012年3月27日
+      8          * @note
+      9          *		none
+     10          *
+     11          * @copy
+     12          *
+     13          * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     14          * 本公司以外的项目。本司保留一切追究权利。
+     15          *
+     16          * <h1><center>&copy; COPYRIGHT 2012 heroje</center></h1>
+     17          */
+     18          
+     19          #include "JMemory.h"
+     20          #include <stdlib.h>
+     21          #include <string.h>
+     22          #define ALLOCATE_ADDR_TABLE_SIZE  100
+     23          
+     24          static int  p_allocate_addr[ALLOCATE_ADDR_TABLE_SIZE];		//每次动态申请的地址都会保存在此数组里面
+     25          
+     26          void JMemory_init(void)
+     27          {
+     28          	memset((void*)p_allocate_addr,0,ALLOCATE_ADDR_TABLE_SIZE*sizeof(int));
+     29          }
+     30          
+     31          void * Jmalloc(int size)
+     32          {
+     33          	void *p;
+     34          	int		i;
+     35          
+     36          	p = malloc(size);
+     37          	if(p)
+     38          	{
+     39          		for(i = 0;i < ALLOCATE_ADDR_TABLE_SIZE;i++)
+     40          		{
+     41          			if(p_allocate_addr[i] == 0)
+     42          			{
+     43          				p_allocate_addr[i] = (int)p;
+     44          				break;
+     45          			}
+     46          		}
+     47          
+     48          		if(i == ALLOCATE_ADDR_TABLE_SIZE)
+     49          		{
+     50          			p_allocate_addr[0] = (int)p;
+     51          		}
+     52          	}
+     53          
+     54          	return p;
+     55          }
+     56          
+     57          
+     58          void Jfree(void * p)
+     59          {
+     60          	int	i;
+     61          	for(i = 0;i < ALLOCATE_ADDR_TABLE_SIZE;i++)
+     62          	{
+     63          		if((int)p == p_allocate_addr[i])
+     64          		{
+     65          			free(p);
+     66          			p_allocate_addr[i] = 0;
+     67          			break;
+     68          		}
+     69          	}
+     70          }
+     71          
+     72          
+     73          void Jfree_all(void)
+     74          {
+     75          	int	i;
+     76          	for(i = 0;i < ALLOCATE_ADDR_TABLE_SIZE;i++)
+     77          	{
+     78          		if(p_allocate_addr[i])
+     79          		{
+     80          			free((void*)p_allocate_addr[i]);
+     81          		}
+     82          	}
+     83          }
+
+   Maximum stack usage in bytes:
+
+     Function     .cstack
+     --------     -------
+     JMemory_init      8
+     Jfree             8
+     Jfree_all         8
+     Jmalloc           8
+     memset            8
+
+
+   Section sizes:
+
+     Function/Label  Bytes
+     --------------  -----
+     memset            20
+     p_allocate_addr  400
+     JMemory_init      16
+     Jmalloc           48
+     Jfree             38
+     Jfree_all         34
+     ??DataTable7       4
+
+ 
+ 400 bytes in section .bss
+ 160 bytes in section .text
+ 
+ 140 bytes of CODE memory (+ 20 bytes shared)
+ 400 bytes of DATA memory
+
+Errors: none
+Warnings: none

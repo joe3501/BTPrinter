@@ -1,0 +1,373 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     17/Nov/2015  15:49:41 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\Drivers\ringbuffer.c                #
+#    Command line =  "E:\BT Printer\FW\src\Drivers\ringbuffer.c" -D           #
+#                    DEBUG_VER -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Deb #
+#                    ug\List\" -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug #
+#                    \Obj\" --no_cse --no_unroll --no_inline                  #
+#                    --no_code_motion --no_tbaa --no_clustering               #
+#                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
+#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
+#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
+#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
+#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
+#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
+#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\ringbuff #
+#                    er.lst                                                   #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\ringbuffe #
+#                    r.o                                                      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\Drivers\ringbuffer.c
+      1          /*
+      2           * File      : ringbuffer.c
+      3           * This file is part of RT-Thread RTOS
+      4           * COPYRIGHT (C) 2012, RT-Thread Development Team
+      5           *
+      6           *  This program is free software; you can redistribute it and/or modify
+      7           *  it under the terms of the GNU General Public License as published by
+      8           *  the Free Software Foundation; either version 2 of the License, or
+      9           *  (at your option) any later version.
+     10           *
+     11           *  This program is distributed in the hope that it will be useful,
+     12           *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+     13           *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     14           *  GNU General Public License for more details.
+     15           *
+     16           *  You should have received a copy of the GNU General Public License along
+     17           *  with this program; if not, write to the Free Software Foundation, Inc.,
+     18           *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+     19           *
+     20           * Change Logs:
+     21           * Date           Author       Notes
+     22           * 2012-09-30     Bernard      first version.
+     23           * 2013-05-08     Grissiom     reimplement
+     24           */
+     25          
+     26          #include "ringbuffer.h"
+     27          #include "basic_fun.h"
+     28          #include <string.h>
+     29          
+     30          void ringbuffer_init(struct ringbuffer *rb,
+     31                                  uint8_t           *pool,
+     32                                  int32_t            size)
+     33          {
+     34              ASSERT(rb != NULL);
+     35              ASSERT(size > 0);
+     36          
+     37              /* initialize read and write index */
+     38              rb->read_mirror = rb->read_index = 0;
+     39              rb->write_mirror = rb->write_index = 0;
+     40          
+     41              /* set buffer pool and size */
+     42              rb->buffer_ptr = pool;
+     43              rb->buffer_size = ALIGN_DOWN(size, ALIGN_SIZE);
+     44          }
+     45          
+     46          /**
+     47           * put a block of data into ring buffer
+     48           */
+     49          size_t ringbuffer_put(struct ringbuffer *rb,
+     50                                      const uint8_t     *ptr,
+     51                                      uint32_t           length)
+     52          {
+     53              uint32_t size;
+     54          
+     55              ASSERT(rb != NULL);
+     56          
+     57              /* whether has enough space */
+     58              size = ringbuffer_space_len(rb);
+     59          
+     60              /* no space */
+     61              if (size == 0)
+     62                  return 0;
+     63          
+     64              /* drop some data */
+     65              if (size < length)
+     66                  length = size;
+     67          
+     68              if (rb->buffer_size - rb->write_index > length)
+     69              {
+     70                  /* read_index - write_index = empty space */
+     71                  memcpy(&rb->buffer_ptr[rb->write_index], ptr, length);
+     72                  /* this should not cause overflow because there is enough space for
+     73                   * length of data in current mirror */
+     74                  rb->write_index += length;
+     75                  return length;
+     76              }
+     77          
+     78              memcpy(&rb->buffer_ptr[rb->write_index],
+     79                     &ptr[0],
+     80                     rb->buffer_size - rb->write_index);
+     81              memcpy(&rb->buffer_ptr[0],
+     82                     &ptr[rb->buffer_size - rb->write_index],
+     83                     length - (rb->buffer_size - rb->write_index));
+     84          
+     85              /* we are going into the other side of the mirror */
+     86              rb->write_mirror = ~rb->write_mirror;
+     87              rb->write_index = length - (rb->buffer_size - rb->write_index);
+     88          
+     89              return length;
+     90          }
+     91          
+     92          /**
+     93           * put a block of data into ring buffer
+     94           *
+     95           * When the buffer is full, it will discard the old data.
+     96           */
+     97          size_t ringbuffer_put_force(struct ringbuffer *rb,
+     98                                      const uint8_t     *ptr,
+     99                                      uint32_t           length)
+    100          {
+    101              enum ringbuffer_state old_state;
+    102          
+    103              ASSERT(rb != NULL);
+    104          
+    105              old_state = ringbuffer_status(rb);
+    106          
+    107              if (length > rb->buffer_size)
+    108                  length = rb->buffer_size;
+    109          
+    110              if (rb->buffer_size - rb->write_index > length)
+    111              {
+    112                  /* read_index - write_index = empty space */
+    113                  memcpy(&rb->buffer_ptr[rb->write_index], ptr, length);
+    114                  /* this should not cause overflow because there is enough space for
+    115                   * length of data in current mirror */
+    116                  rb->write_index += length;
+    117          
+    118                  if (old_state == RINGBUFFER_FULL)
+    119                      rb->read_index = rb->write_index;
+    120          
+    121                  return length;
+    122              }
+    123          
+    124              memcpy(&rb->buffer_ptr[rb->write_index],
+    125                     &ptr[0],
+    126                     rb->buffer_size - rb->write_index);
+    127              memcpy(&rb->buffer_ptr[0],
+    128                     &ptr[rb->buffer_size - rb->write_index],
+    129                     length - (rb->buffer_size - rb->write_index));
+    130          
+    131              /* we are going into the other side of the mirror */
+    132              rb->write_mirror = ~rb->write_mirror;
+    133              rb->write_index = length - (rb->buffer_size - rb->write_index);
+    134          
+    135              if (old_state == RINGBUFFER_FULL)
+    136              {
+    137                  rb->read_mirror = ~rb->read_mirror;
+    138                  rb->read_index = rb->write_index;
+    139              }
+    140          
+    141              return length;
+    142          }
+    143          
+    144          /**
+    145           *  get data from ring buffer
+    146           */
+    147          size_t ringbuffer_get(struct ringbuffer *rb,
+    148                                      uint8_t           *ptr,
+    149                                      uint32_t           length)
+    150          {
+    151              size_t size;
+    152          
+    153              ASSERT(rb != NULL);
+    154          
+    155              /* whether has enough data  */
+    156              size = ringbuffer_data_len(rb);
+    157          
+    158              /* no data */
+    159              if (size == 0)
+    160                  return 0;
+    161          
+    162              /* less data */
+    163              if (size < length)
+    164                  length = size;
+    165          
+    166              if (rb->buffer_size - rb->read_index > length)
+    167              {
+    168                  /* copy all of data */
+    169                  memcpy(ptr, &rb->buffer_ptr[rb->read_index], length);
+    170                  /* this should not cause overflow because there is enough space for
+    171                   * length of data in current mirror */
+    172                  rb->read_index += length;
+    173                  return length;
+    174              }
+    175          
+    176              memcpy(&ptr[0],
+    177                     &rb->buffer_ptr[rb->read_index],
+    178                     rb->buffer_size - rb->read_index);
+    179              memcpy(&ptr[rb->buffer_size - rb->read_index],
+    180                     &rb->buffer_ptr[0],
+    181                     length - (rb->buffer_size - rb->read_index));
+    182          
+    183              /* we are going into the other side of the mirror */
+    184              rb->read_mirror = ~rb->read_mirror;
+    185              rb->read_index = length - (rb->buffer_size - rb->read_index);
+    186          
+    187              return length;
+    188          }
+    189          
+    190          /**
+    191           * put a character into ring buffer
+    192           */
+    193          size_t ringbuffer_putchar(struct ringbuffer *rb, const uint8_t ch)
+    194          {
+    195              ASSERT(rb != NULL);
+    196          
+    197              /* whether has enough space */
+    198              if (!ringbuffer_space_len(rb))
+    199                  return 0;
+    200          
+    201              rb->buffer_ptr[rb->write_index] = ch;
+    202          
+    203              /* flip mirror */
+    204              if (rb->write_index == rb->buffer_size-1)
+    205              {
+    206                  rb->write_mirror = ~rb->write_mirror;
+    207                  rb->write_index = 0;
+    208              }
+    209              else
+    210              {
+    211                  rb->write_index++;
+    212              }
+    213          
+    214              return 1;
+    215          }
+    216          
+    217          /**
+    218           * put a character into ring buffer
+    219           *
+    220           * When the buffer is full, it will discard one old data.
+    221           */
+    222          size_t ringbuffer_putchar_force(struct ringbuffer *rb, const uint8_t ch)
+    223          {
+    224              enum ringbuffer_state old_state;
+    225          
+    226              ASSERT(rb != NULL);
+    227          
+    228              old_state = ringbuffer_status(rb);
+    229          
+    230              rb->buffer_ptr[rb->write_index] = ch;
+    231          
+    232              /* flip mirror */
+    233              if (rb->write_index == rb->buffer_size-1)
+    234              {
+    235                  rb->write_mirror = ~rb->write_mirror;
+    236                  rb->write_index = 0;
+    237                  if (old_state == RINGBUFFER_FULL)
+    238                  {
+    239                      rb->read_mirror = ~rb->read_mirror;
+    240                      rb->read_index = rb->write_index;
+    241                  }
+    242              }
+    243              else
+    244              {
+    245                  rb->write_index++;
+    246                  if (old_state == RINGBUFFER_FULL)
+    247                      rb->read_index = rb->write_index;
+    248              }
+    249          
+    250              return 1;
+    251          }
+    252          
+    253          /**
+    254           * get a character from a ringbuffer
+    255           */
+    256          size_t ringbuffer_getchar(struct ringbuffer *rb, uint8_t *ch)
+    257          {
+    258              ASSERT(rb != NULL);
+    259          
+    260              /* ringbuffer is empty */
+    261              if (!ringbuffer_data_len(rb))
+    262                  return 0;
+    263          
+    264              /* put character */
+    265              *ch = rb->buffer_ptr[rb->read_index];
+    266          
+    267              if (rb->read_index == rb->buffer_size-1)
+    268              {
+    269                  rb->read_mirror = ~rb->read_mirror;
+    270                  rb->read_index = 0;
+    271              }
+    272              else
+    273              {
+    274                  rb->read_index++;
+    275              }
+    276          
+    277              return 1;
+    278          }
+    279          
+    280          void ringbuffer_reset(struct ringbuffer *rb)
+    281          {
+    282          	/* initialize read and write index */
+    283          	rb->read_mirror = rb->read_index = 0;
+    284          	rb->write_mirror = rb->write_index = 0;
+    285          }
+    286          
+
+   Maximum stack usage in bytes:
+
+     Function                 .cstack
+     --------                 -------
+     memcpy                        8
+     ringbuffer_data_len           8
+     ringbuffer_get               16
+     ringbuffer_getchar           16
+     ringbuffer_init              16
+     ringbuffer_put               24
+     ringbuffer_put_force         24
+     ringbuffer_putchar           16
+     ringbuffer_putchar_force     16
+     ringbuffer_reset              0
+     ringbuffer_status             0
+
+
+   Section sizes:
+
+     Function/Label                             Bytes
+     --------------                             -----
+     ringbuffer_status                            40
+     ringbuffer_data_len                          68
+     memcpy                                       14
+     ringbuffer_init                              96
+     ringbuffer_put                              194
+     ringbuffer_put_force                        244
+     ringbuffer_get                              186
+     ringbuffer_putchar                          100
+     ringbuffer_putchar_force                    150
+     ringbuffer_getchar                          100
+     ringbuffer_reset                             34
+     ??DataTable13                                 4
+     ??DataTable14                                 4
+     ?<Constant "rb != NULL">                     12
+     ?<Constant "E:\\BT Printer\\FW\\src\\...">   44
+     ?<Constant "size > 0">                       12
+
+ 
+    68 bytes in section .rodata
+ 1 234 bytes in section .text
+ 
+ 1 220 bytes of CODE  memory (+ 14 bytes shared)
+    68 bytes of CONST memory
+
+Errors: none
+Warnings: none

@@ -1,0 +1,701 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     13/Oct/2015  16:03:28 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\Drivers\WBTDS01.c                        #
+#    Command line =  E:\H520B\FW\src\Drivers\WBTDS01.c -D DEBUG_VER -lcN      #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o           #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\WBTDS01.lst   #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\WBTDS01.o      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\Drivers\WBTDS01.c
+      1          /**
+      2          * @file WBTDS01.c
+      3          * @brief WBTDS01 蓝牙模块的驱动
+      4          * @version V0.0.1
+      5          * @author joe.zhou
+      6          * @date 2015年08月31日
+      7          * @note   根据模块的响应特点，串口驱动采用 DMA发送和接受 + 串口空闲中断判断响应数据接收完的机制。
+      8          * @copy
+      9          *
+     10          * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     11          * 本公司以外的项目。本司保留一切追究权利。
+     12          *
+     13          * <h1><center>&copy; COPYRIGHT 2015 heroje</center></h1>
+     14          *
+     15          */
+     16          #include "hw_platform.h"
+     17          #if(BT_MODULE == USE_WBTDS01)
+     18          #include "WBTDS01.h"
+     19          #include "ucos_ii.h"
+     20          #include "stm32f10x_lib.h"
+     21          #include "string.h"
+     22          #include <assert.h>
+     23          #include "basic_fun.h"
+     24          
+     25          //#define	WBTD_DEBUG
+     26          
+     27          #define WBTD_RESPONSE_INIT				0
+     28          
+     29          //通知类型的响应数据状态
+     30          #define WBTD_RESPONSE_GOT_NOTIFY_CON		0x80
+     31          #define WBTD_RESPONSE_GOT_NOTIFY_DISCON		0x40
+     32          
+     33          //应答类型的响应数据状态
+     34          #define WBTD_RESPONSE_OK				0x01
+     35          #define WBTD_RESPONSE_ERR				0x02
+     36          
+     37          #define WBTD_RESPONSE_UNKOWN			0x04
+     38          
+     39          //响应1: <CR><LF>+ERROR:<Space>3<CR><LF>
+     40          //响应2: <CR><LF>+VER:Ver40(jul 14 2015)<CR><LF><CR><LF>OK<CR><LF>
+     41          //响应3: 
+     42          
+     43          /**
+     44          * @brief WBTDS01响应定义  WBTDS01->host
+     45          */
+     46          typedef struct {
+     47          	unsigned short			DataPos;
+     48          	unsigned short			DataLength;
+     49          	unsigned char			status;
+     50          	unsigned char			*DataBuffer;
+     51          }TWBTDRes;
+     52          
+     53          TWBTDRes		wbtd_res;
+     54          
+     55          		
+     56          #define     WBTD_NOTIFY_BUFFER_LEN		32		//
+     57          
+     58          static unsigned char	wbtd_send_buff[32];
+     59          
+     60          unsigned char	wbtd_recbuffer[WBTD_RES_BUFFER_LEN];
+     61          
+     62          /*
+     63           * @brief: 初始化模块端口
+     64           * @note 使用串口2
+     65          */
+     66          /*
+     67           * @brief: 初始化模块端口
+     68           * @note 使用串口2
+     69          */
+     70          static void WBTD_GPIO_config(unsigned int baudrate)
+     71          {
+     72          	GPIO_InitTypeDef				GPIO_InitStructure;
+     73          	USART_InitTypeDef				USART_InitStructure;
+     74          	DMA_InitTypeDef					DMA_InitStructure;
+     75          
+     76          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
+     77          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
+     78          
+     79          	//B-Reset  PB.1
+     80          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_1;
+     81              GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+     82          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+     83          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+     84          	GPIO_SetBits(GPIOB, GPIO_Pin_1);
+     85          
+     86          	// 使用UART2, PA2,PA3
+     87          	/* Configure USART2 Tx (PA.2) as alternate function push-pull */
+     88          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
+     89          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+     90          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+     91          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+     92          
+     93          	/* Configure USART2 Rx (PA.3) as input floating				*/
+     94          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_3;
+     95          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+     96          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+     97          
+     98          	USART_InitStructure.USART_BaudRate		= baudrate;					
+     99          	USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+    100          	USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+    101          	USART_InitStructure.USART_Parity		= USART_Parity_No;
+    102          	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    103          	USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
+    104          
+    105          	USART_Init(USART2, &USART_InitStructure);
+    106          
+    107          
+    108          	/* DMA clock enable */
+    109          	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+    110          
+    111          	/* fill init structure */
+    112          	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    113          	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    114          	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    115          	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    116          	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+    117          	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+    118          	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+    119          
+    120          	/* DMA1 Channel7 (triggered by USART2 Tx event) Config */
+    121          	DMA_DeInit(DMA1_Channel7);
+    122          	DMA_InitStructure.DMA_PeripheralBaseAddr =(u32)(&USART2->DR);
+    123          	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+    124          	/* As we will set them before DMA actually enabled, the DMA_MemoryBaseAddr
+    125          	 * and DMA_BufferSize are meaningless. So just set them to proper values
+    126          	 * which could make DMA_Init happy.
+    127          	 */
+    128          	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0;
+    129          	DMA_InitStructure.DMA_BufferSize = 1;
+    130          	DMA_Init(DMA1_Channel7, &DMA_InitStructure);
+    131          
+    132          
+    133          	//DMA1通道6配置  
+    134          	DMA_DeInit(DMA1_Channel6);  
+    135          	//外设地址  
+    136          	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&USART2->DR);  
+    137          	//内存地址  
+    138          	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)wbtd_recbuffer;  
+    139          	//dma传输方向单向  
+    140          	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;  
+    141          	//设置DMA在传输时缓冲区的长度  
+    142          	DMA_InitStructure.DMA_BufferSize = WBTD_RES_BUFFER_LEN;  
+    143          	//设置DMA的外设递增模式，一个外设  
+    144          	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  
+    145          	//设置DMA的内存递增模式  
+    146          	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  
+    147          	//外设数据字长  
+    148          	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  
+    149          	//内存数据字长  
+    150          	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;  
+    151          	//设置DMA的传输模式  
+    152          	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  
+    153          	//设置DMA的优先级别  
+    154          	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
+    155          	//设置DMA的2个memory中的变量互相访问  
+    156          	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  
+    157          	DMA_Init(DMA1_Channel6,&DMA_InitStructure);  
+    158          
+    159          	//使能通道6 
+    160          	DMA_Cmd(DMA1_Channel6,ENABLE);  
+    161          
+    162          	//采用DMA方式接收  
+    163          	USART_DMACmd(USART2,USART_DMAReq_Rx,ENABLE); 
+    164          
+    165          	/* Enable USART2 DMA Tx request */
+    166          	USART_DMACmd(USART2, USART_DMAReq_Tx , ENABLE);
+    167          
+    168          	USART_Cmd(USART2, ENABLE);
+    169          }
+    170          
+    171          /*
+    172           * @brief: 串口中断的初始化
+    173          */
+    174          static void WBTD_NVIC_config(void)
+    175          {
+    176          	NVIC_InitTypeDef				NVIC_InitStructure;
+    177          	//中断配置  
+    178          	USART_ITConfig(USART2,USART_IT_TC,DISABLE);  
+    179          	USART_ITConfig(USART2,USART_IT_RXNE,DISABLE);  
+    180          	USART_ITConfig(USART2,USART_IT_IDLE,ENABLE);    
+    181          
+    182          	//配置UART2中断  
+    183          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+    184          	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQChannel;               //通道设置为串口2中断    
+    185          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
+    186          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+    187          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
+    188          	NVIC_Init(&NVIC_InitStructure);  
+    189          
+    190          	/* Enable the DMA1 Channel7 Interrupt */
+    191          	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel7_IRQChannel;
+    192          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    193          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+    194          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    195          	NVIC_Init(&NVIC_InitStructure);
+    196          
+    197          	DMA_ITConfig(DMA1_Channel7, DMA_IT_TC | DMA_IT_TE, ENABLE);
+    198          	DMA_ClearFlag(DMA1_FLAG_TC7);
+    199          }
+    200          
+    201          
+    202          /**
+    203          * @brief  发数据给蓝牙模块
+    204          * @param[in] unsigned char *pData 要发送的数据
+    205          * @param[in] int length 要发送数据的长度
+    206          */
+    207          static void send_data_to_WBTDS01(const unsigned char *pData, unsigned short length)
+    208          {
+    209          	//while(length--)
+    210          	//{
+    211          	//	USART_SendData(USART2, *pData++);
+    212          	//	while(USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET)
+    213          	//	{
+    214          	//	}
+    215          	//}
+    216          	//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET){};
+    217          
+    218          	/* disable DMA */
+    219          	DMA_Cmd(DMA1_Channel7, DISABLE);
+    220          
+    221          	/* set buffer address */
+    222          	memcpy(wbtd_send_buff,pData,length);
+    223          
+    224          	DMA1_Channel7->CMAR = (u32)&wbtd_send_buff[0];
+    225          	/* set size */
+    226          	DMA1_Channel7->CNDTR = length;
+    227          
+    228          	USART_DMACmd(USART2, USART_DMAReq_Tx , ENABLE);
+    229          	/* enable DMA */
+    230          	DMA_Cmd(DMA1_Channel7, ENABLE);
+    231          
+    232          	while(DMA1_Channel7->CNDTR);
+    233          	while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET){};
+    234          }
+    235          
+    236          
+    237          /*
+    238           * @brief 清空接收蓝牙模块响应数据的buffer
+    239          */
+    240          static void WBTD_reset_resVar(void)
+    241          {
+    242          	wbtd_res.DataPos = 0;
+    243          	wbtd_res.DataLength = 0;
+    244          	wbtd_res.status	 = WBTD_RESPONSE_INIT;
+    245          }
+    246          
+    247          
+    248          /**
+    249          * @brief 处理host收到WBTD的数据
+    250          * @param[in] unsigned char c 读入的字符
+    251          * @return 0:success put in buffer
+    252          *        -1:fail
+    253          */
+    254          int WBTD_RxISRHandler(unsigned char *res, unsigned int res_len)
+    255          {
+    256          	if (res_len > 4)
+    257          	{
+    258          		if (memcmp(res,"\x0d\x0a+CON",6) == 0)
+    259          		{
+    260          			wbtd_res.status &= ~WBTD_RESPONSE_GOT_NOTIFY_DISCON;
+    261          			wbtd_res.status |= WBTD_RESPONSE_GOT_NOTIFY_CON;
+    262          		}
+    263          		else if (memcmp(res,"\x0d\x0a+DISCON",9) == 0)
+    264          		{
+    265          			wbtd_res.status &= ~WBTD_RESPONSE_GOT_NOTIFY_CON;
+    266          			wbtd_res.status |= WBTD_RESPONSE_GOT_NOTIFY_DISCON;
+    267          		}
+    268          		else if (memcmp(res,"\x0d\x0a+ERROR",8) == 0)
+    269          		{
+    270          			wbtd_res.DataLength = res_len;
+    271          			wbtd_res.status |= WBTD_RESPONSE_ERR; 
+    272          		}
+    273          		else
+    274          		{
+    275          			wbtd_res.DataLength = res_len;
+    276          			if ((res[res_len-1] == 0x0a)&&(res[res_len-2] == 0x0d)			\
+    277          				&&(res[res_len-3] == 'K')&&(res[res_len-4] == 'O'))
+    278          			{
+    279          				if (wbtd_res.status == WBTD_RESPONSE_INIT)
+    280          				{
+    281          					wbtd_res.status |= WBTD_RESPONSE_OK;
+    282          				}
+    283          			}
+    284          			else
+    285          			{
+    286          				wbtd_res.status |= WBTD_RESPONSE_UNKOWN;
+    287          			}
+    288          		}
+    289          	}
+    290          }
+    291          
+    292          
+    293          /**
+    294          * @brief  发命令给蓝牙模块WBTDS01,并等待响应结果
+    295          * @param[in] unsigned char *pData 要发送的数据
+    296          * @param[in] unsigned int	length 要发送数据的长度
+    297          * @return		0: 成功
+    298          *				-1: 失败
+    299          *				-2: 未知响应，可能是响应解析函数有BUG，需要调试
+    300          *				-3：响应超时
+    301          */
+    302          static int WBTD_write_cmd(const unsigned char *pData, unsigned int length)
+    303          {
+    304          	unsigned int	wait_cnt;
+    305          	send_data_to_WBTDS01(pData, length);
+    306          	WBTD_reset_resVar();
+    307          	wait_cnt = 200;
+    308          	while (wait_cnt)
+    309          	{
+    310          		if ((wbtd_res.status & WBTD_RESPONSE_OK) == WBTD_RESPONSE_OK)
+    311          		{
+    312          			return 0;
+    313          		}
+    314          		else if ((wbtd_res.status & WBTD_RESPONSE_ERR) == WBTD_RESPONSE_ERR)
+    315          		{
+    316          			return -1;
+    317          		}
+    318          		else if ((wbtd_res.status & WBTD_RESPONSE_UNKOWN) == WBTD_RESPONSE_UNKOWN)
+    319          		{
+    320          			return -2;
+    321          		}
+    322          
+    323          		OSTimeDlyHMSM(0,0,0,20);
+    324          		wait_cnt--;
+    325          	}
+    326          
+    327          	return -3;
+    328          }
+    329          
+    330          
+    331          //const unsigned char	*query_version_cmd="AT+VER=?";
+    332          //const unsigned char	*set_device_name_cmd="AT+DNAME=%s";
+    333          
+    334          /*
+    335           * @brief 蓝牙模块WBTDS01的复位
+    336          */
+    337          void WBTD_Reset(void)
+    338          {
+    339          	//拉低复位信号100ms
+    340          	GPIO_ResetBits(GPIOB, GPIO_Pin_1);
+    341          	OSTimeDlyHMSM(0,0,0,100);
+    342          	GPIO_SetBits(GPIOB, GPIO_Pin_1);
+    343          
+    344          	WBTD_reset_resVar();
+    345          
+    346          	//got_notify_flag = 0;
+    347          	//memset(wbtd_notify_buffer,0,WBTD_NOTIFY_BUFFER_LEN);
+    348          	OSTimeDlyHMSM(0,0,0,100);
+    349          }
+    350          
+    351          /*
+    352           * @brief 查询蓝牙模块WBTDS01的版本号
+    353           * @param[out]  unsigned char *ver_buffer  返回查询到的版本号，如果为空表示查询失败
+    354          */
+    355          int WBTD_query_version(unsigned char *ver_buffer)
+    356          {
+    357          	unsigned char	buffer[21];
+    358          	int		i,ret;
+    359          
+    360          	assert(ver_buffer != 0);
+    361          	ver_buffer[0] = 0;
+    362          	memcpy(buffer,"AT+VER?\x0d\x0a",9);
+    363          	ret = WBTD_write_cmd((const unsigned char*)buffer,9);
+    364          	if (ret)
+    365          	{
+    366          		return ret;
+    367          	}
+    368          
+    369          	if (memcmp(&wbtd_res.DataBuffer[3],"VER:",4) == 0)
+    370          	{
+    371          		for (i = 0; i < ((wbtd_res.DataLength-15) > 20)?20:(wbtd_res.DataLength-15);i++)
+    372          		{
+    373          			if (wbtd_res.DataBuffer[7+i] == 0x0d)
+    374          			{
+    375          				break;
+    376          			}
+    377          
+    378          			ver_buffer[i] = wbtd_res.DataBuffer[7+i];
+    379          		}
+    380          		ver_buffer[i] = 0;
+    381          		return 0;
+    382          	}
+    383          
+    384          	return -1;
+    385          }
+    386          
+    387          
+    388          /*
+    389           * @brief 设置蓝牙模块的设备名称
+    390           * @param[in]  unsigned char *name  设置的名称,字符串
+    391           * @return 0: 设置成功		else：设置失败
+    392           * @note 从手册暂时没有看到支持的名称的最大长度是多少，所以如果设置的名称太长可能会设置失败
+    393           *       在此接口中将设备名称限定为最长支持20个字节
+    394          */
+    395          int WBTD_set_name(unsigned char *name)
+    396          {
+    397          	unsigned char	buffer[31];
+    398          	int		len;
+    399          
+    400          	assert(name != 0);
+    401          	memcpy(buffer,"AT+DNAME=",9);
+    402          	len = strlen((char const*)name);
+    403          	if (len>20)
+    404          	{
+    405          		memcpy(buffer+9,name,20);
+    406          		buffer[29] = 0x0d;
+    407          		buffer[30] = 0x0a;
+    408          		len = 31;
+    409          	}
+    410          	else
+    411          	{
+    412          		memcpy(buffer+9,name,len);
+    413          		buffer[9+len] = 0x0d;
+    414          		buffer[10+len] = 0x0a;
+    415          		len = 11+len;
+    416          	}
+    417          
+    418          	return WBTD_write_cmd((const unsigned char*)buffer,len); 
+    419          }
+    420          
+    421          /*
+    422           * @brief 设置蓝牙模块的设备名称
+    423           * @param[in]  unsigned char *name  设置的名称,字符串
+    424           * @return 0: 设置成功		else：设置失败
+    425           * @note 从手册暂时没有看到支持的名称的最大长度是多少，所以如果设置的名称太长可能会设置失败
+    426           *       在此接口中将设备名称限定为最长支持20个字节
+    427          */
+    428          int WBTD_set_baudrate(WBTD_BAUDRATE baudrate)
+    429          {
+    430          	unsigned char	buffer[20];
+    431          	int		len;
+    432          
+    433          	memcpy(buffer,"AT+URATE=",9);
+    434          	len = 16;
+    435          	switch(baudrate)
+    436          	{
+    437          	case BAUDRATE_9600:
+    438          		memcpy(buffer+9,"9600",4);
+    439          		buffer[13] = 0x0d;
+    440          		buffer[14] = 0x0a;
+    441          		len = 15;
+    442          		break;
+    443          	case BAUDRATE_19200:
+    444          		memcpy(buffer+9,"19200",5);
+    445          		buffer[14] = 0x0d;
+    446          		buffer[15] = 0x0a;
+    447          		break;
+    448          	case BAUDRATE_38400:
+    449          		memcpy(buffer+9,"38400",5);
+    450          		buffer[14] = 0x0d;
+    451          		buffer[15] = 0x0a;
+    452          		break;
+    453          	case BAUDRATE_43000:
+    454          		memcpy(buffer+9,"43000",5);
+    455          		buffer[14] = 0x0d;
+    456          		buffer[15] = 0x0a;
+    457          		break;
+    458          	case BAUDRATE_57600:
+    459          		memcpy(buffer+9,"57600",5);
+    460          		buffer[14] = 0x0d;
+    461          		buffer[15] = 0x0a;
+    462          		break;
+    463          	case BAUDRATE_115200:
+    464          		memcpy(buffer+9,"115200",6);
+    465          		buffer[15] = 0x0d;
+    466          		buffer[16] = 0x0a;
+    467          		len = 17;
+    468          		break;
+    469          	}
+    470          	return WBTD_write_cmd((const unsigned char*)buffer,len);
+    471          }
+    472          
+    473          /*
+    474           * @brief 使蓝牙模块进入配对模式
+    475           * @param[in]  unsigned char mode  配对模式  
+    476           *			1: 蓝牙模块会试图重连之前的蓝牙主机   
+    477           *			0：蓝牙模块不会试图重连之前的蓝牙主机   
+    478           * @return 0: 设置成功		else：设置失败
+    479          */
+    480          int WBTD_set_autocon(unsigned char mode)
+    481          {
+    482          	unsigned char	buffer[15];
+    483          
+    484          	memcpy(buffer,"AT+AUTOCON=",11);
+    485          	if (mode)
+    486          	{
+    487          		buffer[11] = '1';
+    488          	}
+    489          	else
+    490          	{
+    491          		buffer[11] = '0';
+    492          	}
+    493          	buffer[12] = 0x0d;
+    494          	buffer[13] = 0x0a;
+    495          	return WBTD_write_cmd((const unsigned char*)buffer,14);
+    496          }
+    497          
+    498          /*
+    499           * @brief 设置蓝牙模块的工作模式(profile = HID、SPP、BLE)
+    500           * @param[in]  unsigned char mode  蓝牙模块的工作模式     
+    501           * @return 0: 设置成功		else：设置失败
+    502          */
+    503          int WBTD_set_profile(BT_PROFILE mode)
+    504          {
+    505          	unsigned char	buffer[20];
+    506          
+    507          	memcpy(buffer,"AT+PROFILE=",11);
+    508          	if (mode == BT_PROFILE_HID)
+    509          	{
+    510          		buffer[11] = '2';
+    511          	}
+    512          	else if (mode == BT_PROFILE_SPP)
+    513          	{
+    514          		buffer[11] = '1';
+    515          	}
+    516          	else
+    517          	{
+    518          		buffer[11] = '0';
+    519          	}
+    520          	buffer[12] = 0x0d;
+    521          	buffer[13] = 0x0a;
+    522          	return  WBTD_write_cmd((const unsigned char*)buffer,14);
+    523          }
+    524          
+    525          /*
+    526           * @brief 设置蓝牙模块是否使能IOS soft keyboard
+    527           * @param[in]  unsigned char enable  1:Enable   0:Disable
+    528           * @return 0: 设置成功		else：设置失败
+    529          */
+    530          int WBTD_set_ioskeypad(unsigned char enable)
+    531          {
+    532          	unsigned char	buffer[15];
+    533          
+    534          	memcpy(buffer,"AT+IOSKB=",9);
+    535          	if (enable)
+    536          	{
+    537          		buffer[9] = '1';
+    538          	}
+    539          	else
+    540          	{
+    541          		buffer[9] = '0';
+    542          	}
+    543          	buffer[10] = 0x0d;
+    544          	buffer[11] = 0x0a;
+    545          	return WBTD_write_cmd((const unsigned char*)buffer,12);
+    546          }
+    547          
+    548          /*
+    549           * @brief 通过蓝牙模块的HID模式发送ASCII字符串
+    550           * @param[in]  unsigned char *str		需要发送的ASCII字符缓冲
+    551           * @param[in]  unsigned int  len	    待发送字符数
+    552           * @param[out]  unsigned int *send_len  实际发送的字符数
+    553           * @return 0: 发送成功		else：发送失败
+    554          */
+    555          int WBTD_hid_send(unsigned char *str,unsigned int len,unsigned int *send_len)
+    556          {
+    557          	int	ret,i;
+    558          	unsigned char	buffer[16];
+    559          	unsigned char	tmp[3];
+    560          
+    561          	memcpy(buffer,"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",16);
+    562          	*send_len = 0;
+    563          	for (i = 0; i < len;i++)
+    564          	{
+    565          		ascii_to_keyreport(str[i],tmp);
+    566          		buffer[0] = tmp[0];
+    567          		buffer[2] = tmp[2];
+    568          		send_data_to_WBTDS01(buffer, 16);
+    569          		*send_len++;
+    570          
+    571          		delay_us(300);
+    572          	}
+    573          
+    574          	send_data_to_WBTDS01("\x00\x00\x28\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 16);
+    575          	delay_us(300);
+    576          	return 0;
+    577          }
+    578          
+    579          
+    580          /*
+    581           * @brief 蓝牙模块WBTDS01的初始化
+    582          */
+    583          int WBTD_init(void)
+    584          {
+    585          	unsigned char	str[21];
+    586          
+    587          	wbtd_res.DataBuffer = wbtd_recbuffer;
+    588          	WBTD_reset_resVar();
+    589          	//got_notify_flag = 0;
+    590          	//memset(wbtd_notify_buffer,0,WBTD_NOTIFY_BUFFER_LEN);
+    591          
+    592          	WBTD_GPIO_config(115200);		//default波特率
+    593          	WBTD_NVIC_config();
+    594          
+    595          	if(WBTD_query_version(str))
+    596          	{
+    597          		return -1;
+    598          	}
+    599          
+    600          #ifdef DEBUG_VER
+    601          	printf("BlueTooth Module Ver:%s\r\n",str);
+    602          #endif
+    603          
+    604          	//if (WBTD_set_name("H520B Device"))
+    605          	if (WBTD_set_name("WBTDS01"))
+    606          	{
+    607          		return -3;
+    608          	}
+    609          
+    610          	if (WBTD_set_profile(BT_PROFILE_HID))
+    611          	{
+    612          		return -4;
+    613          	}
+    614          
+    615          	return 0;
+    616          }
+    617          
+    618          /*
+    619           * @brief 蓝牙模块是否获取一个通知消息
+    620           * @return 0:  没有获取到通知消息
+    621           *         1： 获取到连接成功的通知消息
+    622           *         2： 获取到连接断开的通知消息
+    623           *		   3:  unknown message
+    624          */
+    625          int WBTD_got_notify_type(void)
+    626          {
+    627          	if (wbtd_res.status & (WBTD_RESPONSE_GOT_NOTIFY_CON | WBTD_RESPONSE_GOT_NOTIFY_DISCON))
+    628          	{
+    629          		if (wbtd_res.status & WBTD_RESPONSE_GOT_NOTIFY_CON)
+    630          		{
+    631          			wbtd_res.status &= 	~WBTD_RESPONSE_GOT_NOTIFY_CON;
+    632          			return BT_MODULE_STATUS_CONNECTED;
+    633          		}
+    634          		else
+    635          		{
+    636          			wbtd_res.status &= 	~WBTD_RESPONSE_GOT_NOTIFY_DISCON;
+    637          			return BT_MODULE_STATUS_DISCONNECT;
+    638          		}
+    639          	}
+    640          
+    641          	return 0;
+    642          }
+    643          
+    644          
+    645          /*
+    646           * @brief 蓝牙模块HID模式发送测试
+    647          */
+    648          int WBTD_hid_send_test(void)
+    649          {
+    650          	unsigned int i,s;
+    651          	for (i = 0; i < 50;i++)
+    652          	{
+    653          		WBTD_hid_send("12345678901234567890",20,&s);
+    654          		delay_ms(150);
+    655          	}
+    656          }
+    657          #endif
+
+
+ 
+ 
+ 0 bytes of memory
+
+Errors: none
+Warnings: none

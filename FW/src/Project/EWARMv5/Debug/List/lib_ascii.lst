@@ -1,0 +1,749 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     30/Sep/2015  17:04:33 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\uCOS\uC-LIB\lib_ascii.c                  #
+#    Command line =  E:\H520B\FW\src\uCOS\uC-LIB\lib_ascii.c -D DEBUG_VER     #
+#                    -lcN E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o      #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\lib_ascii.lst #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\lib_ascii.o    #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\uCOS\uC-LIB\lib_ascii.c
+      1          /*
+      2          *********************************************************************************************************
+      3          *                                               uC/LIB
+      4          *                                       CUSTOM LIBRARY MODULES
+      5          *
+      6          *                          (c) Copyright 2004-2008; Micrium, Inc.; Weston, FL
+      7          *
+      8          *               All rights reserved.  Protected by international copyright laws.
+      9          *
+     10          *               uC/LIB is provided in source form for FREE evaluation, for educational
+     11          *               use or peaceful research.  If you plan on using uC/LIB in a commercial
+     12          *               product you need to contact Micrium to properly license its use in your
+     13          *               product.  We provide ALL the source code for your convenience and to
+     14          *               help you experience uC/LIB.  The fact that the source code is provided
+     15          *               does NOT mean that you can use it without paying a licensing fee.
+     16          *
+     17          *               Knowledge of the source code may NOT be used to develop a similar product.
+     18          *
+     19          *               Please help us continue to provide the Embedded community with the finest
+     20          *               software available.  Your honesty is greatly appreciated.
+     21          *********************************************************************************************************
+     22          */
+     23          
+     24          /*
+     25          *********************************************************************************************************
+     26          *
+     27          *                                     ASCII CHARACTER OPERATIONS
+     28          *
+     29          * Filename      : lib_ascii.c
+     30          * Version       : V1.26
+     31          * Programmer(s) : BAN
+     32          *                 ITJ
+     33          *********************************************************************************************************
+     34          * Note(s)       : (1) NO compiler-supplied standard library functions are used in library or product software.
+     35          *
+     36          *                     (a) ALL standard library functions are implemented in the custom library modules :
+     37          *
+     38          *                         (1) \<Custom Library Directory>\lib*.*
+     39          *
+     40          *                         (2) \<Custom Library Directory>\Ports\<cpu>\<compiler>\lib*_a.*
+     41          *
+     42          *                               where
+     43          *                                       <Custom Library Directory>      directory path for custom library software
+     44          *                                       <cpu>                           directory name for specific processor (CPU)
+     45          *                                       <compiler>                      directory name for specific compiler
+     46          *
+     47          *                     (b) Product-specific library functions are implemented in individual products.
+     48          *
+     49          *
+     50          *                 (2) (a) ECMA-6 '7-Bit coded Character Set' (6th edition), which corresponds to the
+     51          *                         3rd edition of ISO 646, specifies several versions of a 7-bit character set :
+     52          *
+     53          *                         (1) THE GENERAL VERSION, which allows characters at 0x23 and 0x24 to be given a
+     54          *                             set alternate form and allows the characters 0x40, 0x5B, 0x5D, 0x60, 0x7B &
+     55          *                             0x7D to be assigned a "unique graphic character" or to be declared as unused.
+     56          *                             All other characters are explicitly specified.
+     57          *
+     58          *                         (2) THE INTERNATIONAL REFERENCE VERSION, which explicitly specifies all characters
+     59          *                             in the 7-bit character set.
+     60          *
+     61          *                         (3) NATIONAL & APPLICATION-ORIENTED VERSIONS, which may be derived from the
+     62          *                             standard in specified ways.
+     63          *
+     64          *                     (b) The character set represented in this file reproduces the Internation Reference
+     65          *                         Version.  This is identical to the 7-bit character set which occupies Unicode
+     66          *                         characters 0x0000 through 0x007F.  The character names are taken from v5.0 of the
+     67          *                         Unicode specification, with certain abbreviations so that the resulting #define
+     68          *                         names will not violate ANSI C naming restriction :
+     69          *
+     70          *                         (1) For the Latin capital & lowercase letters, the name components 'LETTER_CAPITAL'
+     71          *                             & 'LETTER_SMALL' are replaced by 'UPPER' & 'LOWER', respectively.
+     72          *********************************************************************************************************
+     73          */
+     74          
+     75          
+     76          /*
+     77          *********************************************************************************************************
+     78          *                                            INCLUDE FILES
+     79          *********************************************************************************************************
+     80          */
+     81          
+     82          #define    LIB_ASCII_MODULE
+     83          #include  <lib_ascii.h>
+     84          
+     85          
+     86          /*$PAGE*/
+     87          /*
+     88          *********************************************************************************************************
+     89          *                                            LOCAL DEFINES
+     90          *********************************************************************************************************
+     91          */
+     92          
+     93          
+     94          /*
+     95          *********************************************************************************************************
+     96          *                                           LOCAL CONSTANTS
+     97          *********************************************************************************************************
+     98          */
+     99          
+    100          
+    101          /*
+    102          *********************************************************************************************************
+    103          *                                          LOCAL DATA TYPES
+    104          *********************************************************************************************************
+    105          */
+    106          
+    107          
+    108          /*
+    109          *********************************************************************************************************
+    110          *                                            LOCAL TABLES
+    111          *********************************************************************************************************
+    112          */
+    113          
+    114          
+    115          /*
+    116          *********************************************************************************************************
+    117          *                                       LOCAL GLOBAL VARIABLES
+    118          *********************************************************************************************************
+    119          */
+    120          
+    121          
+    122          /*
+    123          *********************************************************************************************************
+    124          *                                      LOCAL FUNCTION PROTOTYPES
+    125          *********************************************************************************************************
+    126          */
+    127          
+    128          
+    129          /*
+    130          *********************************************************************************************************
+    131          *                                     LOCAL CONFIGURATION ERRORS
+    132          *********************************************************************************************************
+    133          */
+    134          
+    135          
+    136          /*$PAGE*/
+    137          /*
+    138          *********************************************************************************************************
+    139          *                                           ASCII_IsAlpha()
+    140          *
+    141          * Description : Determine whether a character is an alphabetic character.
+    142          *
+    143          * Argument(s) : c           Character to examine.
+    144          *
+    145          * Return(s)   : DEF_YES, if character is     an alphabetic character.
+    146          *
+    147          *               DEF_NO,	 if character is NOT an alphabetic character.
+    148          *
+    149          * Caller(s)   : Application.
+    150          *
+    151          * Note(s)     : (1) ISO/IEC 9899:TC2, Section 7.4.1.2.(2) states that "isalpha() returns true only for the
+    152          *                   characters for which isupper() or islower() is true".
+    153          *********************************************************************************************************
+    154          */
+    155          
+    156          CPU_BOOLEAN  ASCII_IsAlpha (CPU_CHAR  c)
+    157          {
+    158              CPU_BOOLEAN  alpha;
+    159          
+    160          
+    161              alpha = ASCII_IS_ALPHA(c);
+    162          
+    163              return (alpha);
+    164          }
+    165          
+    166          
+    167          /*
+    168          *********************************************************************************************************
+    169          *                                           ASCII_IsAlnum()
+    170          *
+    171          * Description : Determine whether a character is an alphanumeric character.
+    172          *
+    173          * Argument(s) : c           Character to examine.
+    174          *
+    175          * Return(s)   : DEF_YES, if character is     an alphanumeric character.
+    176          *
+    177          *               DEF_NO,	 if character is NOT an alphanumeric character.
+    178          *
+    179          * Caller(s)   : Application.
+    180          *
+    181          * Note(s)     : (1) ISO/IEC 9899:TC2, Section 7.4.1.1.(2) states that "isalnum() ... tests for any character
+    182          *                   for which isalpha() or isdigit() is true".
+    183          *********************************************************************************************************
+    184          */
+    185          
+    186          CPU_BOOLEAN  ASCII_IsAlnum (CPU_CHAR  c)
+    187          {
+    188              CPU_BOOLEAN  alnum;
+    189          
+    190          
+    191              alnum = ASCII_IS_ALNUM(c);
+    192          
+    193              return (alnum);
+    194          }
+    195          
+    196          
+    197          /*$PAGE*/
+    198          /*
+    199          *********************************************************************************************************
+    200          *                                           ASCII_IsLower()
+    201          *
+    202          * Description : Determine whether a character is a lowercase alphabetic character.
+    203          *
+    204          * Argument(s) : c           Character to examine.
+    205          *
+    206          * Return(s)   : DEF_YES, if character is     a lowercase alphabetic character.
+    207          *
+    208          *               DEF_NO,	 if character is NOT a lowercase alphabetic character.
+    209          *
+    210          * Caller(s)   : Application.
+    211          *
+    212          * Note(s)     : (1) ISO/IEC 9899:TC2, Section 7.4.1.7.(2)  states that "islower() returns true only for
+    213          *                   the lowercase letters".
+    214          *********************************************************************************************************
+    215          */
+    216          
+    217          CPU_BOOLEAN  ASCII_IsLower (CPU_CHAR  c)
+    218          {
+    219              CPU_BOOLEAN  lower;
+    220          
+    221          
+    222              lower = ASCII_IS_LOWER(c);
+    223          
+    224              return (lower);
+    225          }
+    226          
+    227          
+    228          /*
+    229          *********************************************************************************************************
+    230          *                                           ASCII_IsUpper()
+    231          *
+    232          * Description : Determine whether a character is an uppercase alphabetic character.
+    233          *
+    234          * Argument(s) : c           Character to examine.
+    235          *
+    236          * Return(s)   : DEF_YES, if character is     an uppercase alphabetic character.
+    237          *
+    238          *               DEF_NO,	 if character is NOT an uppercase alphabetic character.
+    239          *
+    240          * Caller(s)   : Application.
+    241          *
+    242          * Note(s)     : (1) ISO/IEC 9899:TC2, Section 7.4.1.11.(2) states that "isupper() returns true only for
+    243          *                   the uppercase letters".
+    244          *********************************************************************************************************
+    245          */
+    246          
+    247          CPU_BOOLEAN  ASCII_IsUpper (CPU_CHAR  c)
+    248          {
+    249              CPU_BOOLEAN  upper;
+    250          
+    251          
+    252              upper = ASCII_IS_UPPER(c);
+    253          
+    254              return (upper);
+    255          }
+    256          
+    257          
+    258          /*$PAGE*/
+    259          /*
+    260          *********************************************************************************************************
+    261          *                                            ASCII_IsDig()
+    262          *
+    263          * Description : Determine whether a character is a decimal-digit character.
+    264          *
+    265          * Argument(s) : c           Character to examine.
+    266          *
+    267          * Return(s)   : DEF_YES, if character is     a decimal-digit character.
+    268          *
+    269          *               DEF_NO,	 if character is NOT a decimal-digit character.
+    270          *
+    271          * Caller(s)   : Application.
+    272          *
+    273          * Note(s)     : (1) ISO/IEC 9899:TC2, Section 7.4.1.5.(2)  states that "isdigit()  ... tests for any
+    274          *                   decimal-digit character".
+    275          *********************************************************************************************************
+    276          */
+    277          
+    278          CPU_BOOLEAN  ASCII_IsDig (CPU_CHAR  c)
+    279          {
+    280              CPU_BOOLEAN  dig;
+    281          
+    282          
+    283              dig = ASCII_IS_DIG(c);
+    284          
+    285              return (dig);
+    286          }
+    287          
+    288          
+    289          /*
+    290          *********************************************************************************************************
+    291          *                                          ASCII_IsDigOct()
+    292          *
+    293          * Description : Determine whether a character is an octal-digit character.
+    294          *
+    295          * Argument(s) : c           Character to examine.
+    296          *
+    297          * Return(s)   : DEF_YES, if character is     an octal-digit character.
+    298          *
+    299          *               DEF_NO,	 if character is NOT an octal-digit character.
+    300          *
+    301          * Caller(s)   : Application.
+    302          *
+    303          * Note(s)     : none.
+    304          *********************************************************************************************************
+    305          */
+    306          
+    307          CPU_BOOLEAN  ASCII_IsDigOct (CPU_CHAR  c)
+    308          {
+    309              CPU_BOOLEAN  dig_oct;
+    310          
+    311          
+    312              dig_oct = ASCII_IS_DIG_OCT(c);
+    313          
+    314              return (dig_oct);
+    315          }
+    316          
+    317          
+    318          /*
+    319          *********************************************************************************************************
+    320          *                                          ASCII_IsDigHex()
+    321          *
+    322          * Description : Determine whether a character is a hexadecimal-digit character.
+    323          *
+    324          * Argument(s) : c           Character to examine.
+    325          *
+    326          * Return(s)   : DEF_YES, if character is     a hexadecimal-digit character.
+    327          *
+    328          *               DEF_NO,	 if character is NOT a hexadecimal-digit character.
+    329          *
+    330          * Caller(s)   : Application.
+    331          *
+    332          * Note(s)     : (1) ISO/IEC 9899:TC2, Section 7.4.1.12.(2) states that "isxdigit() ... tests for any
+    333          *                   hexadecimal-digit character".
+    334          *********************************************************************************************************
+    335          */
+    336          
+    337          CPU_BOOLEAN  ASCII_IsDigHex (CPU_CHAR  c)
+    338          {
+    339              CPU_BOOLEAN  dig_hex;
+    340          
+    341          
+    342              dig_hex = ASCII_IS_DIG_HEX(c);
+    343          
+    344              return (dig_hex);
+    345          }
+    346          
+    347          
+    348          /*$PAGE*/
+    349          /*
+    350          *********************************************************************************************************
+    351          *                                           ASCII_IsBlank()
+    352          *
+    353          * Description : Determine whether a character is a standard blank character.
+    354          *
+    355          * Argument(s) : c           Character to examine.
+    356          *
+    357          * Return(s)   : DEF_YES, if character is     a standard blank character.
+    358          *
+    359          *               DEF_NO,	 if character is NOT a standard blank character.
+    360          *
+    361          * Caller(s)   : Application.
+    362          *
+    363          * Note(s)     : (1) (a) ISO/IEC 9899:TC2, Section 7.4.1.3.(2) states that "isblank() returns true only for
+    364          *                       the standard blank characters".
+    365          *
+    366          *                   (b) ISO/IEC 9899:TC2, Section 7.4.1.3.(2) defines "the standard blank characters" as
+    367          *                       the "space (' '), and horizontal tab ('\t')".
+    368          *********************************************************************************************************
+    369          */
+    370          
+    371          CPU_BOOLEAN  ASCII_IsBlank (CPU_CHAR  c)
+    372          {
+    373              CPU_BOOLEAN  blank;
+    374          
+    375          
+    376              blank = ASCII_IS_BLANK(c);
+    377          
+    378              return (blank);
+    379          }
+    380          
+    381          
+    382          /*
+    383          *********************************************************************************************************
+    384          *                                           ASCII_IsSpace()
+    385          *
+    386          * Description : Determine whether a character is a white-space character.
+    387          *
+    388          * Argument(s) : c           Character to examine.
+    389          *
+    390          * Return(s)   : DEF_YES, if character is     a white-space character.
+    391          *
+    392          *               DEF_NO,	 if character is NOT a white-space character.
+    393          *
+    394          * Caller(s)   : Application.
+    395          *
+    396          * Note(s)     : (1) (a) ISO/IEC 9899:TC2, Section 7.4.1.10.(2) states that "isspace() returns true only
+    397          *                       for the standard white-space characters".
+    398          *
+    399          *                   (b) ISO/IEC 9899:TC2, Section 7.4.1.10.(2) defines "the standard white-space characters"
+    400          *                       as the "space (' '), form feed ('\f'), new-line ('\n'), carriage return ('\r'),
+    401          *                       horizontal tab ('\t'), and vertical tab ('\v')".
+    402          *********************************************************************************************************
+    403          */
+    404          
+    405          CPU_BOOLEAN  ASCII_IsSpace (CPU_CHAR  c)
+    406          {
+    407              CPU_BOOLEAN  space;
+    408          
+    409          
+    410              space = ASCII_IS_SPACE(c);
+    411          
+    412              return (space);
+    413          }
+    414          
+    415          
+    416          /*$PAGE*/
+    417          /*
+    418          *********************************************************************************************************
+    419          *                                           ASCII_IsPrint()
+    420          *
+    421          * Description : Determine whether a character is a printing character.
+    422          *
+    423          * Argument(s) : c           Character to examine.
+    424          *
+    425          * Return(s)   : DEF_YES, if character is     a printing character.
+    426          *
+    427          *               DEF_NO,	 if character is NOT a printing character.
+    428          *
+    429          * Caller(s)   : Application.
+    430          *
+    431          * Note(s)     : (1) (a) ISO/IEC 9899:TC2, Section 7.4.1.8.(2) states that "isprint() ... tests for any
+    432          *                       printing character including space (' ')".
+    433          *
+    434          *                   (b) ISO/IEC 9899:TC2, Section 7.4.(3), Note 169, states that in "the seven-bit US
+    435          *                       ASCII character set, the printing characters are those whose values lie from
+    436          *                       0x20 (space) through 0x7E (tilde)".
+    437          *********************************************************************************************************
+    438          */
+    439          
+    440          CPU_BOOLEAN  ASCII_IsPrint (CPU_CHAR  c)
+    441          {
+    442              CPU_BOOLEAN  print;
+    443          
+    444          
+    445              print = ASCII_IS_PRINT(c);
+    446          
+    447              return (print);
+    448          }
+    449          
+    450          
+    451          /*
+    452          *********************************************************************************************************
+    453          *                                           ASCII_IsGraph()
+    454          *
+    455          * Description : Determine whether a character is any printing character except a space character.
+    456          *
+    457          * Argument(s) : c           Character to examine.
+    458          *
+    459          * Return(s)   : DEF_YES, if character is     a graphic character.
+    460          *
+    461          *               DEF_NO,	 if character is NOT a graphic character.
+    462          *
+    463          * Caller(s)   : Application.
+    464          *
+    465          * Note(s)     : (1) (a) ISO/IEC 9899:TC2, Section 7.4.1.6.(2) states that "isgraph() ... tests for any
+    466          *                       printing character except space (' ')".
+    467          *
+    468          *                   (b) ISO/IEC 9899:TC2, Section 7.4.(3), Note 169, states that in "the seven-bit US
+    469          *                       ASCII character set, the printing characters are those whose values lie from
+    470          *                       0x20 (space) through 0x7E (tilde)".
+    471          *********************************************************************************************************
+    472          */
+    473          
+    474          CPU_BOOLEAN  ASCII_IsGraph (CPU_CHAR  c)
+    475          {
+    476              CPU_BOOLEAN  graph;
+    477          
+    478          
+    479              graph = ASCII_IS_GRAPH(c);
+    480          
+    481              return (graph);
+    482          }
+    483          
+    484          
+    485          /*$PAGE*/
+    486          /*
+    487          *********************************************************************************************************
+    488          *                                           ASCII_IsPunct()
+    489          *
+    490          * Description : Determine whether a character is a punctuation character.
+    491          *
+    492          * Argument(s) : c           Character to examine.
+    493          *
+    494          * Return(s)   : DEF_YES, if character is     a punctuation character.
+    495          *
+    496          *               DEF_NO,	 if character is NOT a punctuation character.
+    497          *
+    498          * Caller(s)   : Application.
+    499          *
+    500          * Note(s)     : (1) ISO/IEC 9899:TC2, Section 7.4.1.9.(2) states that "ispunct() returns true for every
+    501          *                   printing character for which neither isspace() nor isalnum() is true".
+    502          *********************************************************************************************************
+    503          */
+    504          
+    505          CPU_BOOLEAN  ASCII_IsPunct (CPU_CHAR  c)
+    506          {
+    507              CPU_BOOLEAN  punct;
+    508          
+    509          
+    510              punct = ASCII_IS_PUNCT(c);
+    511          
+    512              return (punct);
+    513          }
+    514          
+    515          
+    516          /*
+    517          *********************************************************************************************************
+    518          *                                           ASCII_IsCtrl()
+    519          *
+    520          * Description : Determine whether a character is a control character.
+    521          *
+    522          * Argument(s) : c           Character to examine.
+    523          *
+    524          * Return(s)   : DEF_YES, if character is     a control character.
+    525          *
+    526          *               DEF_NO,	 if character is NOT a control character.
+    527          *
+    528          * Caller(s)   : Application.
+    529          *
+    530          * Note(s)     : (1) (a) ISO/IEC 9899:TC2, Section 7.4.1.4.(2) states that "iscntrl() ... tests for any
+    531          *                       control character".
+    532          *
+    533          *                   (b) ISO/IEC 9899:TC2, Section 7.4.(3), Note 169, states that in "the seven-bit US
+    534          *                       ASCII character set, ... the control characters are those whose values lie from
+    535          *                       0 (NUL) through 0x1F (US), and the character 0x7F (DEL)".
+    536          *********************************************************************************************************
+    537          */
+    538          
+    539          CPU_BOOLEAN  ASCII_IsCtrl (CPU_CHAR  c)
+    540          {
+    541              CPU_BOOLEAN  ctrl;
+    542          
+    543          
+    544              ctrl = ASCII_IS_CTRL(c);
+    545          
+    546              return (ctrl);
+    547          }
+    548          
+    549          
+    550          /*$PAGE*/
+    551          /*
+    552          *********************************************************************************************************
+    553          *                                           ASCII_ToLower()
+    554          *
+    555          * Description : Convert uppercase alphabetic character to its corresponding lowercase alphabetic character.
+    556          *
+    557          * Argument(s) : c           Character to convert.
+    558          *
+    559          * Return(s)   : Lowercase equivalent of 'c', if character 'c' is an uppercase character (see Note #1b1).
+    560          *
+    561          *               Character 'c',               otherwise                                  (see Note #1b2).
+    562          *
+    563          * Caller(s)   : Application.
+    564          *
+    565          * Note(s)     : (1) (a) ISO/IEC 9899:TC2, Section 7.4.2.1.(2) states that "tolower() ... converts an
+    566          *                       uppercase letter to a corresponding lowercase letter".
+    567          *
+    568          *                   (b) ISO/IEC 9899:TC2, Section 7.4.2.1.(3) states that :
+    569          *
+    570          *                       (1) (A) "if the argument is a character for which isupper() is true and there are
+    571          *                                one or more corresponding characters ... for which islower() is true," ...
+    572          *                           (B) "tolower() ... returns one of the corresponding characters;" ...
+    573          *
+    574          *                       (2) "otherwise, the argument is returned unchanged."
+    575          *********************************************************************************************************
+    576          */
+    577          
+    578          CPU_CHAR  ASCII_ToLower (CPU_CHAR  c)
+    579          {
+    580              CPU_CHAR  lower;
+    581          
+    582          
+    583              lower = ASCII_TO_LOWER(c);
+    584          
+    585              return (lower);
+    586          }
+    587          
+    588          
+    589          /*
+    590          *********************************************************************************************************
+    591          *                                           ASCII_ToUpper()
+    592          *
+    593          * Description : Convert lowercase alphabetic character to its corresponding uppercase alphabetic character.
+    594          *
+    595          * Argument(s) : c           Character to convert.
+    596          *
+    597          * Return(s)   : Uppercase equivalent of 'c', if character 'c' is a lowercase character (see Note #1b1).
+    598          *
+    599          *               Character 'c',               otherwise                                 (see Note #1b2).
+    600          *
+    601          * Caller(s)   : Application.
+    602          *
+    603          * Note(s)     : (1) (a) ISO/IEC 9899:TC2, Section 7.4.2.2.(2) states that "toupper() ... converts a
+    604          *                       lowercase letter to a corresponding uppercase letter".
+    605          *
+    606          *                   (b) ISO/IEC 9899:TC2, Section 7.4.2.2.(3) states that :
+    607          *
+    608          *                       (1) (A) "if the argument is a character for which islower() is true and there are
+    609          *                                one or more corresponding characters ... for which isupper() is true," ...
+    610          *                           (B) "toupper() ... returns one of the corresponding characters;" ...
+    611          *
+    612          *                       (2) "otherwise, the argument is returned unchanged."
+    613          *********************************************************************************************************
+    614          */
+    615          
+    616          CPU_CHAR  ASCII_ToUpper (CPU_CHAR  c)
+    617          {
+    618              CPU_CHAR  upper;
+    619          
+    620          
+    621              upper = ASCII_TO_UPPER(c);
+    622          
+    623              return (upper);
+    624          }
+    625          
+    626          
+    627          /*$PAGE*/
+    628          /*
+    629          *********************************************************************************************************
+    630          *                                             ASCII_Cmp()
+    631          *
+    632          * Description : Determine if two characters are identical (case-insensitive).
+    633          *
+    634          * Argument(s) : c1          First  character.
+    635          *
+    636          *               c2          Second character.
+    637          *
+    638          * Return(s)   : DEF_YES, if the characters are     identical.
+    639          *
+    640          *               DEF_NO,  if the characters are NOT identical.
+    641          *
+    642          * Caller(s)   : Application.
+    643          *
+    644          * Note(s)     : none.
+    645          *********************************************************************************************************
+    646          */
+    647          
+    648          CPU_BOOLEAN  ASCII_Cmp (CPU_CHAR  c1,
+    649                                  CPU_CHAR  c2)
+    650          {
+    651              CPU_CHAR     c1_upper;
+    652              CPU_CHAR     c2_upper;
+    653              CPU_BOOLEAN  cmp;
+    654          
+    655          
+    656              c1_upper =  ASCII_TO_UPPER(c1);
+    657              c2_upper =  ASCII_TO_UPPER(c2);
+    658              cmp      = (c1_upper == c2_upper) ? (DEF_YES) : (DEF_NO);
+    659          
+    660              return (cmp);
+    661          }
+    662          
+
+   Maximum stack usage in bytes:
+
+     Function       .cstack
+     --------       -------
+     ASCII_Cmp           0
+     ASCII_IsAlnum       0
+     ASCII_IsAlpha       0
+     ASCII_IsBlank       0
+     ASCII_IsCtrl        0
+     ASCII_IsDig         0
+     ASCII_IsDigHex      0
+     ASCII_IsDigOct      0
+     ASCII_IsGraph       0
+     ASCII_IsLower       0
+     ASCII_IsPrint       0
+     ASCII_IsPunct       0
+     ASCII_IsSpace       0
+     ASCII_IsUpper       0
+     ASCII_ToLower       0
+     ASCII_ToUpper       0
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     ASCII_IsAlpha    54
+     ASCII_IsAlnum    86
+     ASCII_IsLower    24
+     ASCII_IsUpper    24
+     ASCII_IsDig      24
+     ASCII_IsDigOct   24
+     ASCII_IsDigHex   52
+     ASCII_IsBlank    22
+     ASCII_IsSpace    46
+     ASCII_IsPrint    24
+     ASCII_IsGraph    24
+     ASCII_IsPunct   164
+     ASCII_IsCtrl     28
+     ASCII_ToLower    30
+     ASCII_ToUpper    30
+     ASCII_Cmp        70
+
+ 
+ 726 bytes in section .text
+ 
+ 726 bytes of CODE memory
+
+Errors: none
+Warnings: none

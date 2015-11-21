@@ -1,0 +1,42 @@
+/*###ICF### Section handled by ICF editor, don't touch! ****/
+/*-Editor annotation file-*/
+/* IcfEditorFile="$TOOLKIT_DIR$\config\ide\IcfEditor\a_v1_0.xml" */
+/*-Specials-*/
+define symbol __ICFEDIT_intvec_start__ = 0x08008000;
+/*-Memory Regions-*/
+define symbol __ICFEDIT_region_ROM_start__ = 0x08008000;
+define symbol __ICFEDIT_region_ROM_end__   = 0x0800FFFF;
+define symbol __ICFEDIT_region_RAM_start__ = 0x20000010;
+define symbol __ICFEDIT_region_RAM_end__   = 0x20005000;
+/* vendor information Regions*/
+define symbol __ICFEDIT_region_VENDOR_start__ = 0x20000000;
+define symbol __ICFEDIT_region_VENDOR_end__   = 0x20000010;
+
+
+/*-Sizes-*/
+define symbol __ICFEDIT_size_cstack__ = 0x800;
+define symbol __ICFEDIT_size_heap__   = 0x300;
+/**** End of ICF editor section. ###ICF###*/
+
+
+define memory mem with size = 4G;
+define region ROM_region   = mem:[from __ICFEDIT_region_ROM_start__   to __ICFEDIT_region_ROM_end__];
+define region RAM_region   = mem:[from __ICFEDIT_region_VENDOR_end__   to __ICFEDIT_region_RAM_end__];
+define region VENDOR_RAM_region   = mem:[from __ICFEDIT_region_VENDOR_start__   to __ICFEDIT_region_VENDOR_end__];
+
+define block CSTACK    with alignment = 8, size = __ICFEDIT_size_cstack__   { };
+define block HEAP      with alignment = 8, size = __ICFEDIT_size_heap__     { };
+
+initialize by copy { readwrite };
+do not initialize  { section .noinit, section VENDOR_RAM };
+
+place at address mem:__ICFEDIT_intvec_start__ { readonly section .intvec };
+
+place in ROM_region   { readonly };
+place at end of ROM_region { ro section .checksum };
+
+/* place in RAM_region   { readwrite }; */
+place in VENDOR_RAM_region
+                      { readwrite data section VENDOR_RAM  };
+place in RAM_region   { readwrite,
+                        block CSTACK, block HEAP };

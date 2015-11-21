@@ -1,0 +1,185 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     21/Nov/2015  17:05:35 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\Event.c                         #
+#    Command line =  "E:\BT Printer\FW\src\App\Event.c" -D DEBUG_VER -lcN     #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\Event.ls #
+#                    t                                                        #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\Event.o   #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\Event.c
+      1          #include "Type.h"
+      2          #include "Event.h"
+      3          #include "TP.h"
+      4          #include "basic_fun.h"
+      5          #include "Esc_p.h"
+      6          
+      7          
+      8          //======================================================================================================
+      9          static volatile uint8_t evtHead;
+     10          static uint8_t evtTail;
+     11          static uint8_t evtQueue[64];
+     12          //======================================================================================================
+     13          
+     14          //======================================================================================================
+     15          extern void event_init(void)
+     16          {
+     17          	evtHead = evtTail = 0;
+     18          }
+     19          //======================================================================================================
+     20          extern void event_post(uint8_t event)
+     21          {
+     22          	uint32_t head;
+     23          
+     24          	if(event)
+     25          	{
+     26                   // Disable Interrupts
+     27          		head = evtHead;
+     28          		evtHead = (head + 1) & (ARRAY_SIZE(evtQueue) - 1);
+     29          		// restore flag
+     30          
+     31          		evtQueue[head] = event;
+     32          	}
+     33          }
+     34          //======================================================================================================
+     35          //======================================================================================================
+     36          extern uint8_t event_pend(void)
+     37          {
+     38          	uint8_t event;
+     39          
+     40          	if(evtHead == evtTail)
+     41          	{
+     42          		return evtNULL;
+     43          	}
+     44          	event = evtQueue[evtTail];
+     45          	evtTail = (evtTail + 1) & (ARRAY_SIZE(evtQueue) - 1);
+     46          	return event;
+     47          }
+     48          //======================================================================================================
+     49          extern void event_proc(void)
+     50          {
+     51          	int i;
+     52          	switch(event_pend())
+     53          	{
+     54          	//-----------------------------------------------------------------
+     55          	case evtKeyDownFeed:
+     56          		TPPrintTestPage();
+     57          		//TPFeedStart();
+     58          		//TPSelfTest2();
+     59          		break;
+     60          	case evtKeyUpFeed:
+     61          		//TPFeedStop();
+     62          		break;
+     63          	case evtKeyDownHold500msMode:
+     64                  break;
+     65          	case evtKeyDownMode:
+     66          		#if 1
+     67          		if(TPPrinterReady())
+     68                  TPPrintTestPage();
+     69          		#endif
+     70          		break;
+     71          	case evtKeyDownHold2000msMode:
+     72          		if(TPPrinterReady())
+     73                  TPPrintTestPage();
+     74          		break;
+     75          	case evtKeyUpMode:
+     76          		break;
+     77          	case evtKeyHoldMode:
+     78          		break;
+     79          	case evtKeyDownHold5000msMode:
+     80          		break;
+     81              case evtKeyDownHold7000msMode:
+     82                  break;
+     83          	case evtPaperOut:
+     84          		for (i = 0; i< MAX_PT_CHANNEL;i++)
+     85          		{
+     86          			esc_sts[i].status4 |= (0x03<<5);
+     87          		}
+     88                  
+     89          		break;
+     90          	case evtPaperIn:
+     91          		for (i = 0; i< MAX_PT_CHANNEL;i++)
+     92          		{
+     93          			esc_sts[i].status4 &= ~(0x03<<5);
+     94          		}
+     95                  Wake_up();
+     96                  break;
+     97              case evtBmDetect:
+     98                  break;
+     99              case evtGetRealTimeStatus4:
+    100                 //Putchar(esc_sts.status4);
+    101                  break;
+    102          	case evtLifetest:
+    103          	   break;
+    104          	default:
+    105          		break;
+    106          	}
+    107          }
+    108          //======================================================================================================
+    109          
+    110          
+    111          
+    112          
+
+   Maximum stack usage in bytes:
+
+     Function   .cstack
+     --------   -------
+     event_init      0
+     event_pend      0
+     event_post      0
+     event_proc      8
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     evtHead           1
+     evtTail           1
+     evtQueue         64
+     event_init       12
+     event_post       26
+     event_pend       42
+     event_proc      208
+     ??DataTable5      4
+     ??DataTable8      4
+     ??DataTable10     4
+
+ 
+  66 bytes in section .bss
+ 300 bytes in section .text
+ 
+ 300 bytes of CODE memory
+  66 bytes of DATA memory
+
+Errors: none
+Warnings: none

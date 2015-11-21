@@ -1,0 +1,1132 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:19 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\App\edit.c                                  #
+#    Command line =  E:\T6\FW\src\App\edit.c -lcN                             #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\edit.lst         #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\edit.o            #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\App\edit.c
+      1          #include "edit.h"
+      2          #include "gui.h"
+      3          #include<string.h>
+      4          #include "keypad.h"
+      5          #include "pic.h"
+      6          #include "record.h"
+      7          #include "basic_fun.h"
+      8          #include "calendar.h"
+      9          #include "Terminal_Para.h"
+     10          
+     11          unsigned int				input_update_flag;			//是否需要更新输入的标记
+     12          unsigned char				last_input_key;				//最近一次输入的按键
+     13          unsigned char				edit_state;					//编辑框状态
+     14          
+     15          extern unsigned char		g_editValue[MAX_EDIT][MAX_EDITNUM];//编辑框的全局变量
+     16          extern unsigned char		gFontSize;			// 字号、
+     17          extern TZD_RECORD			ZD_rec;					//字典记录
+     18          extern	TTerminalPara		g_param;
+     19          
+     20          static unsigned char		edit_buf[MAX_EDITNUM];
+     21          static unsigned char		edit_now;
+     22          static unsigned char		current_py;
+     23          static unsigned char		current_hz;
+     24          static unsigned char		same_key_times;				///连续按同一个按键的次数
+     25          static unsigned char		last_keyvalue;				///最近一次输入的键值
+     26          static unsigned char		py_match_num;				//完全匹配到的拼音序列数
+     27          static unsigned char		last_py_match_num;			//最近一次完全匹配到的拼音序列数
+     28          
+     29          static	unsigned char total_name_item;
+     30          static  unsigned char zd_name_valid_tbl[8];
+     31          static  unsigned char zd_value_valid_tbl[8];
+     32          static unsigned char  total_value_item;
+     33          static	unsigned char display_item_yet;
+     34          static	unsigned char start_display_item;
+     35          static	unsigned char current_item,select_ZD;
+     36          static	unsigned char save_start_item;
+     37          static unsigned char  save_select_ZD;
+     38          
+     39          
+     40          /**
+     41          * @brief 同一个按键上对应的字母之间的切换,这个函数和当前使用的输入法相关
+     42          * @param[in] unsigned char key			输入的按键
+     43          * @param[in] unsigned char key_times	同一个按键被连续按的次数
+     44          * @param[in] unsigned char input_method	当前使用的输入法
+     45          * @还有一个全局的输入参数，就是上一次的键值
+     46          * @note 只有使用ABC或者abc输入法时才需要调用此函数进行切换
+     47          *		此函数的具体实现与键值的定义有很大相关性。如果需要移植需要根据实际的键值定义方式来做相应的修改。
+     48          */
+     49          static unsigned char keyvalue_switch(unsigned char key,unsigned char key_times,unsigned char input_method)
+     50          {
+     51          	unsigned char keyvalue;
+     52          
+     53          	if (KEY_NUM7 == key|| KEY_NUM9 == key) 
+     54          	{
+     55          		if ((key_times+1)%5 != 0) 
+     56          		{
+     57          			keyvalue = last_keyvalue+1;
+     58          			if (abc_INPUT == input_method)
+     59          			{
+     60          				if (key_times%5 == 0)
+     61          				{
+     62          					//数字切回字母，小写输入时数字切回字母的规则不一样
+     63          					keyvalue = last_keyvalue+0x80+1;
+     64          				}
+     65          			}
+     66          		}
+     67          		else
+     68          		{
+     69          			//字母切回数字
+     70          			if (abc_INPUT == input_method)
+     71          			{
+     72          				//小写字母输入时
+     73          				keyvalue = last_keyvalue - 0x80 - 4;
+     74          			}
+     75          			else
+     76          			{
+     77          				//大写字母输入时
+     78          				keyvalue = last_keyvalue-4;
+     79          			}
+     80          		}
+     81          	}
+     82          	else if (KEY_NUM1 == key)
+     83          	{
+     84          		if ((key_times+1)%31 != 0) 
+     85          		{
+     86          			keyvalue = last_keyvalue+1;
+     87          		}
+     88          		else
+     89          		{
+     90          			keyvalue = last_keyvalue-30;
+     91          		}
+     92          	}
+     93          	else if (KEY_NUM0 == key) 
+     94          	{
+     95          		if ((key_times+1)%2 != 0) 
+     96          		{
+     97          			keyvalue = last_keyvalue+1;
+     98          		}
+     99          		else
+    100          		{
+    101          			keyvalue = last_keyvalue-1;;
+    102          		}
+    103          	}
+    104          	else if (KEY_xing == key)
+    105          	{
+    106          		if ((key_times+1)%2 != 0) 
+    107          		{
+    108          			keyvalue = last_keyvalue-1;
+    109          		}
+    110          		else
+    111          		{
+    112          			keyvalue = last_keyvalue+1;;
+    113          		}
+    114          	}
+    115          	else
+    116          	{
+    117          		if ((key_times+1)%4 != 0) 
+    118          		{
+    119          			keyvalue = last_keyvalue+1;
+    120          			if (abc_INPUT == input_method)
+    121          			{
+    122          				if (key_times%4 == 0)
+    123          				{
+    124          					//数字切回字母，小写输入时数字切回字母的规则不一样
+    125          					keyvalue = last_keyvalue+0x80+1;
+    126          				}
+    127          			}
+    128          		}
+    129          		else
+    130          		{
+    131          			//字母切回数字
+    132          			if (abc_INPUT == input_method)
+    133          			{
+    134          				//小写字母输入时
+    135          				keyvalue = last_keyvalue - 0x80 - 3;
+    136          			}
+    137          			else
+    138          			{
+    139          				//大写字母输入时
+    140          				keyvalue = last_keyvalue-3;
+    141          			}
+    142          		}
+    143          	}
+    144          	return keyvalue;
+    145          }
+    146          
+    147          /**
+    148          * @brief 处理字母属性编辑框的输入函数
+    149          * @param[in] unsigned char key						输入的键值
+    150          * @param[in] unsigned char input_method				当前的输入法
+    151          * @param[out] unsigned char	*key_code				返回按键对应的可显示ASCII码
+    152          * @return unsigned char	是否需要后移编辑框光标位置	0:不需要   1:需要	
+    153          * @note 此函数除了返回了按键对应的可显示ASCII码，还返回了是否需要更新光标位置的信息
+    154          */
+    155          unsigned char edit_alpha_proc(unsigned char key,unsigned char input_method,unsigned char *key_code)
+    156          {
+    157          	unsigned char if_update_cursor = 1;
+    158          	unsigned char tmp_keyvalue;
+    159          	if (_123_INPUT == input_method)
+    160          	{
+    161          		//如果是切换为数字输入法，那么只能输入数字
+    162          		//if (key == KEY_xing)
+    163          		//{
+    164          		//	key = KEY_juhao;
+    165          		//}
+    166          		key_code[0] = *key2ascii(key);
+    167          		last_keyvalue = key;
+    168          	}
+    169          	else if (ABC_INPUT == input_method || abc_INPUT == input_method || key == KEY_NUM1 || key == KEY_NUM0 || key == KEY_xing)
+    170          	{
+    171          		//如果切换为大写字母的输入
+    172          		if ((key == last_input_key)&&(input_update_flag < 3))
+    173          		{
+    174          			//同一按键对应的字母之间切换
+    175          			same_key_times++;
+    176          			tmp_keyvalue = keyvalue_switch(key,same_key_times,input_method);
+    177          			key_code[0] = *key2ascii(tmp_keyvalue);
+    178          			last_keyvalue = tmp_keyvalue;
+    179          			if_update_cursor = 0;			//不需要后移光标
+    180          		}
+    181          		else
+    182          		{
+    183          			same_key_times = 0;
+    184          			if (key == KEY_xing)
+    185          			{
+    186          				key_code[0] = *key2ascii(key);
+    187          				last_keyvalue = key;
+    188          			}
+    189          			else
+    190          			{
+    191          				if ((ABC_INPUT == input_method)||(key == KEY_NUM1)||(key == KEY_NUM0))
+    192          				{
+    193          					key_code[0] = *key2ascii(key+1);
+    194          					last_keyvalue = key+1;
+    195          				}
+    196          				else
+    197          				{
+    198          					key_code[0] = *key2ascii(key+1+0x80);
+    199          					last_keyvalue = key+1+0x80;
+    200          				}
+    201          			}
+    202          		}
+    203          	}
+    204          	//last_input_key = key;
+    205          	key_code[1] = 0;
+    206          
+    207          	return if_update_cursor;
+    208          }
+    209          
+    210          
+    211          /**
+    212          * @brief 拼音序列分组
+    213          * @由于每次固定匹配16个拼音序列，而且拼音序列的长度并不是固定的，所以显示的时候需要将这些匹配到的拼音序列分组。
+    214          * @按照目前的字体大小，最多需要分5组来显示。
+    215          * @return 返回拼音被分组的数目
+    216          * @note 此函数将匹配到的16个拼音序列根据实际长度分组，分别返回每个分组可以显示的拼音序列个数
+    217          */
+    218          #if 0
+    219          static unsigned char edit_py_array(unsigned char* py_display_array)
+    220          {
+    221          	unsigned char i,j,tmp;
+    222          	unsigned short dis_len;
+    223          
+    224          	j = tmp = 0;
+    225          	dis_len = 0;
+    226                  memset(py_display_array,0,5);
+    227          	for (i = 0;i<py_match_num;i++)
+    228          	{
+    229          		dis_len += strlen(cpt9PY_Mb[i]->PY)+1;
+    230          		if (dis_len*CHINESE_EDIT_FONT_SIZE/2 > CHINESE_EDIT_ZONE_W)
+    231          		{
+    232          			py_display_array[j++] = i - tmp;
+    233          			tmp = i;
+    234          			dis_len = 0;
+    235          			i--;
+    236          		}
+    237          	}
+    238          
+    239          	py_display_array[j] = i - tmp;
+    240          
+    241          	return (j+1);
+    242          }
+    243          
+    244          
+    245          /**
+    246          * @brief 显示按键序列匹配到的拼音序列及对应的汉字序列
+    247          * @param[in] unsigned char py_offset   当前选择的拼音序列偏移
+    248          * @param[in] unsigned char hz_offset   当前选择的汉字偏移
+    249          * @note 此函数还会利用到全局的当前编辑框状态以及搜索到的码表
+    250          */
+    251          static void edit_chinese_display(unsigned char py_offset,unsigned char hz_offset)
+    252          {
+    253          	unsigned char	py_display_array[5];		//最多可以被分成5组
+    254          	unsigned char	total_py_display_line;
+    255          	unsigned char	i,j,offset = 0;
+    256          	unsigned char	start_dis_offset = 0;
+    257          	unsigned short	dis_len = 0;
+    258          	unsigned int	total_hz_num,total_hz_line;
+    259          	unsigned char   hz_display_buf[3] ={0,0,0};
+    260          	unsigned char	font_size_save;
+    261          
+    262          	total_py_display_line = edit_py_array(py_display_array);		//调用此函数之后将当前匹配到的拼音序列分组，每组可以显示的拼音序列数发到数组中
+    263          	
+    264          
+    265          	//根据当前选择的拼音显示相应的拼音序列
+    266          	//搜索到当前选择的拼音序列处于哪个分组中
+    267          	for (i = 0;i<total_py_display_line;i++)
+    268          	{
+    269          		offset += py_display_array[i];
+    270          		if (py_offset < offset)
+    271          		{
+    272          			break;
+    273          		}
+    274          		start_dis_offset += py_display_array[i];
+    275          	}
+    276          
+    277          	//i表示当前拼音序列处于哪个显示分组中
+    278          
+    279          	gui_SetBGColor(CHINESE_EDIT_BG_COLOR);
+    280          	gui_SetTextColor(CHINESE_EDIT_TXT_COLOR);
+    281          	font_size_save = gFontSize;
+    282          	gui_SetFont(CHINESE_EDIT_FONT_SIZE);
+    283          
+    284          	//清除旧的显示区域,包括上下翻页的图标区域
+    285          	gui_FillRect(0,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    286          	gui_FillRect(CHINESE_EDIT_ZONE_X+CHINESE_EDIT_ZONE_W,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    287          	gui_FillRect(CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_W,CHINESE_EDIT_ZONE_H,CHINESE_EDIT_BG_COLOR);
+    288          
+    289          	//显示该分组的所有的拼音序列
+    290          	for (j = 0;j<py_display_array[i];j++)
+    291          	{
+    292          		if (EDIT_STATE_PY_SELECT == edit_state)
+    293          		{
+    294          			if (j+start_dis_offset == py_offset)
+    295          			{
+    296          				gui_SetBGColor(TXT_COLOR);
+    297          				gui_SetTextColor(BG_COLOR);
+    298          			}
+    299          		}
+    300          		gui_TextOut(CHINESE_EDIT_ZONE_X+dis_len,CHINESE_EDIT_ZONE_Y+4,(unsigned char*)cpt9PY_Mb[start_dis_offset+j]->PY,1);
+    301          		dis_len += (strlen(cpt9PY_Mb[start_dis_offset+j]->PY)+1)*CHINESE_EDIT_FONT_SIZE/2;
+    302          		if (EDIT_STATE_PY_SELECT == edit_state)
+    303          		{
+    304          			if (j+start_dis_offset == py_offset)
+    305          			{
+    306          				gui_SetBGColor(CHINESE_EDIT_BG_COLOR);
+    307          				gui_SetTextColor(CHINESE_EDIT_TXT_COLOR);
+    308          			}
+    309          		}
+    310          	}	
+    311          
+    312          	//根据当前拼音序列显示上下翻页图标
+    313          	if (EDIT_STATE_PY_SELECT == edit_state)
+    314          	{
+    315          		if (py_offset==0)
+    316          		{
+    317          			//当前显示的是第一个拼音序列，只需要显示下翻键即可
+    318          			gui_PictureOut(GUI_WIDTH-24,CHINESE_EDIT_ZONE_Y+4,PIC_DOWN);
+    319          		}
+    320          		else if (py_offset==(py_match_num-1))
+    321          		{
+    322          			//显示的是最后一个拼音序列，只需要显示上翻键
+    323          			gui_PictureOut(0,CHINESE_EDIT_ZONE_Y+4,PIC_UP);
+    324          		}
+    325          		else
+    326          		{
+    327          			//上限翻页键都需要显示
+    328          			gui_PictureOut(0,CHINESE_EDIT_ZONE_Y+4,PIC_UP);
+    329          			gui_PictureOut(GUI_WIDTH-24,CHINESE_EDIT_ZONE_Y+4,PIC_DOWN);
+    330          		}
+    331          	}
+    332          
+    333          	//显示当前选择的拼音序列对应的汉字
+    334          	total_hz_num = strlen((char const*)cpt9PY_Mb[py_offset]->PY_mb)/2;		//一共对应的汉字个数
+    335          	total_hz_line = total_hz_num*CHINESE_EDIT_FONT_SIZE;
+    336          	total_hz_line += CHINESE_EDIT_ZONE_W - 1;
+    337          	total_hz_line /= CHINESE_EDIT_ZONE_W;
+    338          	//total_hz_line = ((total_hz_num*CHINESE_EDIT_FONT_SIZE) + (CHINESE_EDIT_ZONE_W - 1))/CHINESE_EDIT_ZONE_W;//一共可以显示几行汉字
+    339          	
+    340          	offset = 0;
+    341          	start_dis_offset = 0;
+    342          	for (i = 0;i<total_hz_line;i++)
+    343          	{
+    344          		offset += 8;
+    345          		if (hz_offset < offset)
+    346          		{
+    347          			break;
+    348          		}
+    349          		start_dis_offset += 8;
+    350          	}
+    351          	//i获取到当前汉字位于哪个显示分组
+    352          
+    353          	for (j = 0;j<8;j++)
+    354          	{
+    355          		if (start_dis_offset+j == total_hz_num)
+    356          		{
+    357          			break;
+    358          		}
+    359          
+    360          		if (EDIT_STATE_HZ_SELECT == edit_state)
+    361          		{
+    362          			if (j+start_dis_offset == hz_offset)
+    363          			{
+    364          				gui_SetBGColor(TXT_COLOR);
+    365          				gui_SetTextColor(BG_COLOR);
+    366          			}
+    367          		}
+    368          
+    369          		memcpy(hz_display_buf,cpt9PY_Mb[py_offset]->PY_mb+2*(start_dis_offset+j),2);
+    370          		gui_TextOut(CHINESE_EDIT_ZONE_X+j*CHINESE_EDIT_FONT_SIZE,CHINESE_EDIT_ZONE_Y+32,hz_display_buf,1);
+    371          
+    372          		if (EDIT_STATE_HZ_SELECT == edit_state)
+    373          		{
+    374          			if (j+start_dis_offset == hz_offset)
+    375          			{
+    376          				gui_SetBGColor(CHINESE_EDIT_BG_COLOR);
+    377          				gui_SetTextColor(CHINESE_EDIT_TXT_COLOR);
+    378          			}
+    379          		}
+    380          	}
+    381          
+    382          	//根据当前汉字显示分组，决定上下翻页键的显示方式
+    383          	if ((total_hz_line > 1)&&(EDIT_STATE_HZ_SELECT == edit_state))
+    384          	{
+    385          		//总共不止一行的汉字需要显示
+    386          		if (i==0)
+    387          		{
+    388          			//当前显示的是第一个汉字分组，只需要显示下翻键即可
+    389          			gui_PictureOut(GUI_WIDTH-24,CHINESE_EDIT_ZONE_Y+4+DEFAULT_FONT_SIZE,PIC_DOWN);
+    390          		}
+    391          		else if (i==(total_hz_line-1))
+    392          		{
+    393          			//最后一个显示分组，只需要显示上翻键
+    394          			gui_PictureOut(0,CHINESE_EDIT_ZONE_Y+4+DEFAULT_FONT_SIZE,PIC_UP);
+    395          		}
+    396          		else
+    397          		{
+    398          			//上限翻页键都需要显示
+    399          			gui_PictureOut(0,CHINESE_EDIT_ZONE_Y+4+DEFAULT_FONT_SIZE,PIC_UP);
+    400          			gui_PictureOut(GUI_WIDTH-24,CHINESE_EDIT_ZONE_Y+4+DEFAULT_FONT_SIZE,PIC_DOWN);
+    401          		}
+    402          	}
+    403          
+    404          
+    405          	if (EDIT_STATE_HZ_SELECT == edit_state)
+    406          	{
+    407          		//处于汉字选择状态时，在汉字下方显示一排数字，可以利用数字键快速选字
+    408          		gui_SetFont(12);
+    409          		hz_display_buf[1] = 0;
+    410          		for (j=0;j<8;j++)
+    411          		{
+    412          			if (start_dis_offset+j == total_hz_num)
+    413          			{
+    414          				break;
+    415          			}
+    416          
+    417          			hz_display_buf[0] = '1'+j;
+    418          			gui_TextOut(CHINESE_EDIT_ZONE_X+8+24*j,CHINESE_EDIT_ZONE_Y+CHINESE_EDIT_ZONE_H-16,hz_display_buf,1);
+    419          		}
+    420          		gui_SetFont(DEFAULT_FONT_SIZE);
+    421          	}
+    422          
+    423          	gui_SetBGColor(BG_COLOR);
+    424          	gui_SetTextColor(TXT_COLOR);
+    425          	gui_SetFont(font_size_save);
+    426          }
+    427          
+    428          
+    429          /**
+    430          * @brief 在中文输入时处理输入编辑框的键值
+    431          * @param[in] unsigned char key						输入的键值
+    432          * @param[in] unsigned char input_method				当前的输入法
+    433          * @param[out] unsigned char *code			在中文输入法下，如果完成汉字的输入，那么返回汉字的GB2312编码；在其它输入法下，返回键值对应的ASCII码,注意需要返回字符串
+    434          * @return unsigned char  是否需要后移编辑框光标位置	0:不需要   1:需要	
+    435          * @note 此函数执行之后会影响全局的编辑框状态，编辑框状态如下所示
+    436          *		 EDIT_STATE_INIT_STATUS		处于非中文输入法状态
+    437          *        EDIT_STATE_PY_SELECT		处于拼音选择阶段
+    438          *        EDIT_STATE_HZ_SELECT		处于汉字选择阶段
+    439          *        EDIT_STATE_CODE_GOT		获取到输入的键值的编码
+    440          *		这三个状态只能通过KEY_ENTER键来切换，
+    441          *		EDIT的初始状态就是非中文输入法状态，输入任意数字键切换为拼音选择状态，通过T9匹配到可能的拼音序列以及相应的汉字显示出来后，可以通过上下键选择拼音序列，
+    442          *		按KEY_ENTER将拼音选择状态切换到汉字选择状态，在汉字选择状态下可以通过上下翻键选择相应的汉字；
+    443          *		在汉字选择状态下按KEY_ENTER，就切换到获取到准确的汉字的状态，并将获取到的汉字编码返回。
+    444          *       只有此函数的返回值为EDIT_STATE_CODE_GOT时，code返回的编码才是对应汉字的GB2312编码。
+    445          */
+    446          unsigned char edit_chinese_proc(unsigned char key,unsigned char input_method,unsigned char *code)
+    447          {
+    448          	unsigned char	if_update_cursor = 1;
+    449          
+    450          	//下面这个判断条件很纠结，不知道我下次能不能看懂！！！
+    451          	//其实是为了处理在拼音输入法状态下，按数字键1输入标点符号的问题。目前的做法是拼音输入法时按数字键1同样输入半角的符号，所以不能让按键1进入下面的流程
+    452          	//但是在汉字选择状态下，又需要按数字键1可以用来选择相应汉字。所以搞这么一个纠结的判断条件。。。。
+    453          	//其实要修改按键1对应输入全角符号的话，需要修改T9输入法中数字键1对应的码表即可。但是也需要特殊处理，因为1键没有对应的拼音序列可以显示出来
+    454          	if (((PINYIN_INPUT == input_method)&&(key != KEY_NUM1)&&(key != KEY_NUM0)&&(key != KEY_xing))||((key == KEY_NUM1) &&(edit_state == EDIT_STATE_HZ_SELECT)))
+    455          	{
+    456          		if (edit_state == EDIT_STATE_INIT_STATUS)
+    457          		{
+    458          			//在还没有处于中文输入法状态时按键进来，就进入了拼音选择状态了
+    459          			edit_state = EDIT_STATE_PY_SELECT;	
+    460          			edit_now = 0;
+    461          			current_py = 0;
+    462          
+    463          			//绘制一个专门的区域用来显示匹配到的拼音序列及对应汉字序列
+    464          			gui_LineH(0,CHINESE_EDIT_ZONE_Y-1,GUI_WIDTH,COLOR_BLACK);
+    465          			gui_FillRect(CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_W,CHINESE_EDIT_ZONE_H,CHINESE_EDIT_BG_COLOR);
+    466          			//gui_PictureOut(0,CHINESE_EDIT_ZONE_Y+4,PIC_UP);
+    467          			//gui_PictureOut(GUI_WIDTH-24,CHINESE_EDIT_ZONE_Y+4,PIC_DOWN);
+    468          		}
+    469          
+    470          		if (edit_state == EDIT_STATE_PY_SELECT)
+    471          		{
+    472          			//拼音选择状态下，允许输入键值
+    473          			if (KEY_ENTER == key)
+    474          			{
+    475          				edit_state = EDIT_STATE_HZ_SELECT;		//编辑框状态切换为汉字选择状态
+    476          				current_hz = 0;
+    477          			}
+    478          			else if (KEY_UP == key || KEY_DOWN == key)
+    479          			{
+    480          				if (KEY_DOWN == key)
+    481          				{
+    482          					if (current_py < (py_match_num - 1))
+    483          					{
+    484          						current_py++;
+    485          					}
+    486          				}
+    487          				else
+    488          				{
+    489          					if (current_py > 0)
+    490          					{
+    491          						current_py--;
+    492          					}
+    493          				}
+    494          
+    495          				strcpy(edit_buf,cpt9PY_Mb[current_py]->t9PY_T9);
+    496          				edit_now = strlen(cpt9PY_Mb[current_py]->t9PY_T9);
+    497          			}
+    498          			else
+    499          			{
+    500          				if (KEY_CLEAR == key)
+    501          				{
+    502          					edit_now--;
+    503          					if (edit_now == 0)
+    504          					{
+    505          						current_hz = 0;
+    506          						edit_state = EDIT_STATE_CODE_GOT;
+    507                                  return if_update_cursor;
+    508          					}
+    509          				}
+    510          				else
+    511          				{
+    512          					//数字键
+    513          					if(edit_now < 6)
+    514          					{
+    515          						//最多输入6个字母，不支持组词输入
+    516          						edit_buf[edit_now++] = *key2ascii(key);
+    517          					}
+    518          				}
+    519          				edit_buf[edit_now] = 0;
+    520          
+    521          				py_match_num = T9PY_Get_Match_PY_MB(edit_buf,cpt9PY_Mb);		//此函数返回与输入序列完全匹配的拼音序列个数
+    522          				if (0 == py_match_num)
+    523          				{
+    524          					//如果输入的字母序列没有一个完全匹配的拼音序列，那么刚输入的字母是不合法的
+    525          					edit_now--;
+    526          					py_match_num = last_py_match_num;
+    527          				}
+    528          
+    529          				last_py_match_num = py_match_num;
+    530          			}
+    531          		}
+    532          		else if (edit_state == EDIT_STATE_HZ_SELECT)
+    533          		{
+    534          			//处于汉字选择状态时，可以通过数字键来快速选择对应的汉字
+    535          			if (KEY_UP == key || KEY_DOWN == key)
+    536          			{
+    537          				if (KEY_DOWN == key)
+    538          				{
+    539          					current_hz += 8;
+    540          					if (current_hz >= strlen((char const*)cpt9PY_Mb[current_py]->PY_mb)/2)
+    541          					{
+    542          						current_hz -= 8;
+    543          					}
+    544          				}
+    545          				else
+    546          				{
+    547          					//current_hz = strlen((char const*)cpt9PY_Mb[current_py]->PY_mb)/2;
+    548          					if (current_hz >= 8)
+    549          					{
+    550          						current_hz -= 8;
+    551          					}
+    552          				}
+    553          			}
+    554          			else if (KEY_CLEAR == key)
+    555          			{
+    556          				edit_state = EDIT_STATE_PY_SELECT;		//编辑框状态返回到拼音选择状态
+    557          				current_hz = 0;
+    558          			}
+    559          			else if (KEY_ENTER == key)
+    560          			{
+    561          				//获取到汉字编码
+    562          				edit_state = EDIT_STATE_CODE_GOT;
+    563          				memcpy(code,cpt9PY_Mb[current_py]->PY_mb+2*current_hz,2);
+    564          				code[2] = 0;
+    565          				current_hz = 0;
+    566          				current_py = 0;
+    567          				return if_update_cursor;
+    568          			}
+    569          			else
+    570          			{
+    571          				//数字键
+    572          				if(KEY_NUM1 == key || KEY_NUM2 == key || KEY_NUM3 == key || 
+    573          					KEY_NUM4 == key || KEY_NUM5 == key || KEY_NUM6 == key || 
+    574          					KEY_NUM7 == key || KEY_NUM8 == key)
+    575          				{
+    576          					current_hz += (*key2ascii(key) - 0x31);
+    577          					edit_state = EDIT_STATE_CODE_GOT;
+    578          					memcpy(code,cpt9PY_Mb[current_py]->PY_mb+2*current_hz,2);
+    579          					code[2] = 0;
+    580          					current_hz = 0;
+    581          					current_py = 0;
+    582          					return if_update_cursor;
+    583          				}
+    584          			}
+    585          		}
+    586          
+    587          		//显示匹配到的拼音序列
+    588          		edit_chinese_display(current_py,current_hz);
+    589          	}
+    590          	else
+    591          	{
+    592          		//处于非中文输入法状态时，KEY_UP、KEY_DOWN、KEY_CLEAR、KEY_ENTER是进不来此函数的
+    593          		 if_update_cursor = edit_alpha_proc(key,input_method,code);
+    594          		 edit_state = EDIT_STATE_CODE_GOT;
+    595          	}
+    596          
+    597          	return if_update_cursor;
+    598          }
+    599          
+    600          
+    601          /**
+    602          * @brief 显示系统设置的字典名称列表
+    603          * @param[in] unsigned char start_display_item		开始显示的项
+    604          * @param[in] unsigned char total_display_item		总共需要显示的项
+    605          * @param[in] unsigned char current_item				当前项
+    606          * @return unsigned char 	已经显示的项数
+    607          * @note 自适应显示内容的宽度
+    608          *       字典列表需要固定增加两个常用字段：当前日期、当前时间
+    609          */
+    610          static unsigned char display_ZD_name_list(unsigned char start_display_item,unsigned char total_display_item,unsigned char current_item)
+    611          {
+    612          	unsigned char i;
+    613          	unsigned char *pBuf;
+    614          	unsigned short x,y;
+    615          	unsigned char	font_size_save;
+    616          
+    617          
+    618          	//if (total_display_item == 0)
+    619          	//{
+    620          	//	return 0;
+    621          	//}
+    622          
+    623          	if (start_display_item > (total_display_item+2))
+    624          	{
+    625          		return 0;
+    626          	}
+    627          
+    628          	if ((current_item < start_display_item)||(current_item >= (total_display_item+2)))
+    629          	{
+    630          		return 0;
+    631          	}
+    632          
+    633          	x = CHINESE_EDIT_ZONE_X;
+    634          	y = CHINESE_EDIT_ZONE_Y;
+    635          
+    636          	font_size_save = gFontSize;
+    637          	gui_SetBGColor(CHINESE_EDIT_BG_COLOR);
+    638          	gui_SetTextColor(CHINESE_EDIT_TXT_COLOR);
+    639          	gui_SetFont(ZD_EDIT_FONT_SIZE);
+    640          
+    641          	//清除旧的显示区域,包括上下翻页的图标区域
+    642          	gui_FillRect(0,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    643          	gui_FillRect(CHINESE_EDIT_ZONE_X+CHINESE_EDIT_ZONE_W,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    644          	gui_FillRect(CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_W,CHINESE_EDIT_ZONE_H,CHINESE_EDIT_BG_COLOR);
+    645          
+    646          
+    647          	for (i = start_display_item;i < (total_display_item+2);i++)
+    648          	{
+    649          		if (i < total_display_item)
+    650          		{
+    651          			pBuf = record_module_read(REC_TYPE_ZD,zd_name_valid_tbl[i]);
+    652          			pBuf = ((TZD_RECORD*)pBuf)->ZD_name;
+    653          		}
+    654          		else if (i == total_display_item)
+    655          		{
+    656          			pBuf = "当前日期";
+    657          		}
+    658          		else
+    659          		{
+    660          			pBuf = "当前时间";
+    661          		}
+    662          
+    663          
+    664          		if ((x+(strlen(pBuf)+2)*ZD_EDIT_FONT_SIZE/2) > (CHINESE_EDIT_ZONE_X+CHINESE_EDIT_ZONE_W+ZD_EDIT_FONT_SIZE))
+    665          		{
+    666          			if ((y + ZD_EDIT_FONT_SIZE + 4 + ZD_EDIT_FONT_SIZE) <= (CHINESE_EDIT_ZONE_Y + CHINESE_EDIT_ZONE_H + 4))
+    667          			{
+    668          				x = CHINESE_EDIT_ZONE_X;
+    669          				y += (ZD_EDIT_FONT_SIZE + 4);
+    670          			}
+    671          			else
+    672          			{
+    673          				break;
+    674          			}
+    675          		}
+    676                          x += ((strlen(pBuf)+2)*ZD_EDIT_FONT_SIZE/2);
+    677          	}
+    678          
+    679          	if (i <= current_item)
+    680          	{
+    681          		start_display_item += (current_item+1-i);
+    682          	}
+    683          
+    684          
+    685              x = CHINESE_EDIT_ZONE_X;
+    686          	y = CHINESE_EDIT_ZONE_Y;
+    687          	for (i = start_display_item;i < (total_display_item+2);i++)
+    688          	{
+    689          		if (i < total_display_item)
+    690          		{
+    691          			pBuf = record_module_read(REC_TYPE_ZD,zd_name_valid_tbl[i]);
+    692          			pBuf = ((TZD_RECORD*)pBuf)->ZD_name;
+    693          		}
+    694          		else if (i == total_display_item)
+    695          		{
+    696          			pBuf = "当前日期";
+    697          		}
+    698          		else
+    699          		{
+    700          			pBuf = "当前时间";
+    701          		}
+    702          		
+    703          
+    704          		if ((x+(strlen(pBuf)+2)*ZD_EDIT_FONT_SIZE/2) > (CHINESE_EDIT_ZONE_X+CHINESE_EDIT_ZONE_W+ZD_EDIT_FONT_SIZE))
+    705          		{
+    706          			if ((y + ZD_EDIT_FONT_SIZE + 4 + ZD_EDIT_FONT_SIZE) <= (CHINESE_EDIT_ZONE_Y + CHINESE_EDIT_ZONE_H + 4))
+    707          			{
+    708          				x = CHINESE_EDIT_ZONE_X;
+    709          				y += (ZD_EDIT_FONT_SIZE + 4);
+    710          			}
+    711          			else
+    712          			{
+    713          				break;
+    714          			}
+    715          		}
+    716          
+    717          		if (i == current_item)
+    718          		{
+    719          			gui_SetBGColor(TXT_COLOR);
+    720          			gui_SetTextColor(BG_COLOR);
+    721          		}
+    722          
+    723          		gui_TextOut(x,y,pBuf,1);
+    724          		x += ((strlen(pBuf)+2)*ZD_EDIT_FONT_SIZE/2);
+    725          
+    726          		if (i == current_item)
+    727          		{
+    728          			gui_SetBGColor(CHINESE_EDIT_BG_COLOR);
+    729          			gui_SetTextColor(CHINESE_EDIT_TXT_COLOR);
+    730          		}
+    731          	}
+    732          
+    733          	if ((current_item+1) < (total_display_item+2))
+    734          	{
+    735          		//显示下翻页
+    736          		gui_PictureOut(GUI_WIDTH-24,CHINESE_EDIT_ZONE_Y+4+DEFAULT_FONT_SIZE,PIC_DOWN);
+    737          	}
+    738          
+    739          	if (current_item > 0)
+    740          	{
+    741          		//显示上翻页
+    742          		gui_PictureOut(0,CHINESE_EDIT_ZONE_Y+4+DEFAULT_FONT_SIZE,PIC_UP);
+    743          	}
+    744          
+    745          	gui_SetBGColor(BG_COLOR);
+    746          	gui_SetTextColor(TXT_COLOR);
+    747          	gui_SetFont(font_size_save);
+    748          	return (i - start_display_item);
+    749          }
+    750          
+    751          
+    752          /**
+    753          * @brief 显示某一字典名对应的字典内容列表
+    754          * @param[in] unsigned char index					对应的字典名
+    755          * @param[in] unsigned char start_display_item		开始显示的项
+    756          * @param[in] unsigned char current_item				当前项
+    757          * @return unsigned char 	已经显示的项数
+    758          */
+    759          static unsigned char display_ZD_value_list(unsigned char index,unsigned char start_display_item,unsigned char current_item,unsigned char *total_item)
+    760          {
+    761          	unsigned char i;
+    762          	unsigned char *pBuf;
+    763          	unsigned short x,y;
+    764          	unsigned char	font_size_save;
+    765          
+    766          	pBuf = record_module_read(REC_TYPE_ZD,index);
+    767          
+    768          	*total_item = 0;
+    769          	memset(zd_value_valid_tbl,0,8);
+    770          	for (i = 0;i < 8;i++)
+    771          	{
+    772          		if (((TZD_RECORD*)pBuf)->ZD_value[i][0] != 0)
+    773          		{
+    774          			zd_value_valid_tbl[(*total_item)++] = i;
+    775          		}
+    776          	}
+    777          
+    778          	if (*total_item == 0)
+    779          	{
+    780          		return 0;
+    781          	}
+    782          	if (start_display_item > *total_item)
+    783          	{
+    784          		return 0;
+    785          	}
+    786          
+    787          	if ((current_item < start_display_item)||(current_item >= *total_item))
+    788          	{
+    789          		return 0;
+    790          	}
+    791          
+    792          	memcpy((void*)&ZD_rec,(void*)pBuf,sizeof(TZD_RECORD));
+    793          
+    794          	//清除旧的显示区域,包括上下翻页的图标区域
+    795          	gui_FillRect(0,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    796          	gui_FillRect(CHINESE_EDIT_ZONE_X+CHINESE_EDIT_ZONE_W,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    797          	gui_FillRect(CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_W,CHINESE_EDIT_ZONE_H,CHINESE_EDIT_BG_COLOR);
+    798          
+    799          	x = CHINESE_EDIT_ZONE_X;
+    800          	y = CHINESE_EDIT_ZONE_Y;
+    801          
+    802          	font_size_save = gFontSize;
+    803          	gui_SetBGColor(CHINESE_EDIT_BG_COLOR);
+    804          	gui_SetTextColor(CHINESE_EDIT_TXT_COLOR);
+    805          	gui_SetFont(ZD_EDIT_FONT_SIZE);
+    806          
+    807          	for (i = start_display_item;i < *total_item;i++)
+    808          	{
+    809          		if ((x+(strlen(ZD_rec.ZD_value[zd_value_valid_tbl[i]])+2)*ZD_EDIT_FONT_SIZE/2) > (CHINESE_EDIT_ZONE_X+CHINESE_EDIT_ZONE_W+ZD_EDIT_FONT_SIZE))
+    810          		{
+    811          			if ((y + ZD_EDIT_FONT_SIZE + 4 + ZD_EDIT_FONT_SIZE) <= (CHINESE_EDIT_ZONE_Y + CHINESE_EDIT_ZONE_H))
+    812          			{
+    813          				x = CHINESE_EDIT_ZONE_X;
+    814          				y += (ZD_EDIT_FONT_SIZE + 4);
+    815          			}
+    816          			else
+    817          			{
+    818          				break;
+    819          			}
+    820          		}
+    821          
+    822          		x += ((strlen(ZD_rec.ZD_value[zd_value_valid_tbl[i]])+2)*ZD_EDIT_FONT_SIZE/2);
+    823          	}
+    824          
+    825          	if (i <= current_item)
+    826          	{
+    827          		start_display_item += (current_item+1-i);
+    828          	}
+    829          
+    830          
+    831          	x = CHINESE_EDIT_ZONE_X;
+    832          	y = CHINESE_EDIT_ZONE_Y;
+    833          	for (i = start_display_item;i < *total_item;i++)
+    834          	{
+    835          		if ((x+(strlen(ZD_rec.ZD_value[zd_value_valid_tbl[i]])+2)*ZD_EDIT_FONT_SIZE/2) > (CHINESE_EDIT_ZONE_X+CHINESE_EDIT_ZONE_W+ZD_EDIT_FONT_SIZE))
+    836          		{
+    837          			if ((y + ZD_EDIT_FONT_SIZE + 4 + ZD_EDIT_FONT_SIZE) <= (CHINESE_EDIT_ZONE_Y + CHINESE_EDIT_ZONE_H))
+    838          			{
+    839          				x = CHINESE_EDIT_ZONE_X;
+    840          				y += (ZD_EDIT_FONT_SIZE + 4);
+    841          			}
+    842          			else
+    843          			{
+    844          				break;
+    845          			}
+    846          		}
+    847          
+    848          		if (i == current_item)
+    849          		{
+    850          			gui_SetBGColor(TXT_COLOR);
+    851          			gui_SetTextColor(BG_COLOR);
+    852          		}
+    853          
+    854          		gui_TextOut(x,y,ZD_rec.ZD_value[zd_value_valid_tbl[i]],1);
+    855          		x += ((strlen(ZD_rec.ZD_value[zd_value_valid_tbl[i]])+2)*ZD_EDIT_FONT_SIZE/2);
+    856          
+    857          		if (i == current_item)
+    858          		{
+    859          			gui_SetBGColor(CHINESE_EDIT_BG_COLOR);
+    860          			gui_SetTextColor(CHINESE_EDIT_TXT_COLOR);
+    861          		}
+    862          	}
+    863          
+    864          
+    865          	if ((current_item+1) < *total_item)
+    866          	{
+    867          		//显示下翻页
+    868          		gui_PictureOut(GUI_WIDTH-24,CHINESE_EDIT_ZONE_Y+4+DEFAULT_FONT_SIZE,PIC_DOWN);
+    869          	}
+    870          
+    871          	if (current_item > 0)
+    872          	{
+    873          		//显示上翻页
+    874          		gui_PictureOut(0,CHINESE_EDIT_ZONE_Y+4+DEFAULT_FONT_SIZE,PIC_UP);
+    875          	}
+    876          
+    877          
+    878          	gui_SetBGColor(BG_COLOR);
+    879          	gui_SetTextColor(TXT_COLOR);
+    880          	gui_SetFont(font_size_save);
+    881          
+    882          	return (i - start_display_item);
+    883          }
+    884          
+    885          /**
+    886          * @brief 在字典输入时处理输入编辑框的键值
+    887          * @param[in] unsigned char key						输入的键值
+    888          * @param[out] unsigned char *code				
+    889          * @return
+    890          * @note 此函数执行之后会影响全局的编辑框状态，编辑框状态如下所示
+    891          *		 EDIT_STATE_INIT_STATUS		处于非中文输入法状态
+    892          *        EDIT_STATE_ZD_NAME_SELECT		处于拼音选择阶段
+    893          *        EDIT_STATE_ZD_VALUE_SELECT		处于汉字选择阶段
+    894          *        EDIT_STATE_CODE_GOT		获取到输入的键值的编码
+    895          *		这三个状态通过KEY_ENTER键或者KEY_CLEAR键来切换，
+    896          *		EDIT的初始状态就是非字典输入法状态，输入F3键切换为字典输入状态，查询系统设置的字典名称，将字典名称显示出来后，可以通过上下键选择字典名称，
+    897          *		按KEY_ENTER将字典名称选择状态切换到字典值的选择状态，在字典值选择状态下可以通过上下翻键选择相应的值；
+    898          *		在字典值选择状态下按KEY_ENTER，就进入获取到输入的键值的编码，并将获取到的字典值的编码返回。
+    899          */
+    900          void edit_ZD_proc(unsigned char key,unsigned char *code)
+    901          {
+    902          	unsigned char datetime_bcd[7];
+    903          	unsigned char datetime_str[11];
+    904          	unsigned int	i,j;
+    905          	unsigned char	*pBuf;
+    906          	switch (key)
+    907          	{
+    908          	case KEY_FUN3:
+    909          		//显示系统设置的字典列表
+    910          		total_name_item = 0;
+    911          		j = record_module_count(REC_TYPE_ZD);
+    912          		memset(zd_name_valid_tbl,0,8);
+    913          		for (i = 0;i < j;i++)
+    914          		{
+    915          			pBuf = record_module_read(REC_TYPE_ZD,i);
+    916          			pBuf = ((TZD_RECORD*)pBuf)->ZD_name;
+    917          			if (*pBuf != 0)
+    918          			{
+    919          				zd_name_valid_tbl[total_name_item++] = i;
+    920          			}
+    921          		}
+    922          		start_display_item = 0;
+    923          		current_item = 0;
+    924          		gui_LineH(0,CHINESE_EDIT_ZONE_Y-1,GUI_WIDTH,COLOR_BLACK);
+    925          		gui_FillRect(CHINESE_EDIT_ZONE_X,CHINESE_EDIT_ZONE_Y,CHINESE_EDIT_ZONE_W,CHINESE_EDIT_ZONE_H,CHINESE_EDIT_BG_COLOR);
+    926          
+    927          		display_item_yet = display_ZD_name_list(start_display_item,total_name_item,current_item);
+    928          		break;
+    929          	case KEY_ENTER:
+    930          		if (EDIT_STATE_ZD_VALUE_SELECT == edit_state)
+    931          		{
+    932          			edit_state = EDIT_STATE_CODE_GOT;
+    933          
+    934          			//将该字典值返回
+    935          			strcpy(code,ZD_rec.ZD_value[zd_value_valid_tbl[current_item]]);
+    936          
+    937          			gui_FillRect(0,CHINESE_EDIT_ZONE_Y-1,GUI_WIDTH,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    938          		}
+    939          		else if (EDIT_STATE_ZD_NAME_SELECT == edit_state)
+    940          		{
+    941          			if (current_item < total_name_item)
+    942          			{
+    943          				edit_state = EDIT_STATE_ZD_VALUE_SELECT;
+    944          				select_ZD = current_item;
+    945          
+    946          				save_start_item = start_display_item;
+    947          				save_select_ZD = select_ZD;
+    948          
+    949          				start_display_item = 0;
+    950          				current_item = 0;
+    951          				//显示该字典的内容
+    952          				display_item_yet = display_ZD_value_list(zd_name_valid_tbl[select_ZD],start_display_item,current_item,&total_value_item);
+    953          				if (total_value_item == 0)
+    954          				{
+    955          					edit_state = EDIT_STATE_CODE_GOT;
+    956          					//将该字典值返回
+    957          					code[0] = 0;
+    958          					gui_FillRect(0,CHINESE_EDIT_ZONE_Y-1,GUI_WIDTH,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    959          				}
+    960          			}
+    961          			else
+    962          			{
+    963          				//选择了最后两个固定的字典字段“当前日期”和“当前时间”，只将将系统时间返回到编辑框
+    964          				edit_state = EDIT_STATE_CODE_GOT;
+    965          				GetDateTime();
+    966          				Systime2BCD(datetime_bcd);
+    967          				//将该字典值返回
+    968          				if (current_item == total_name_item)
+    969          				{
+    970          					//选择的是“当前日期”
+    971          					bcd_field_to_str(datetime_bcd,4,datetime_str);
+    972          					memcpy(code,datetime_str,4);
+    973          					code[4] = '-';
+    974          					memcpy(code+5,datetime_str+4,2);
+    975          					code[7] = '-';
+    976          					strcpy(code+8,datetime_str+6);
+    977          				}
+    978          				else
+    979          				{
+    980          					//选择的是“当前时间”
+    981          					bcd_field_to_str(datetime_bcd+4,3,datetime_str);
+    982          					memcpy(code,datetime_str,2);
+    983          					code[2] = ':';
+    984          					memcpy(code+3,datetime_str+2,2);
+    985          					code[5] = ':';
+    986          					strcpy(code+6,datetime_str+4);
+    987          				}
+    988          				
+    989          				gui_FillRect(0,CHINESE_EDIT_ZONE_Y-1,GUI_WIDTH,CHINESE_EDIT_ZONE_H,BG_COLOR);
+    990          			}
+    991          
+    992          		}
+    993          		break;
+    994          	case KEY_UP:
+    995          		if (current_item > 0)
+    996          		{
+    997          			current_item --;
+    998          			if (current_item < start_display_item)
+    999          			{
+   1000          				start_display_item --;
+   1001          			}
+   1002          			if (EDIT_STATE_ZD_VALUE_SELECT == edit_state)
+   1003          			{
+   1004          				display_item_yet = display_ZD_value_list(zd_name_valid_tbl[select_ZD],start_display_item,current_item,&total_value_item);
+   1005          			}
+   1006          			
+   1007          			if (EDIT_STATE_ZD_NAME_SELECT == edit_state)
+   1008          			{
+   1009          				display_item_yet = display_ZD_name_list(start_display_item,total_name_item,current_item);
+   1010          			}
+   1011          			
+   1012          		}
+   1013          		break;
+   1014          	case KEY_DOWN:
+   1015          			if (EDIT_STATE_ZD_VALUE_SELECT == edit_state)
+   1016          			{
+   1017          				if ((current_item+1) < total_value_item)
+   1018          				{
+   1019          					current_item++;
+   1020          					if (current_item >= display_item_yet)
+   1021          					{
+   1022          						start_display_item++;				
+   1023          					}
+   1024          					display_item_yet = display_ZD_value_list(zd_name_valid_tbl[select_ZD],start_display_item,current_item,&total_value_item);
+   1025          				}
+   1026          			}
+   1027          
+   1028          			if (EDIT_STATE_ZD_NAME_SELECT == edit_state)
+   1029          			{
+   1030          				if ((current_item+1) < (total_name_item+2))
+   1031          				{
+   1032          					current_item++;
+   1033          					if (current_item >= display_item_yet)
+   1034          					{
+   1035          						start_display_item++;				
+   1036          					}
+   1037          					display_item_yet = display_ZD_name_list(start_display_item,total_name_item,current_item);
+   1038          				}
+   1039          			}
+   1040                      
+   1041          		
+   1042          		break;
+   1043          	case KEY_CLEAR:
+   1044          		if (EDIT_STATE_ZD_NAME_SELECT == edit_state)
+   1045          		{
+   1046          			edit_state = EDIT_STATE_INIT_STATUS;
+   1047          			code[0] = 0;
+   1048          
+   1049          			gui_FillRect(0,CHINESE_EDIT_ZONE_Y-1,GUI_WIDTH,CHINESE_EDIT_ZONE_H,BG_COLOR);
+   1050          		}
+   1051          		else if (EDIT_STATE_ZD_VALUE_SELECT == edit_state)
+   1052          		{
+   1053          			edit_state = EDIT_STATE_ZD_NAME_SELECT;
+   1054          
+   1055          			//显示系统设置的字典列表
+   1056          			start_display_item = save_start_item;
+   1057          			current_item = save_select_ZD;
+   1058          			display_item_yet = display_ZD_name_list(start_display_item,total_name_item,current_item);
+   1059          		}
+   1060          		break;
+   1061          	default:
+   1062          		break;
+   1063          	}
+   1064          }
+   1065          #endif
+
+   Maximum stack usage in bytes:
+
+     Function        .cstack
+     --------        -------
+     edit_alpha_proc     16
+     keyvalue_switch      8
+
+
+   Section sizes:
+
+     Function/Label    Bytes
+     --------------    -----
+     input_update_flag    4
+     last_input_key       1
+     edit_state           1
+     same_key_times       1
+     last_keyvalue        1
+     keyvalue_switch    290
+     edit_alpha_proc    240
+     ??DataTable18        4
+
+ 
+   8 bytes in section .bss
+ 534 bytes in section .text
+ 
+ 534 bytes of CODE memory
+   8 bytes of DATA memory
+
+Errors: none
+Warnings: 16

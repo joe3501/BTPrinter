@@ -1,0 +1,153 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     21/Nov/2015  17:04:00 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\Drivers\print_head.c                #
+#    Command line =  "E:\BT Printer\FW\src\Drivers\print_head.c" -D           #
+#                    DEBUG_VER -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Deb #
+#                    ug\List\" -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug #
+#                    \Obj\" --no_cse --no_unroll --no_inline                  #
+#                    --no_code_motion --no_tbaa --no_clustering               #
+#                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
+#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
+#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
+#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
+#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
+#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
+#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\print_he #
+#                    ad.lst                                                   #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\print_hea #
+#                    d.o                                                      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\Drivers\print_head.c
+      1          /**
+      2           * @file  print_head.c
+      3           * @brief 蓝牙打印机项目的热敏打印头管理模块
+      4           * @version 1.0
+      5           * @author kent.zhou
+      6           * @date 2015年11月12日
+      7           * @note
+      8          */
+      9          #include "Type.h"
+     10          #include "print_head.h"
+     11          #include "TP.h"
+     12          #include "PaperDetect.h"
+     13          #include "stm32f10x_lib.h"
+     14          #include "TimeBase.h"
+     15          #include <assert.h>
+     16          
+     17          /**
+     18          * @brief	初始化热敏打印头的SPI接口
+     19          * @return     none
+     20          * @note                    
+     21          */
+     22          static void print_head_SPI_init(void)
+     23          {
+     24          	GPIO_InitTypeDef	GPIO_InitStructure;
+     25          	SPI_InitTypeDef		SPI_InitStructure;
+     26          
+     27          	/* Enable SPI1 and GPIO clocks */
+     28          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1 | RCC_APB2Periph_GPIOA, ENABLE);
+     29          
+     30          	/* Configure SPI1 pins: SCK and MOSI */
+     31          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;
+     32          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+     33          	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+     34          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+     35          
+     36          	/* SPI1 configuration */
+     37          	SPI_InitStructure.SPI_Direction = SPI_Direction_1Line_Tx;
+     38          	SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
+     39          	SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
+     40          	SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
+     41          	SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
+     42          	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
+     43          	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_16;			//由于热敏打印头支持的SPI通讯频率最大为10MHZ，所以此处设置为16分频，4.5M比较安全
+     44          	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+     45          	SPI_InitStructure.SPI_CRCPolynomial = 7;
+     46          	SPI_Init(SPI1, &SPI_InitStructure);
+     47          
+     48          	/* Enable SPI1  */
+     49          	SPI_Cmd(SPI1, ENABLE);
+     50          }
+     51          
+     52          
+     53          /**
+     54          * @brief	初始化热敏打印头相关的控制IO、SPI接口、定时器及AD模块
+     55          * @return     none
+     56          * @note                    
+     57          */
+     58          void print_head_init(void)
+     59          {
+     60          	TPInit();
+     61          	TPPaperSNSInit();
+     62          	print_head_SPI_init();
+     63          	SetDesity();		//设置打印速度，表现为打印字体的密度
+     64          }
+     65          
+     66          /**
+     67          * @brief	通过SPI接口发送数据到热敏打印头
+     68          * @return     none
+     69          * @note                    
+     70          */
+     71          void print_head_spi_send_byte(unsigned char c)
+     72          {
+     73          	volatile short			i = 0;
+     74          	/* Loop while DR register in not emplty */
+     75          	while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET);
+     76          
+     77          	/* Send byte through the SPI2 peripheral */
+     78          	SPI_I2S_SendData(SPI1, c);
+     79          
+     80          	/* Wait to receive a byte */
+     81          	//while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_RXNE) == RESET);
+     82          	//for(i=0; i<10; i++);
+     83          	for(i=0; i<5; i++);
+     84          
+     85          	return;
+     86          }
+     87          
+     88          
+
+   Maximum stack usage in bytes:
+
+     Function                 .cstack
+     --------                 -------
+     print_head_SPI_init          32
+     print_head_init               8
+     print_head_spi_send_byte     16
+
+
+   Section sizes:
+
+     Function/Label           Bytes
+     --------------           -----
+     print_head_SPI_init       124
+     print_head_init            20
+     print_head_spi_send_byte   64
+     ??DataTable3                4
+
+ 
+ 212 bytes in section .text
+ 
+ 212 bytes of CODE memory
+
+Errors: none
+Warnings: none

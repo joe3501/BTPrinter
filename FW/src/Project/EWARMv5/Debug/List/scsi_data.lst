@@ -1,0 +1,219 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:11 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\scsi_data.c                 #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\scsi_data.c" -D DEBUG_VER  #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\scsi_dat #
+#                    a.lst                                                    #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\scsi_data #
+#                    .o                                                       #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\scsi_data.c
+      1          /******************** (C) COPYRIGHT 2010 STMicroelectronics ********************
+      2          * File Name          : scsi_data.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V3.1.1
+      5          * Date               : 04/07/2010
+      6          * Description        : Initialization of the SCSI data
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "usb_app_config.h"
+     18          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+     19          #include "usb_scsi.h"
+     20          #include "memory.h"
+     21          
+     22          
+     23          u8 Page00_Inquiry_Data[] =
+     24          {
+     25          	0x00, /* PERIPHERAL QUALIFIER & PERIPHERAL DEVICE TYPE*/
+     26          	0x00,
+     27          	0x00,
+     28          	0x00,
+     29          	0x00 /* Supported Pages 00*/
+     30          };
+     31          u8 Standard_Inquiry_Data[] =
+     32          {
+     33          	0x00,          /* Direct Access Device */
+     34          	0x80,          /* RMB = 1: Removable Medium */
+     35          	0x02,          /* Version: No conformance claim to standard */
+     36          	0x02,
+     37          
+     38          	36 - 4,          /* Additional Length */
+     39          	0x00,          /* SCCS = 1: Storage Controller Component */
+     40          	0x00,
+     41          	0x00,
+     42          #if 0
+     43          	/* Vendor Identification */
+     44          	'S', 'T', 'M', ' ', ' ', ' ', ' ', ' ',
+     45          	/* Product Identification */
+     46          	'S', 'D', ' ', 'F', 'l', 'a', 's', 'h', ' ',
+     47          	'D', 'i', 's', 'k', ' ', ' ', ' ',
+     48          	/* Product Revision Level */
+     49          	'1', '.', '0', ' '
+     50          #endif
+     51          
+     52          	/* Vendor Identification */
+     53          	'H', 'e', 'r', 'o', 'j', 'e', ' ', ' ',
+     54          	/* Product Identification */
+     55          	'T', '5', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+     56          	' ', ' ', ' ', ' ', ' ', ' ', ' ',
+     57          	/* Product Revision Level */
+     58          	'1', '.', '0', ' '
+     59          };
+     60          u8 Standard_Inquiry_Data2[] =
+     61          {
+     62          	0x00,          /* Direct Access Device */
+     63          	0x80,          /* RMB = 1: Removable Medium */
+     64          	0x02,          /* Version: No conformance claim to standard */
+     65          	0x02,
+     66          
+     67          	36 - 4,          /* Additional Length */
+     68          	0x00,          /* SCCS = 1: Storage Controller Component */
+     69          	0x00,
+     70          	0x00,
+     71          	/* Vendor Identification */
+     72          	'H', 'e', 'r', 'o', 'j', 'e', ' ', ' ',
+     73          	/* Product Identification */
+     74          	'T', '5', '_', 'U', 'S', 'B', ' ', 'a', 'p', 'p', ' ',
+     75          	' ', ' ', ' ', ' ', ' ',
+     76          	/* Product Revision Level */
+     77          	'1', '.', '0', ' '
+     78          };
+     79          /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+     80          u8 Mode_Sense6_data[] =
+     81            {
+     82              0x03,
+     83              0x00,
+     84              0x00,
+     85              0x00,
+     86            };
+     87          
+     88          /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+     89          
+     90          u8 Mode_Sense10_data[] =
+     91            {
+     92              0x00,
+     93              0x06,
+     94              0x00,
+     95              0x00,
+     96              0x00,
+     97              0x00,
+     98              0x00,
+     99              0x00
+    100            };
+    101          u8 Scsi_Sense_Data[] =
+    102            {
+    103              0x70, /*RespCode*/
+    104              0x00, /*SegmentNumber*/
+    105              NO_SENSE, /* Sens_Key*/
+    106              0x00,
+    107              0x00,
+    108              0x00,
+    109              0x00, /*Information*/
+    110              0x0A, /*AdditionalSenseLength*/
+    111              0x00,
+    112              0x00,
+    113              0x00,
+    114              0x00, /*CmdInformation*/
+    115              NO_SENSE, /*Asc*/
+    116              0x00, /*ASCQ*/
+    117              0x00, /*FRUC*/
+    118              0x00, /*TBD*/
+    119              0x00,
+    120              0x00 /*SenseKeySpecific*/
+    121            };
+    122          u8 ReadCapacity10_Data[] =
+    123            {
+    124              /* Last Logical Block */
+    125              0,
+    126              0,
+    127              0,
+    128              0,
+    129          
+    130              /* Block Length */
+    131              0,
+    132              0,
+    133              0,
+    134              0
+    135            };
+    136          
+    137          u8 ReadFormatCapacity_Data [] =
+    138            {
+    139              0x00,
+    140              0x00,
+    141              0x00,
+    142              0x08, /* Capacity List Length */
+    143          
+    144              /* Block Count */
+    145              0,
+    146              0,
+    147              0,
+    148              0,
+    149          
+    150              /* Block Length */
+    151              0x02,/* Descriptor Code: Formatted Media */
+    152              0,
+    153              0,
+    154              0
+    155            };
+    156          #endif
+    157          /******************* (C) COPYRIGHT 2010 STMicroelectronics *****END OF FILE****/
+
+
+   Section sizes:
+
+     Function/Label          Bytes
+     --------------          -----
+     Page00_Inquiry_Data        8
+     Standard_Inquiry_Data     36
+     Standard_Inquiry_Data2    36
+     Mode_Sense6_data           4
+     Mode_Sense10_data          8
+     Scsi_Sense_Data           20
+     ReadCapacity10_Data        8
+     ReadFormatCapacity_Data   12
+
+ 
+  16 bytes in section .bss
+ 116 bytes in section .data
+ 
+ 132 bytes of DATA memory
+
+Errors: none
+Warnings: none

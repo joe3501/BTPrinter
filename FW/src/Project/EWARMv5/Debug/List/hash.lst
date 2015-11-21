@@ -1,0 +1,130 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     30/Sep/2015  17:04:35 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\App\hash.c                               #
+#    Command line =  E:\H520B\FW\src\App\hash.c -D DEBUG_VER -lcN             #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o           #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\hash.lst      #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\hash.o         #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\App\hash.c
+      1          /**
+      2           * @file hash.c
+      3           * @brief hash表算法用到的接口
+      4           * @version 1.0
+      5           * @author joe
+      6           * @date 2011年12月21日
+      7           * @copy
+      8           *
+      9           * 此代码为深圳江波龙电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     10           * 本公司以外的项目。本司保留一切追究权利。
+     11           *
+     12           * <h1><center>&copy; COPYRIGHT 2011 netcom</center></h1>
+     13           */
+     14          #include "hash.h"
+     15          #include "crc32.h"
+     16          #include<string.h>
+     17          
+     18          //static unsigned long cryptTable[0x500];			//5K的内存空间
+     19          
+     20          #if 0
+     21          void prepareCryptTable(void)
+     22          { 
+     23              unsigned long seed = 0x00100001, index1 = 0, index2 = 0, i;
+     24          	 unsigned long temp1, temp2;
+     25           
+     26              for( index1 = 0; index1 < 0x100; index1++ )
+     27              { 
+     28                  for( index2 = index1, i = 0; i < 5; i++, index2 += 0x100 )
+     29                  { 
+     30                      seed = (seed * 125 + 3) % 0x2AAAAB;
+     31                      temp1 = (seed & 0xFFFF) << 0x10;
+     32           
+     33                      seed = (seed * 125 + 3) % 0x2AAAAB;
+     34                      temp2 = (seed & 0xFFFF);
+     35           
+     36                      cryptTable[index2] = ( temp1 | temp2 ); 
+     37                 } 
+     38             } 
+     39          } 
+     40          #endif
+     41          
+     42          
+     43          /**
+     44          * @brief 计算输入字符串的hash值
+     45          * @param[in] unsigned char *str				输入字符串指针
+     46          * @param[in] unsigned long dwHashType		hash类型 取值 0、1、2
+     47          */
+     48          unsigned long HashString(unsigned char *str, unsigned long dwHashType)
+     49          { 
+     50          #if 0
+     51              unsigned char *key  = str;
+     52          	unsigned long seed1 = 0x7FED7FED;
+     53          	unsigned long seed2 = 0xEEEEEEEE;
+     54              int ch;
+     55           
+     56              while( *key != 0 )
+     57              { 
+     58                  ch = *key++;
+     59           
+     60                  seed1 = cryptTable[(dwHashType << 8) + ch] ^ (seed1 + seed2);
+     61                  seed2 = ch + seed1 + seed2 + (seed2 << 5) + 3; 
+     62              }
+     63              return seed1; 
+     64          #endif
+     65          
+     66          	//选择CRC的hash算法
+     67          	return crc32(dwHashType,str,strlen((char const*)str));
+     68          }
+     69          
+     70          
+     71          
+     72          
+     73          
+
+   Maximum stack usage in bytes:
+
+     Function   .cstack
+     --------   -------
+     HashString     16
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     HashString       24
+
+ 
+ 24 bytes in section .text
+ 
+ 24 bytes of CODE memory
+
+Errors: none
+Warnings: none

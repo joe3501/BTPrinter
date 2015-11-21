@@ -1,0 +1,1099 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:23 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\App\data_transfer.c                         #
+#    Command line =  E:\T6\FW\src\App\data_transfer.c -lcN                    #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\data_transfer.ls #
+#                    t                                                        #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\data_transfer.o   #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\App\data_transfer.c
+      1          /**
+      2           * @file data_transfer.c
+      3           * @brief 盘点机与PC工具之间数据传输应用层的实现
+      4           *
+      5           * @version V0.0.1
+      6           * @author joe
+      7           * @date 2011年05月11日
+      8           * @note 
+      9           *		请参考《盘点机与PC通讯规范.doc》
+     10           * @copy
+     11           *
+     12           * 此代码为深圳江波龙电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     13           * 本公司以外的项目。本司保留一切追究权利。
+     14           *
+     15           * <h1><center>&copy; COPYRIGHT 2011 netcom</center></h1>
+     16           */
+     17          
+     18          #include "data_transfer.h"
+     19          #include "tlv.H"
+     20          #include "PCUsart.h"
+     21          #include "hw_config.h"
+     22          #include "usb_lib.h"
+     23          #include <string.h>
+     24          #include "usb_pwr.h"
+     25          #include "Terminal_Para.h"
+     26          #include "calendar.h"
+     27          #include "record.h"
+     28          
+     29          
+     30          #if(IF_FILE_SIZE == IF_FILE_SIZE_2K)
+     31          	#define TRANS_DATA_MAX_LEN	2000			//透传数据的最大长度
+     32          	static unsigned char	g_comm_buf[2048];		//通用的buf
+     33          	static unsigned char	ack_buffer[2200];
+     34          #else
+     35          	#define TRANS_DATA_MAX_LEN	1000			//透传数据的最大长度
+     36          	static unsigned char	g_comm_buf[1024];		//通用的buf
+     37          	static unsigned char	ack_buffer[1100];
+     38          #endif
+     39          
+     40          static unsigned char			need_verify_flag;
+     41          
+     42          
+     43          extern unsigned int		vcom_device_state;
+     44          
+     45          
+     46          //static unsigned int		inventory_rec_num;		//库存清单的记录数
+     47          //static unsigned int		check_rec_num;			//盘点清单的记录数
+     48          //static unsigned int		serialdata_rec_num;		//序列号采集清单的记录数
+     49          unsigned int		download_list_flag;		//开始下载清单的标记
+     50          //static unsigned char	expect_op_code;			//期望主机必须发送的命令
+     51          
+     52          unsigned int			hh_lsh;					//会话流水号
+     53          unsigned char			hh_type;				//会话类型
+     54          unsigned short			op_code;				//接收到的操作码
+     55          unsigned char			data_trans_state;				//数据导入导出时的状态
+     56          
+     57          //extern  TINVENTORY_RECORD			inventory_info;			//商品的库存信息
+     58          //extern  TGOODS_SPEC_RECORD		goods_spec;				//商品的规格信息
+     59          //extern	OP_REC_NODE				operate_rec;					//备份操作记录
+     60          //extern  unsigned char				current_operator;			// 当前登录到系统的操作员
+     61          extern  unsigned char				g_usb_type;
+     62          extern	TTerminalPara				g_param;							//Terminal Param
+     63          //extern  TINVENTORY_RECORD			*p_inventory_info;	//指向搜索到商品库存信息记录
+     64          extern  const unsigned char				*app_ver;
+     65          
+     66          /**
+     67          * @brief 构造记录文件列表
+     68          * @param[in] unsigned char  rec_type	记录类型
+     69          * @param[out] unsigned char *out_buf	存放记录明细数据
+     70          * @return 返回构造的记录明细数据的长度
+     71          * @note
+     72          */
+     73          static unsigned int build_rec_file_list(unsigned char rec_type,unsigned char *out_buf)
+     74          {
+     75          	unsigned int		off = 0;
+     76          	int					file_size,i;
+     77          	unsigned char		dir_str[35];
+     78          
+     79          
+     80          
+     81          	if (REC_TYPE_GOODS_LIST == rec_type)
+     82          	{
+     83          		//读取商品信息记录文件夹中的文件列表
+     84          
+     85          		out_buf[off++] = 2;						//商品信息记录文件夹包含2个hash文件和1个记录文件，共3个文件
+     86          		out_buf[off++] = FILE_TYPE_GOODS_LIST;						//goods.lst
+     87          		strcpy(dir_str,goods_list_dirctory);
+     88          		strcat(dir_str,goods_list_file);
+     89          		file_size = get_file_size(dir_str);
+     90          		memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+     91          		out_buf[off++] = FILE_TYPE_BAR_HASH_TBL;
+     92          		file_size = HASH_TABLE_SIZE*4;
+     93          		memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+     94          	}
+     95          	//else if (REC_TYPE_SERIAL_LIST == rec_type)
+     96          	//{
+     97          	//	//读取序列号采集清单记录夹中的文件列表
+     98          	//	out_buf[off++] = 3;						//序列号采集记录文件夹包含1个hash文件、1个序列号信息文件和1个记录文件，共3个文件
+     99          	//	out_buf[off++] = FILE_TYPE_SERIAL_LIST;						//serial.lst
+    100          	//	strcpy(dir_str,serial_data_dirctory);
+    101          	//	strcat(dir_str,current_dj_dir);
+    102          	//	strcat(dir_str,serial_list_file);
+    103          	//	file_size = get_file_size(dir_str);
+    104          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    105          	//	out_buf[off++] = FILE_TYPE_SERIAL_INF;						//serial.inf
+    106          	//	strcpy(dir_str,serial_data_dirctory);
+    107          	//	strcat(dir_str,current_dj_dir);
+    108          	//	strcat(dir_str,serial_data_info_file);
+    109          	//	file_size = get_file_size(dir_str);
+    110          
+    111          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    112          
+    113          	//	out_buf[off++] = FILE_TYPE_BAR_HASH_TBL;
+    114          	//	file_size = HASH_TABLE_SIZE*4;
+    115          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    116          
+    117          	//}
+    118          	//else if (REC_TYPE_CHECK_INFO == rec_type)
+    119          	//{
+    120          	//	//读取盘点信息记录文件夹中的文件列表
+    121          	//	out_buf[off++] = 2;						//盘点信息文件夹包含1个hash文件和1个记录文件，共2个文件
+    122          
+    123          	//	out_buf[off++] = FILE_TYPE_CHECK_INF;			//"check.lst"
+    124          	//	strcpy(dir_str,check_info_dirctory);
+    125          	//	strcat(dir_str,check_info_file);
+    126          	//	file_size = get_file_size(dir_str);
+    127          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    128          
+    129          	//	out_buf[off++] = FILE_TYPE_BAR_HASH_TBL;
+    130          	//	file_size = HASH_TABLE_SIZE*4;
+    131          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    132          	//}
+    133          	//else if (REC_TYPE_CHECK_MULTI == rec_type)
+    134          	//{
+    135          	//	//读取多单据盘点信息记录文件夹的文件列表
+    136          	//	out_buf[off++] = 2;						//盘点信息文件夹包含1个hash文件和1个记录文件，共2个文件
+    137          
+    138          	//	out_buf[off++] = FILE_TYPE_CHECK_INF;			//"check.lst"
+    139          	//	strcpy(dir_str,multi_check_dirctory);
+    140          	//	strcat(dir_str,current_dj_dir);
+    141          	//	strcat(dir_str,check_info_file);
+    142          	//	file_size = get_file_size(dir_str);
+    143          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    144          
+    145          	//	out_buf[off++] = FILE_TYPE_BAR_HASH_TBL;
+    146          	//	file_size = HASH_TABLE_SIZE*4;
+    147          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    148          	//}
+    149          	//else if (REC_TYPE_MULTCHK_LIST == rec_type)
+    150          	//{
+    151          	//	//读取多单据盘点中的单据列表
+    152          	//	out_buf[off++] = 2;						//多单据盘点文件夹包含1个inf文件和1个单据名节点文件，共2个文件
+    153          
+    154          	//	out_buf[off++] = FILE_TYPE_MULTCHK_INF;			//"multchk.inf"
+    155          	//	strcpy(dir_str,multi_check_dirctory);
+    156          	//	strcat(dir_str,multchk_data_info_file);
+    157          	//	file_size = get_file_size(dir_str);
+    158          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    159          
+    160          	//	out_buf[off++] = FILE_TYPE_MULTCHK_LST;			//"multchk.lst"
+    161          	//	strcpy(dir_str,multi_check_dirctory);
+    162          	//	strcat(dir_str,multchk_list_file);
+    163          	//	file_size = get_file_size(dir_str);
+    164          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    165          	//}
+    166          	//else if (REC_TYPE_MULTXLH_LIST == rec_type)
+    167          	//{
+    168          	//	//读取多单据序列号文件夹的单据列表
+    169          	//	out_buf[off++] = 2;						//盘点信息文件夹包含1个hash文件和1个记录文件，共2个文件
+    170          
+    171          	//	out_buf[off++] = FILE_TYPE_MULTXLH_INF;			//"multxlh.inf"
+    172          	//	strcpy(dir_str,serial_data_dirctory);
+    173          	//	strcat(dir_str,multxlh_data_info_file);
+    174          	//	file_size = get_file_size(dir_str);
+    175          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    176          
+    177          	//	out_buf[off++] = FILE_TYPE_MULTXLH_LST;			//"multxlh.lst"
+    178          	//	strcpy(dir_str,serial_data_dirctory);
+    179          	//	strcat(dir_str,multxlh_list_file);
+    180          	//	file_size = get_file_size(dir_str);
+    181          	//	memcpy(out_buf+off,(void*)&file_size,4);off += 4;
+    182          	//}
+    183          	else
+    184          	{
+    185          		return 0;			//应该进不来这里
+    186          	}
+    187          	return off;
+    188          }
+    189          
+    190          /**
+    191          * @brief 构造目标记录文件的路径
+    192          * @param[in] unsigned char rectype	记录类型
+    193          * @param[in] unsigned char filetype 文件类型
+    194          * @param[out] unsigned char *p_dir  返回构造的文件路径
+    195          * @note
+    196          */
+    197          static void	build_target_rec_dir(unsigned char rectype,unsigned char filetype,unsigned char *p_dir)
+    198          {
+    199          	const unsigned char *p_tmp_dir;
+    200          	const unsigned char *p_tmp_file;
+    201          
+    202          	switch (rectype)
+    203          	{
+    204          	case REC_TYPE_GOODS_LIST:
+    205          		p_tmp_dir = goods_list_dirctory;
+    206          		break;
+    207          	//case REC_TYPE_CHECK_INFO:
+    208          	//	p_tmp_dir = check_info_dirctory;
+    209          	//	break;
+    210          	//case REC_TYPE_SERIAL_LIST:
+    211          	//	p_tmp_dir = serial_data_dirctory;
+    212          	//	break;
+    213          	//case REC_TYPE_CHECK_MULTI:
+    214          	//	p_tmp_dir = multi_check_dirctory;
+    215          	//	break;
+    216          	//case REC_TYPE_MULTCHK_LIST:
+    217          	//	p_tmp_dir = multi_check_dirctory;
+    218          	//	break;
+    219          	//case REC_TYPE_MULTXLH_LIST:
+    220          	//	p_tmp_dir = serial_data_dirctory;
+    221          	//	break;
+    222          	default:
+    223          		return;
+    224          	}
+    225          
+    226          	switch (filetype)
+    227          	{
+    228          	case FILE_TYPE_GOODS_LIST:
+    229          		p_tmp_file = goods_list_file;
+    230          		break;
+    231          	case FILE_TYPE_BAR_HASH_TBL:
+    232          		p_tmp_file = barcode_hash_table_file;
+    233          		break;
+    234          	case FILE_TYPE_NAME_HASH_TBL:
+    235          		p_tmp_file = name_hash_table_file;
+    236          		break;
+    237          // 	case FILE_TYPE_SERIAL_INF:
+    238          // 		p_tmp_file = serial_data_info_file;
+    239          // 		break;
+    240          	//case FILE_TYPE_CHECK_INF:
+    241          	//	p_tmp_file = check_info_file;
+    242          	//	break;
+    243          // 	case FILE_TYPE_SERIAL_LIST:
+    244          // 		p_tmp_file = serial_list_file;
+    245          // 		break;
+    246          // 	case FILE_TYPE_MULTCHK_INF:
+    247          // 		p_tmp_file = multchk_data_info_file;
+    248          // 		break;
+    249          // 	case FILE_TYPE_MULTCHK_LST:
+    250          // 		p_tmp_file = multchk_list_file;
+    251          // 		break;
+    252          // 	case FILE_TYPE_MULTXLH_INF:
+    253          // 		p_tmp_file = multxlh_data_info_file;
+    254          // 		break;
+    255          // 	case FILE_TYPE_MULTXLH_LST:
+    256          // 		p_tmp_file = multxlh_list_file;
+    257          // 		break;
+    258          	default:
+    259          		return;
+    260          	}
+    261          
+    262          	strcpy(p_dir,p_tmp_dir);
+    263          // 	if (REC_TYPE_CHECK_MULTI == rectype || REC_TYPE_SERIAL_LIST == rectype)
+    264          // 	{
+    265          // 		strcat(p_dir,current_dj_dir);
+    266          // 	}
+    267          	strcat(p_dir,p_tmp_file);
+    268          
+    269          	return;
+    270          }
+    271          
+    272          /**
+    273          * @brief 构造响应报文
+    274          * @param[in] unsigned short			op_code		命令代码
+    275          * @param[in] unsigned int			param1		参数1
+    276          * @param[in] unsigned int			param2		参数2
+    277          * @param[in] unsigned int			param3		参数3
+    278          * @return	返回响应数据的长度
+    279          * @note
+    280          */
+    281          static unsigned int build_ack(unsigned short op_code,unsigned int param1,unsigned int param2,unsigned int param3,unsigned int param4)
+    282          {
+    283          	TTLVPacket				tlvpacket;
+    284          	unsigned int			data_field_len;
+    285          	unsigned char			tmp[8];
+    286          	unsigned char			dir_str[30];
+    287          	int						r_len;
+    288          	union
+    289          	{
+    290          		unsigned int	Dev_Serial_int[3];
+    291          		unsigned char	Dev_Serial_byte[12];
+    292          	} Dev_Serial;
+    293          
+    294          	tlv_init(&tlvpacket,ack_buffer);	
+    295          
+    296          	tlv_addtag(&tlvpacket, TAG_HH_LSH, (unsigned char*)&hh_lsh);
+    297          
+    298          	if (OP_CODE_CONNECT == op_code)
+    299          	{
+    300          		//连接命令的响应报文
+    301          		tlv_addtag(&tlvpacket, TAG_ACK, "00");
+    302          		tmp[0] = 0x00;
+    303          		tmp[1] = 0x02;		//终端返回数据帧最大长度,512
+    304          		tmp[2] = 0x00;
+    305          		tmp[3] = 0x02;		//终端可以接收的数据帧的最大长度,512
+    306          		tmp[4] = 0x00;
+    307          		tmp[5] = 0x00;		//锁定状态
+    308          		tmp[6] = tmp[7] = 0;
+    309          		tlv_addtag(&tlvpacket, TAG_IF_FEATURE, tmp);
+    310          		tlv_addtag(&tlvpacket, TAG_HH_TYPE, &hh_type);
+    311          		tlv_addtag(&tlvpacket, TAG_OPERATE_CODE,"\x0f\x0e" );
+    312          	}
+    313          	else if (OP_CODE_DISCONNECT == op_code)
+    314          	{
+    315          		//断开命令的响应报文
+    316          		tlv_addtag(&tlvpacket, TAG_ACK, "00");
+    317          		tlv_addtag(&tlvpacket, TAG_HH_RESULT, (unsigned char*)&param1);
+    318          		tlv_addtag(&tlvpacket, TAG_OPERATE_CODE,"\x0f\x0f" );
+    319          	}
+    320          	else if (OP_CODE_INQ_APP_VERSION == op_code)
+    321          	{
+    322          		//查询应用版本号的响应报文
+    323          		tlv_addtag(&tlvpacket, TAG_ACK, "00");
+    324          		tlv_addtag(&tlvpacket, TAG_APP_VERSION, (unsigned char*)app_ver);
+    325          
+    326          		Dev_Serial.Dev_Serial_int[0] = *(vu32*)(0x1FFFF7E8);
+    327          		Dev_Serial.Dev_Serial_int[1] = *(vu32*)(0x1FFFF7EC);
+    328          		Dev_Serial.Dev_Serial_int[2] = *(vu32*)(0x1FFFF7F0);
+    329          
+    330          		tlv_addtag(&tlvpacket, TAG_DEVICE_ID, Dev_Serial.Dev_Serial_byte);		//设备ID
+    331          		tlv_addtag(&tlvpacket, TAG_OPERATE_CODE,"\x00\x01" );
+    332          	}
+    333          	else if (OP_CODE_INQ_PARAM_VERSION == op_code)
+    334          	{
+    335          		//查询参数版本号的响应报文
+    336          		if (param1)
+    337          		{
+    338          			tlv_addtag(&tlvpacket, TAG_ACK, "01");		//认证失败
+    339          		}
+    340          		else
+    341          		{
+    342          			tlv_addtag(&tlvpacket, TAG_ACK, "00");
+    343          		}
+    344          		
+    345          		tlv_addtag(&tlvpacket, TAG_OPERATE_CODE,"\x00\x03" );
+    346          	}
+    347          	//else if (OP_CODE_VERIFY == op_code)
+    348          	//{
+    349          	//	//认证
+    350          	//	tlv_addtag(&tlvpacket, TAG_ACK, "00");
+    351          	//	tlv_addtag(&tlvpacket, TAG_PARAM_VERSION, "V1.0.0");
+    352          	//	tlv_addtag(&tlvpacket, TAG_OPERATE_CODE,"\x00\x02" );
+    353          	//}
+    354          	else if (OP_CODE_INQ_REC_FILE_LIST == op_code)
+    355          	{
+    356          		//读取记录文件列表
+    357          		tlv_addtag(&tlvpacket, TAG_ACK, "00");
+    358          		tlv_addtag(&tlvpacket, TAG_REC_TYPE, (unsigned char*)&param1);
+    359          // 		if (((unsigned char)param1 == REC_TYPE_CHECK_MULTI) || ((unsigned char)param1 == REC_TYPE_SERIAL_LIST))
+    360          // 		{
+    361          // 			tlv_addtag(&tlvpacket, TAG_DJ_DIR, current_dj_dir);
+    362          // 		}
+    363          		data_field_len = build_rec_file_list((unsigned char)param1,g_comm_buf);		//构造文件列表数据域
+    364          		tlv_addtag_ext(&tlvpacket,TAG_FILE_LIST,g_comm_buf,data_field_len);
+    365          		tlv_addtag(&tlvpacket, TAG_OPERATE_CODE,"\x01\x01" );
+    366          	}
+    367          	else if (OP_CODE_READ_REC_FILE == op_code)
+    368          	{
+    369          		//读取记录文件
+    370          		build_target_rec_dir((unsigned char)param1,(unsigned char)param2,dir_str);
+    371          
+    372          		if (param4 > TRANS_DATA_MAX_LEN)
+    373          		{
+    374          			param4 = TRANS_DATA_MAX_LEN;
+    375          		}
+    376          		r_len = read_rec_file(dir_str,param3,param4,g_comm_buf);
+    377          		if (r_len < 0)
+    378          		{
+    379          			//读取失败
+    380          			tlv_addtag(&tlvpacket, TAG_ACK, "04");		//记录读取失败
+    381          			tlv_addtag(&tlvpacket, TAG_REC_TYPE, (unsigned char*)&param1);
+    382          // 			if (((unsigned char)param1 == REC_TYPE_CHECK_MULTI) || ((unsigned char)param1 == REC_TYPE_SERIAL_LIST))
+    383          // 			{
+    384          // 				tlv_addtag(&tlvpacket, TAG_DJ_DIR, current_dj_dir);
+    385          // 			}
+    386          			tlv_addtag(&tlvpacket, TAG_FILE_TYPE, (unsigned char*)&param2);
+    387          		}
+    388          		else
+    389          		{
+    390          			//读取成功
+    391          			tlv_addtag(&tlvpacket, TAG_ACK, "00");		
+    392          			tlv_addtag(&tlvpacket, TAG_REC_TYPE, (unsigned char*)&param1);
+    393          // 			if (((unsigned char)param1 == REC_TYPE_CHECK_MULTI) || ((unsigned char)param1 == REC_TYPE_SERIAL_LIST))
+    394          // 			{
+    395          // 				tlv_addtag(&tlvpacket, TAG_DJ_DIR, current_dj_dir);
+    396          // 			}
+    397          			tlv_addtag(&tlvpacket, TAG_FILE_TYPE, (unsigned char*)&param2);
+    398          			tlv_addtag(&tlvpacket, TAG_DATA_LENGTH, (unsigned char*)&r_len);
+    399          			tlv_addtag_ext(&tlvpacket,TAG_TRNAS_DATA,g_comm_buf,r_len);
+    400          		}
+    401          		tlv_addtag(&tlvpacket, TAG_OPERATE_CODE,"\x02\x01" );
+    402          	}
+    403          	else if (OP_CODE_DOWNLOAD_GOODS_INFO == op_code)
+    404          	{
+    405          		//下载商品信息
+    406          		if (param2==1)
+    407          		{
+    408          			tlv_addtag(&tlvpacket, TAG_ACK, "01");		//参数错误
+    409          		}
+    410          		else if (param2==2)
+    411          		{
+    412          			tlv_addtag(&tlvpacket, TAG_ACK, "02");		//更新失败
+    413          		}
+    414          		else if (param2==3)
+    415          		{
+    416          			tlv_addtag(&tlvpacket, TAG_ACK, "03");		//记录不完整或者格式不正确
+    417          		}
+    418          		else
+    419          		{
+    420          			tlv_addtag(&tlvpacket, TAG_ACK, "00");
+    421          		}
+    422          		tlv_addtag(&tlvpacket, TAG_REC_TYPE, (unsigned char*)&param1);
+    423          		tlv_addtag(&tlvpacket, TAG_FILE_TYPE, (unsigned char*)&param3);
+    424          		tlv_addtag(&tlvpacket, TAG_DATA_LENGTH, (unsigned char*)&param4);
+    425          		tlv_addtag(&tlvpacket, TAG_OPERATE_CODE, "\x03\x01");
+    426          
+    427          	}
+    428          	else if (OP_CODE_DOWNLOAD_APP == op_code || OP_CODE_DOWNLOAD_RESDATA == op_code )
+    429          	{
+    430          		//下载应用升级文件
+    431          		if (param2==1)
+    432          		{
+    433          			tlv_addtag(&tlvpacket, TAG_ACK, "01");		//参数错误
+    434          		}
+    435          		else if (param2==2)
+    436          		{
+    437          			tlv_addtag(&tlvpacket, TAG_ACK, "02");		//更新失败
+    438          		}
+    439          		else if (param2==3)
+    440          		{
+    441          			tlv_addtag(&tlvpacket, TAG_ACK, "03");		//记录不完整或者格式不正确
+    442          		}
+    443          		else
+    444          		{
+    445          			tlv_addtag(&tlvpacket, TAG_ACK, "00");
+    446          		}
+    447          		tlv_addtag(&tlvpacket, TAG_FILE_TYPE, (unsigned char*)&param1);
+    448          		tlv_addtag(&tlvpacket, TAG_DATA_LENGTH, (unsigned char*)&param4);
+    449          		if (OP_CODE_DOWNLOAD_APP == op_code)
+    450          		{
+    451          			tlv_addtag(&tlvpacket, TAG_OPERATE_CODE, "\x04\x01");
+    452          		}
+    453          		else
+    454          		{
+    455          			tlv_addtag(&tlvpacket, TAG_OPERATE_CODE, "\x04\x02");
+    456          		}
+    457          	}
+    458          	else 
+    459          	{
+    460          		;		//应该来不了这儿的！！！
+    461          	}
+    462          
+    463          	tlv_pack(&tlvpacket);
+    464          
+    465          	return (tlvpacket.ptr);
+    466          }
+    467          
+    468          
+    469          //下载库存清单之后，将下载的数据增加到入库操作记录
+    470          //void add_op_record_after_trans_in(TINVENTORY_RECORD *p_inventory)
+    471          //{
+    472          //
+    473          //	//通过新导入的库存清单,增加入库操作记录
+    474          //	//@todo....
+    475          //
+    476          //	strcpy(operate_rec.goods_detail.code.bar_code,p_inventory->bar_code);
+    477          //	operate_rec.goods_detail.spec_rec_index = p_inventory->spec_rec_index;
+    478          //	operate_rec.goods_detail.num = p_inventory->total_num;
+    479          //
+    480          //	if(operate_rec.goods_detail.num)
+    481          //	{
+    482          //		//如果导入时库存数不为0才需要增加一条入库操作记录
+    483          //		if (record_add(g_param.current_goods_in_rec,(unsigned char*)&operate_rec))
+    484          //		{
+    485          //			record_add(g_param.current_goods_in_rec,(unsigned char*)&operate_rec);
+    486          //		}
+    487          //	}
+    488          //}
+    489          
+    490          //检查下载的清单记录的格式是否正确
+    491          //static int check_list_rec_format(TINVENTORY_INFO * p_list_rec)
+    492          //{
+    493          //	int i;
+    494          //		 
+    495          //	for (i = 0; i < strlen(p_list_rec->bar_code);i++)
+    496          //	{
+    497          //		if (p_list_rec->bar_code[i] > 0x80)
+    498          //		{
+    499          //			return -1;		//条形码中包含了非法的字符 
+    500          //		}
+    501          //	}
+    502          //
+    503          //	if (strlen(p_list_rec->name) > 29)
+    504          //	{
+    505          //		//判断最后一个字节是否是汉字的一半还是一个可显示字符（汉字或者英文字符）的结束字符
+    506          //		i = 0;
+    507          //		while(1)
+    508          //		{
+    509          //			if (p_list_rec->name[i] > 0x80)
+    510          //			{
+    511          //				i+=2;
+    512          //			}
+    513          //			else
+    514          //			{
+    515          //				i++;
+    516          //			}
+    517          //
+    518          //			if (i>=29)
+    519          //			{
+    520          //				break;
+    521          //			}
+    522          //		}
+    523          //
+    524          //		if (i == 30)
+    525          //		{
+    526          //			p_list_rec->name[30] = 0;
+    527          //		}
+    528          //		else
+    529          //		{
+    530          //			p_list_rec->name[29] = 0;
+    531          //		}
+    532          //	}
+    533          //
+    534          //	//时间格式的校验
+    535          //	//@todo...
+    536          //
+    537          //	return 0;
+    538          //}
+    539          
+    540          /**
+    541           * @brief 处理接收到的命令
+    542           * @param[in] unsigned char *cmd			指向接收到的命令
+    543           * @return
+    544           * @note
+    545           */
+    546          int data_transfer_proc(unsigned char *cmd,int mode,datatrans_callback pcallback)
+    547          {
+    548          	int						res;
+    549          	TTLVPacket				tlvpacket;
+    550          	unsigned char			*pvalue;
+    551          	unsigned char			rec_type,hh_result,file_type;
+    552          	unsigned int			file_offset,data_len,res_len;
+    553          	unsigned char			download_end_flag;
+    554          	int						w_len;
+    555          
+    556          	unsigned char			dir_str[30];
+    557          
+    558          	//1.检查数据帧结构、数据帧校验是否正确
+    559          	res = tlv_verify(cmd);
+    560          	if (res)
+    561          	{
+    562          		return res;		//-1 -2 -3 -4
+    563          	}
+    564          
+    565          	tlvpacket.ptr = 0;
+    566          	tlvpacket.buffer = cmd;
+    567          
+    568          	//解析命令的会话流水号
+    569          	pvalue	= tlv_get_tagvalue(TAG_HH_LSH, &tlvpacket);
+    570          	if (pvalue == 0)
+    571          	{
+    572          		return -6;				//命令数据域缺失
+    573          	}
+    574          
+    575          	hh_lsh =  pvalue[3];
+    576          	hh_lsh <<= 8;
+    577          	hh_lsh |= pvalue[2];
+    578          	hh_lsh <<= 8;
+    579          	hh_lsh |= pvalue[1];
+    580          	hh_lsh <<= 8;
+    581          	hh_lsh |= pvalue[0];
+    582          
+    583          	//解析命令的操作代码
+    584          	pvalue	= tlv_get_tagvalue(TAG_OPERATE_CODE, &tlvpacket);
+    585          	if (pvalue == 0)
+    586          	{
+    587          		return -6;				//命令数据域缺失
+    588          	}
+    589          	op_code = pvalue[0];
+    590          	op_code <<= 8;
+    591          	op_code |= pvalue[1];
+    592          
+    593          
+    594          	if (OP_CODE_CONNECT == op_code)
+    595          	{
+    596          		pvalue = tlv_get_tagvalue(TAG_HH_TYPE,&tlvpacket);
+    597          		if (pvalue == 0)
+    598          		{
+    599          			return -6;		//命令数据域缺失
+    600          		}
+    601          
+    602          		if (mode == 0)
+    603          		{
+    604          			/*if ((pvalue[0] != TRANS_TYPE_GOODS_INFO_OUT)&&(pvalue[0] != TRANS_TYPE_SERIALDATA_OUT)&&
+    605          				(pvalue[0] != TRANS_TYPE_CHECK_INFO_OUT)&&
+    606          				(pvalue[0] != TRANS_TYPE_GOODS_INFO_IN))*/
+    607          			if (pvalue[0] != TRANS_TYPE_GOODS_INFO_IN)
+    608          			{
+    609          				//会话类型数据域错误
+    610          				return -6;
+    611          			}
+    612          
+    613          		}
+    614          		else
+    615          		{
+    616          			if ((pvalue[0] != TRANS_TYPE_UPDATE_IN)&&(pvalue[0] != TRANS_TYPE_RESDATA_IN))
+    617          			{
+    618          				//会话类型数据域错误
+    619          				return -6;
+    620          			}
+    621          
+    622          		}
+    623          
+    624          		hh_type = pvalue[0];			//PC要求进行的会话类型
+    625          
+    626          		//任意时刻都可以响应连接命令
+    627          		vcom_device_state = 1;			//接收到了连接命令
+    628          
+    629          		//初始化下载清单的标记
+    630          		download_list_flag = 0;
+    631          
+    632          		//expect_op_code = 0;
+    633          
+    634          		//构造连接命令的响应报文
+    635          		res_len = build_ack(op_code,0,0,0,0);
+    636          
+    637          		need_verify_flag = 0;
+    638          	}
+    639          	else
+    640          	{
+    641          		//其余命令
+    642          		if (0 == vcom_device_state)
+    643          		{
+    644          			//还没有接收到连接命令之前，其余命令都不响应
+    645          			return -5;		//未连接状态
+    646          		}
+    647          		else
+    648          		{
+    649          			//已经接收到了连接命令，可以响应其余命令
+    650          			if (OP_CODE_DISCONNECT == op_code)
+    651          			{
+    652          				//断开命令
+    653          				vcom_device_state = 0;			//接收到了断开命令
+    654          
+    655          				pvalue = tlv_get_tagvalue(TAG_HH_RESULT,&tlvpacket);
+    656          				if (pvalue == 0)
+    657          				{
+    658          					return -6;		//命令数据域缺失
+    659          				}
+    660          				
+    661          				hh_result = pvalue[0];				//会话结果
+    662          				res_len = build_ack(op_code,hh_result,0,0,0);
+    663          			}
+    664          			else if(OP_CODE_INQ_APP_VERSION == op_code || OP_CODE_INQ_PARAM_VERSION == op_code)
+    665          			{
+    666          				//查询应用版本号 或者 参数版本号
+    667          				res_len = build_ack(op_code,0,0,0,0);
+    668          			}
+    669          			else
+    670          			{
+    671          
+    672          				//如下命令必须认证成功才能响应
+    673          
+    674          				if (OP_CODE_INQ_REC_FILE_LIST == op_code)
+    675          				{
+    676          					//查询记录文件列表
+    677          					pvalue	= tlv_get_tagvalue(TAG_REC_TYPE, &tlvpacket);		//获取需要读取的清单记录类型
+    678          					if (pvalue == 0)
+    679          					{
+    680          						return -6;				//命令数据域缺失
+    681          					}
+    682          					rec_type = pvalue[0];
+    683          // 					if ((pvalue[0] == REC_TYPE_CHECK_MULTI) || (pvalue[0] == REC_TYPE_SERIAL_LIST))
+    684          // 					{
+    685          // 						pvalue	= tlv_get_tagvalue(TAG_DJ_DIR, &tlvpacket);		//获取需要读取的单据的相对路径
+    686          // 						if (pvalue == 0)
+    687          // 						{
+    688          // 							return -6;				//命令数据域缺失
+    689          // 						}
+    690          // 
+    691          // 						memcpy(current_dj_dir,pvalue,4);		//设置当前的单据路径
+    692          // 					}
+    693          					res_len = build_ack(op_code,(unsigned int)rec_type,0,0,0);
+    694          				}
+    695          				else if (OP_CODE_READ_REC_FILE == op_code)
+    696          				{
+    697          					//读取记录文件
+    698          					pvalue	= tlv_get_tagvalue(TAG_REC_TYPE, &tlvpacket);		//获取需要读取的清单记录类型
+    699          					if (pvalue == 0)
+    700          					{
+    701          						return -6;				//命令数据域缺失
+    702          					}
+    703          					rec_type = pvalue[0];
+    704          // 					if ((pvalue[0] == REC_TYPE_CHECK_MULTI) || (pvalue[0] == REC_TYPE_SERIAL_LIST))
+    705          // 					{
+    706          // 						pvalue	= tlv_get_tagvalue(TAG_DJ_DIR, &tlvpacket);		//获取需要读取的单据的相对路径
+    707          // 						if (pvalue == 0)
+    708          // 						{
+    709          // 							return -6;				//命令数据域缺失
+    710          // 						}
+    711          // 
+    712          // 						memcpy(current_dj_dir,pvalue,4);		//设置当前的单据路径
+    713          // 					}
+    714          
+    715          					pvalue	= tlv_get_tagvalue(TAG_FILE_TYPE, &tlvpacket);		//获取需要读取的文件类型
+    716          					if (pvalue == 0)
+    717          					{
+    718          						return -6;				//命令数据域缺失
+    719          					}
+    720          
+    721          					file_type = pvalue[0];
+    722          
+    723          					pvalue	= tlv_get_tagvalue(TAG_FILE_OFFSET, &tlvpacket);		//获取需要开始读取的文件偏移
+    724          					if (pvalue == 0)
+    725          					{
+    726          						return -6;				//命令数据域缺失
+    727          					}
+    728          
+    729          					((unsigned char*)&file_offset)[0] = pvalue[3];
+    730          					((unsigned char*)&file_offset)[1] = pvalue[2];
+    731          					((unsigned char*)&file_offset)[2] = pvalue[1];
+    732          					((unsigned char*)&file_offset)[3] = pvalue[0];
+    733          
+    734          					pvalue	= tlv_get_tagvalue(TAG_DATA_LENGTH, &tlvpacket);		//获取需要读取的数据长度
+    735          					if (pvalue == 0)
+    736          					{
+    737          						return -6;				//命令数据域缺失
+    738          					}
+    739          
+    740          					((unsigned char*)&data_len)[0] = pvalue[3];
+    741          					((unsigned char*)&data_len)[1] = pvalue[2];
+    742          					((unsigned char*)&data_len)[2] = pvalue[1];
+    743          					((unsigned char*)&data_len)[3] = pvalue[0];
+    744          
+    745          					res_len = build_ack(op_code,(unsigned int)rec_type,(unsigned int)file_type,file_offset,data_len);
+    746          
+    747          				}
+    748          				else if (OP_CODE_DOWNLOAD_GOODS_INFO == op_code)
+    749          				{
+    750          					//下载商品信息
+    751          					pvalue	= tlv_get_tagvalue(TAG_REC_TYPE, &tlvpacket);		//获取需要下载的清单记录类型
+    752          					if (pvalue == 0)
+    753          					{
+    754          						return -6;				//命令数据域缺失
+    755          					}
+    756          					if (pvalue[0] != REC_TYPE_GOODS_LIST)
+    757          					{
+    758          						res_len = build_ack(op_code,pvalue[0],1,0,0);		//构造数据域错误的响应报文
+    759          					}
+    760          					else
+    761          					{
+    762          						rec_type = pvalue[0];
+    763          
+    764          						pvalue	= tlv_get_tagvalue(TAG_FILE_TYPE, &tlvpacket);		//获取需要写入的文件类型
+    765          						if (pvalue == 0)
+    766          						{
+    767          							return -6;				//命令数据域缺失
+    768          						}
+    769          
+    770          						file_type = pvalue[0];
+    771          						if ((file_type != FILE_TYPE_GOODS_LIST)&&(file_type != FILE_TYPE_BAR_HASH_TBL)&&(file_type != FILE_TYPE_NAME_HASH_TBL)&&(file_type != FILE_TYPE_CHECK_INF))
+    772          						{
+    773          							res_len = build_ack(op_code,rec_type,1,(unsigned int)file_type,0);			//构造数据域错误的响应报文
+    774          						}
+    775          						else
+    776          						{
+    777          							pvalue	= tlv_get_tagvalue(TAG_FILE_OFFSET,&tlvpacket);		//获取需要写入的文件偏移
+    778          							if (pvalue == 0)
+    779          							{
+    780          								return -6;				//命令数据域缺失
+    781          							}
+    782          
+    783          							((unsigned char*)&file_offset)[0] = pvalue[3];
+    784          							((unsigned char*)&file_offset)[1] = pvalue[2];
+    785          							((unsigned char*)&file_offset)[2] = pvalue[1];
+    786          							((unsigned char*)&file_offset)[3] = pvalue[0];
+    787          
+    788          							pvalue	= tlv_get_tagvalue(TAG_DATA_LENGTH,&tlvpacket);		//获取需要写入的数据长度
+    789          							if (pvalue == 0)
+    790          							{
+    791          								return -6;				//命令数据域缺失
+    792          							}
+    793          
+    794          							((unsigned char*)&data_len)[0] = pvalue[3];
+    795          							((unsigned char*)&data_len)[1] = pvalue[2];
+    796          							((unsigned char*)&data_len)[2] = pvalue[1];
+    797          							((unsigned char*)&data_len)[3] = pvalue[0];
+    798          
+    799          
+    800          							pvalue	= tlv_get_tagvalue(TAG_DOWNLOAD_COMPLETE_FLAG, &tlvpacket);		//获取商品信息下载结束标记
+    801          							if (pvalue == 0)
+    802          							{
+    803          								return -6;				//命令数据域缺失
+    804          							}
+    805          							download_end_flag = pvalue[0];
+    806          
+    807          							pvalue	= tlv_get_tagvalue(TAG_TRNAS_DATA, &tlvpacket);		//获取下载下来的透传数据
+    808          							if (pvalue == 0)
+    809          							{
+    810          								return -6;				//命令数据域缺失
+    811          							}
+    812          							//将下载下来的透传数据写入相应的文件
+    813          							if (0 == download_list_flag)
+    814          							{
+    815          								download_list_flag = 1;
+    816          
+    817          								//下载商品信息会将
+    818          								if (hh_type == TRANS_TYPE_GOODS_INFO_IN)
+    819          								{
+    820          									record_clear(REC_TYPE_GOODS_LIST);
+    821          									record_clear(REC_TYPE_CHECK);
+    822          								}
+    823          								else if (hh_type == TRANS_TYPE_UPDATE_IN)
+    824          								{
+    825          									//删除旧的应用升级文件
+    826          									del_update_bin();
+    827          								}
+    828          								else if (hh_type == TRANS_TYPE_RESDATA_IN)
+    829          								{
+    830          									//删除旧的资源升级文件
+    831          									del_resdata_bin();
+    832          								}
+    833          							}
+    834          
+    835          							//构造目标文件的路径
+    836          							build_target_rec_dir(rec_type,file_type,dir_str);
+    837          
+    838          							w_len = write_rec_file(dir_str,file_offset,data_len,pvalue);
+    839          							if (w_len < 0)
+    840          							{
+    841          								res_len = build_ack(op_code,rec_type,2,(unsigned int)file_type,0);			//构造更新失败的响应报文
+    842          							}
+    843          							else
+    844          							{
+    845          								//更新成功，检查商品信息下载完成标志是否置位，如果下载完成，需要检查下载的记录格式是否正确
+    846          								if (download_end_flag)
+    847          								{
+    848          									//检查下载的商品信息是否完整，格式是否正确
+    849          									if (check_record_dir(REC_TYPE_GOODS_LIST))
+    850          									{
+    851          										res_len = build_ack(op_code,rec_type,3,(unsigned int)file_type,0);			//构造记录不完整或者格式不正确的响应报文
+    852          									}
+    853          									else
+    854          									{
+    855          										res_len = build_ack(op_code,rec_type,0,(unsigned int)file_type,w_len);
+    856          									}
+    857          								}
+    858          								else
+    859          								{
+    860          									res_len = build_ack(op_code,rec_type,0,(unsigned int)file_type,w_len);
+    861          								}
+    862          							}
+    863          						}
+    864          					}
+    865          				}
+    866          				else if ((OP_CODE_DOWNLOAD_APP == op_code) || (OP_CODE_DOWNLOAD_RESDATA == op_code))
+    867          				{
+    868          					//下载应用升级文件
+    869          					pvalue	= tlv_get_tagvalue(TAG_FILE_TYPE, &tlvpacket);		//获取需要下载的文件类型
+    870          					if (pvalue == 0)
+    871          					{
+    872          						return -6;				//命令数据域缺失
+    873          					}
+    874          					if (((pvalue[0] != FILE_TYPE_UPDATE_BIN)&&(op_code == OP_CODE_DOWNLOAD_APP))||((pvalue[0] != FILE_TYPE_RESDATA_BIN)&&(op_code == OP_CODE_DOWNLOAD_RESDATA)))
+    875          					{
+    876          						res_len = build_ack(op_code,(unsigned int)pvalue[0],1,0,0);		//构造数据域错误的响应报文
+    877          					}
+    878          					else
+    879          					{
+    880          						file_type = pvalue[0];
+    881          						pvalue	= tlv_get_tagvalue(TAG_FILE_OFFSET,&tlvpacket);		//获取需要写入的文件偏移
+    882          						if (pvalue == 0)
+    883          						{
+    884          							return -6;				//命令数据域缺失
+    885          						}
+    886          
+    887          						((unsigned char*)&file_offset)[0] = pvalue[3];
+    888          						((unsigned char*)&file_offset)[1] = pvalue[2];
+    889          						((unsigned char*)&file_offset)[2] = pvalue[1];
+    890          						((unsigned char*)&file_offset)[3] = pvalue[0];
+    891          
+    892          						pvalue	= tlv_get_tagvalue(TAG_DATA_LENGTH,&tlvpacket);		//获取需要写入的数据长度
+    893          						if (pvalue == 0)
+    894          						{
+    895          							return -6;				//命令数据域缺失
+    896          						}
+    897          
+    898          						((unsigned char*)&data_len)[0] = pvalue[3];
+    899          						((unsigned char*)&data_len)[1] = pvalue[2];
+    900          						((unsigned char*)&data_len)[2] = pvalue[1];
+    901          						((unsigned char*)&data_len)[3] = pvalue[0];
+    902          
+    903          
+    904          						pvalue	= tlv_get_tagvalue(TAG_DOWNLOAD_COMPLETE_FLAG, &tlvpacket);		//获取商品信息下载结束标记
+    905          						if (pvalue == 0)
+    906          						{
+    907          							return -6;				//命令数据域缺失
+    908          						}
+    909          						download_end_flag = pvalue[0];
+    910          
+    911          						pvalue	= tlv_get_tagvalue(TAG_TRNAS_DATA, &tlvpacket);		//获取下载下来的透传数据
+    912          						if (pvalue == 0)
+    913          						{
+    914          							return -6;				//命令数据域缺失
+    915          						}
+    916          						//将下载下来的透传数据写入相应的文件
+    917          						if (OP_CODE_DOWNLOAD_APP == op_code)
+    918          						{
+    919          							w_len = write_rec_file("/update.bin",file_offset,data_len,pvalue);
+    920          						}
+    921          						else
+    922          						{
+    923          							w_len = write_rec_file("/resdata.tmp",file_offset,data_len,pvalue);
+    924          						}
+    925          
+    926          						if (w_len < 0)
+    927          						{
+    928          							res_len = build_ack(op_code,(unsigned int)file_type,2,0,0);			//构造更新失败的响应报文
+    929          						}
+    930          						else
+    931          						{
+    932          							//更新成功，检查商品信息下载完成标志是否置位，如果下载完成，需要检查下载的记录格式是否正确
+    933          							if (download_end_flag)
+    934          							{
+    935          								//检查下载的文件是否OK，格式是否正确
+    936          								if (OP_CODE_DOWNLOAD_APP == op_code)
+    937          								{
+    938          									res = check_updatefile();
+    939          								}
+    940          								else
+    941          								{
+    942          									res = check_resdatafile();
+    943          								}
+    944          
+    945          								if (res)
+    946          								{
+    947          									res_len = build_ack(op_code,(unsigned int)file_type,3,0,0);			//构造记录不完整或者格式不正确的响应报文
+    948          								}
+    949          								else
+    950          								{
+    951          									res_len = build_ack(op_code,(unsigned int)file_type,0,0,w_len);
+    952          								}
+    953          							}
+    954          							else
+    955          							{
+    956          								res_len = build_ack(op_code,(unsigned int)file_type,0,0,w_len);
+    957          							}
+    958          						}
+    959          					}
+    960          				}
+    961          				else
+    962          				{
+    963          					//其余操作码，都不响应 
+    964          					return -7;
+    965          				}
+    966          			}
+    967          		}
+    968          	}
+    969          
+    970          	if ((pcallback)&&(data_trans_state == 0))
+    971          	{
+    972          		//在回复响应之前需要执行一些回调函数
+    973          		pcallback();
+    974          	}
+    975          
+    976          	//回复响应
+    977          	SendData_To_PC(ack_buffer,res_len);
+    978          
+    979          	if (bDeviceState == CONFIGURED)
+    980          	{
+    981          		if (op_code == OP_CODE_DISCONNECT)
+    982          		{
+    983          			return (1+hh_result);		//此次会话结束,1:会话成功		2:会话失败
+    984          		}
+    985          		else
+    986          		{
+    987          			return 0;		//此次会话还没有结束
+    988          		}
+    989          	}
+    990          	else
+    991          	{
+    992          		//与USB连接断开了
+    993          		return 0x55aa;
+    994          	}
+    995          	
+    996          }
+
+   Maximum stack usage in bytes:
+
+     Function             .cstack
+     --------             -------
+     build_ack                88
+     build_rec_file_list      56
+     build_target_rec_dir     16
+     data_transfer_proc       88
+     memcpy                    8
+
+
+   Section sizes:
+
+     Function/Label              Bytes
+     --------------              -----
+     memcpy                        14
+     g_comm_buf                  1024
+     ack_buffer                  1100
+     need_verify_flag               1
+     download_list_flag             4
+     hh_lsh                         4
+     hh_type                        1
+     op_code                        2
+     data_trans_state               1
+     build_rec_file_list           96
+     build_target_rec_dir          68
+     build_ack                    844
+     data_transfer_proc          1732
+     ??DataTable2                   4
+     ??DataTable3                   4
+     ??DataTable19                  4
+     ??DataTable23                  4
+     ??DataTable24                  4
+     ?<Constant "/T6_DB/goods">    16
+     ?<Constant "/goods.lst">      12
+     ?<Constant "/barhash.tbl">    16
+     ?<Constant "/namehash.tbl">   16
+     ?<Constant "00">               4
+     ?<Constant "\017\016">         4
+     ?<Constant "\017\017">         4
+     ?<Constant "\000\001">         4
+     ?<Constant "01">               4
+     ?<Constant "\000\003">         4
+     ?<Constant "\001\001">         4
+     ?<Constant "04">               4
+     ?<Constant "\002\001">         4
+     ?<Constant "02">               4
+     ?<Constant "03">               4
+     ?<Constant "\003\001">         4
+     ?<Constant "\004\001">         4
+     ?<Constant "\004\002">         4
+     ?<Constant "/update.bin">     12
+     ?<Constant "/resdata.tmp">    16
+
+ 
+ 2 137 bytes in section .bss
+   144 bytes in section .rodata
+ 2 774 bytes in section .text
+ 
+ 2 760 bytes of CODE  memory (+ 14 bytes shared)
+   144 bytes of CONST memory
+ 2 137 bytes of DATA  memory
+
+Errors: none
+Warnings: 8

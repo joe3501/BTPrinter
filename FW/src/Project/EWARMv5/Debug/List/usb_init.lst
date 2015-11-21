@@ -1,0 +1,132 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     17/Nov/2015  15:49:48 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_init.c                  #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_init.c" -D DEBUG_VER   #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_init #
+#                    .lst                                                     #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_init. #
+#                    o                                                        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_init.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : usb_init.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.2.1
+      5          * Date               : 09/22/2008
+      6          * Description        : Initialization routines & global variables
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "usb_lib.h"
+     18          
+     19          /* Private typedef -----------------------------------------------------------*/
+     20          /* Private define ------------------------------------------------------------*/
+     21          /* Private macro -------------------------------------------------------------*/
+     22          /* Private variables ---------------------------------------------------------*/
+     23          /*  The number of current endpoint, it will be used to specify an endpoint */
+     24           u8	EPindex;
+     25          /*  The number of current device, it is an index to the Device_Table */
+     26          /* u8	Device_no; */
+     27          /*  Points to the DEVICE_INFO structure of current device */
+     28          /*  The purpose of this register is to speed up the execution */
+     29          DEVICE_INFO *pInformation;
+     30          /*  Points to the DEVICE_PROP structure of current device */
+     31          /*  The purpose of this register is to speed up the execution */
+     32          DEVICE_PROP *pProperty;
+     33          /*  Temporary save the state of Rx & Tx status. */
+     34          /*  Whenever the Rx or Tx state is changed, its value is saved */
+     35          /*  in this variable first and will be set to the EPRB or EPRA */
+     36          /*  at the end of interrupt process */
+     37          u16	SaveState ;
+     38          u16  wInterrupt_Mask;
+     39          DEVICE_INFO	Device_Info;
+     40          USER_STANDARD_REQUESTS  *pUser_Standard_Requests;
+     41          
+     42          /* Extern variables ----------------------------------------------------------*/
+     43          /* Private function prototypes -----------------------------------------------*/
+     44          /* Private functions ---------------------------------------------------------*/
+     45          
+     46          /*******************************************************************************
+     47          * Function Name  : USB_Init
+     48          * Description    : USB system initialization
+     49          * Input          : None.
+     50          * Output         : None.
+     51          * Return         : None.
+     52          *******************************************************************************/
+     53          void USB_Init(void)
+     54          {
+     55            pInformation = &Device_Info;
+     56            pInformation->ControlState = 2;
+     57            pProperty = &Device_Property;
+     58            pUser_Standard_Requests = &User_Standard_Requests;
+     59            /* Initialize devices one by one */
+     60            pProperty->Init();
+     61          }
+     62          
+     63          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function .cstack
+     -------- -------
+     USB_Init      8
+
+
+   Section sizes:
+
+     Function/Label          Bytes
+     --------------          -----
+     EPindex                    1
+     pInformation               4
+     pProperty                  4
+     SaveState                  2
+     wInterrupt_Mask            2
+     Device_Info               28
+     pUser_Standard_Requests    4
+     USB_Init                  64
+
+ 
+ 45 bytes in section .bss
+ 64 bytes in section .text
+ 
+ 64 bytes of CODE memory
+ 45 bytes of DATA memory
+
+Errors: none
+Warnings: none

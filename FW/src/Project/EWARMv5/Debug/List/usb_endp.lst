@@ -1,0 +1,170 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  14:49:45 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_endp.c                  #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_endp.c" -D DEBUG_VER   #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_endp #
+#                    .lst                                                     #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_endp. #
+#                    o                                                        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_endp.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : usb_endp.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.2.1
+      5          * Date               : 09/22/2008
+      6          * Description        : Endpoint routines
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "usb_lib.h"
+     18          #include "usb_desc.h"
+     19          #include "usb_mem.h"
+     20          #include "hw_config.h"
+     21          #include "usb_istr.h"
+     22          #include "usb_bot.h"
+     23          #include "usb_app_config.h"
+     24          
+     25          /* Private typedef -----------------------------------------------------------*/
+     26          /* Private define ------------------------------------------------------------*/
+     27          /* Private macro -------------------------------------------------------------*/
+     28          /* Private variables ---------------------------------------------------------*/
+     29          //u8 buffer_out[VIRTUAL_COM_PORT_DATA_SIZE];
+     30          //u32 count_out = 0;
+     31          u32 count_in = 0;
+     32          
+     33          /* Private function prototypes -----------------------------------------------*/
+     34          /* Private functions ---------------------------------------------------------*/
+     35          /*******************************************************************************
+     36          * Function Name  : EP3_IN_Callback
+     37          * Description    :
+     38          * Input          : None.
+     39          * Output         : None.
+     40          * Return         : None.
+     41          *******************************************************************************/
+     42          void EP3_OUT_Callback(void)
+     43          {
+     44          #if(USB_DEVICE_CONFIG &_USE_USB_VIRTUAL_COMM_DEVICE)
+     45             //int i;
+     46            if (g_usb_type == USB_VIRTUAL_PORT)
+     47            {
+     48          	  count_out = GetEPRxCount(ENDP3);
+     49          	  PMAToUserBufferCopy(buffer_out, ENDP3_RXADDR, count_out);
+     50          	  SetEPRxValid(ENDP3);
+     51          
+     52          	  /*for (i = 0; i < count_out; i++)
+     53          	  {
+     54          	  PCUsart_InByte(buffer_out[i]);
+     55          	  }*/
+     56          	  //@todo....
+     57          
+     58          	  //此处应用可以处理虚拟串口接收到的数据，由具体应用来修改。。。。
+     59            }
+     60          #endif
+     61          }
+     62          
+     63          /*******************************************************************************
+     64          * Function Name  : EP2_OUT_Callback.
+     65          * Description    : EP2 OUT Callback Routine.
+     66          * Input          : None.
+     67          * Output         : None.
+     68          * Return         : None.
+     69          *******************************************************************************/
+     70          void EP2_OUT_Callback(void)
+     71          {
+     72          #if(USB_DEVICE_CONFIG &_USE_USB_MASS_STOARGE_DEVICE)
+     73          	if (g_usb_type == USB_MASSSTORAGE)
+     74          	{
+     75          		Mass_Storage_Out();
+     76          	}
+     77          #endif
+     78          }
+     79          
+     80          /*******************************************************************************
+     81          * Function Name  : EP1_IN_Callback
+     82          * Description    :
+     83          * Input          : None.
+     84          * Output         : None.
+     85          * Return         : None.
+     86          *******************************************************************************/
+     87          void EP1_IN_Callback(void)
+     88          {
+     89          #if(USB_DEVICE_CONFIG &_USE_USB_MASS_STOARGE_DEVICE)
+     90          	if (g_usb_type == USB_MASSSTORAGE)
+     91          	{
+     92          		Mass_Storage_In();
+     93          	}
+     94          	else
+     95          #endif
+     96          	{
+     97          		count_in = 0;
+     98          	}
+     99          }
+    100          
+    101          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+    102          
+
+   Maximum stack usage in bytes:
+
+     Function         .cstack
+     --------         -------
+     EP1_IN_Callback       8
+     EP2_OUT_Callback      8
+     EP3_OUT_Callback      0
+
+
+   Section sizes:
+
+     Function/Label   Bytes
+     --------------   -----
+     count_in            4
+     EP3_OUT_Callback    2
+     EP2_OUT_Callback   16
+     EP1_IN_Callback    28
+     ??DataTable1        4
+
+ 
+  4 bytes in section .bss
+ 50 bytes in section .text
+ 
+ 50 bytes of CODE memory
+  4 bytes of DATA memory
+
+Errors: none
+Warnings: none

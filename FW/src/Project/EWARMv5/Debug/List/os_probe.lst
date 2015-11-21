@@ -1,0 +1,611 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     30/Sep/2015  17:04:39 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\uCOS\uC-Probe\os_probe.c                 #
+#    Command line =  E:\H520B\FW\src\uCOS\uC-Probe\os_probe.c -D DEBUG_VER    #
+#                    -lcN E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o      #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\os_probe.lst  #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\os_probe.o     #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\uCOS\uC-Probe\os_probe.c
+      1          /*
+      2          *********************************************************************************************************
+      3          *                                          uC/Probe Plug-ins
+      4          *
+      5          *                         (c) Copyright 2007-2008; Micrium, Inc.; Weston, FL
+      6          *
+      7          *               All rights reserved.  Protected by international copyright laws.
+      8          *               Knowledge of the source code may NOT be used to develop a similar product.
+      9          *               Please help us continue to provide the Embedded community with the finest
+     10          *               software available.  Your honesty is greatly appreciated.
+     11          *********************************************************************************************************
+     12          */
+     13          
+     14          /*
+     15          *********************************************************************************************************
+     16          *
+     17          *                                    PLUG-IN FOR MICRIUM uC/OS-II
+     18          *
+     19          * Filename      : os_probe.c
+     20          * Version       : V2.20
+     21          * Programmer(s) : BAN
+     22          *********************************************************************************************************
+     23          * Note(s)       : (1) This module calculates task CPU & stack usage statistics that can be displayed in
+     24          *                     uC/Probe.
+     25          *********************************************************************************************************
+     26          */
+     27          
+     28          
+     29          /*
+     30          *********************************************************************************************************
+     31          *                                            INCLUDE FILES
+     32          *********************************************************************************************************
+     33          */
+     34          
+     35          #define   OS_PROBE_MODULE
+     36          #include <os_probe.h>
+     37          
+     38          
+     39          /*
+     40          *********************************************************************************************************
+     41          *                                           LOCAL CONSTANTS
+     42          *********************************************************************************************************
+     43          */
+     44          
+     45          
+     46          /*
+     47          *********************************************************************************************************
+     48          *                                          LOCAL DATA TYPES
+     49          *********************************************************************************************************
+     50          */
+     51          
+     52          
+     53          /*
+     54          *********************************************************************************************************
+     55          *                                            LOCAL TABLES
+     56          *********************************************************************************************************
+     57          */
+     58          
+     59          
+     60          /*
+     61          *********************************************************************************************************
+     62          *                                       LOCAL GLOBAL VARIABLES
+     63          *********************************************************************************************************
+     64          */
+     65          
+     66          #if (OS_PROBE_TASK > 0)
+     67          static  OS_STK  OSProbe_TaskStk[OS_PROBE_TASK_STK_SIZE];
+     68          #endif
+     69          
+     70          
+     71          /*
+     72          *********************************************************************************************************
+     73          *                                      LOCAL FUNCTION PROTOTYPES
+     74          *********************************************************************************************************
+     75          */
+     76          
+     77          #if (OS_PROBE_TASK > 0)
+     78          static  void  OSProbe_InitOS(void);
+     79          static  void  OSProbe_Task  (void  *p_arg);
+     80          #endif
+     81          
+     82          
+     83          /*
+     84          *********************************************************************************************************
+     85          *                                     LOCAL CONFIGURATION ERRORS
+     86          *********************************************************************************************************
+     87          */
+     88          
+     89          
+     90          /*
+     91          *********************************************************************************************************
+     92          *                                           OSProbe_Init()
+     93          *
+     94          * Description : Initialize the Probe Plug-In for uC/OS-II.
+     95          *
+     96          * Argument(s) : none.
+     97          *
+     98          * Return(s)   : none.
+     99          *
+    100          * Caller(s)   : Application.
+    101          *
+    102          * Note(s)     : none.
+    103          *********************************************************************************************************
+    104          */
+    105          
+    106          void  OSProbe_Init (void)
+    107          {
+    108          #if (OS_PROBE_TASK > 0)
+    109              OSProbe_SetDelay(100);
+    110              OSProbe_SetCallback((void (*)(void))0);                     /* Clr terminal callback function.                      */
+    111          
+    112              OSProbe_InitOS();
+    113          #endif
+    114          
+    115          #if (OS_PROBE_HOOKS_EN > 0)
+    116              OSProbe_TmrInit();
+    117          
+    118              OSProbe_CyclesCtr   = 0;
+    119              OSProbe_TmrCntsPrev = 0;
+    120          #endif
+    121          }
+    122          
+    123          
+    124          /*
+    125          *********************************************************************************************************
+    126          *                                        OSProbe_SetCallback()
+    127          *
+    128          * Description : Set the callback function which will be invoked in OSProbe_Task().
+    129          *
+    130          * Argument(s) : call_back   Pointer to the callback function.
+    131          *
+    132          * Return(s)   : none.
+    133          *
+    134          * Caller(s)   : Application.
+    135          *
+    136          * Note(s)     : none.
+    137          *********************************************************************************************************
+    138          */
+    139          
+    140          #if (OS_PROBE_TASK > 0)
+    141          void  OSProbe_SetCallback (void (*call_back)(void))
+    142          {
+    143              OSProbe_CallbackFnct = call_back;
+    144          }
+    145          #endif
+    146          
+    147          
+    148          /*
+    149          *********************************************************************************************************
+    150          *                                         OSProbe_SetDelay()
+    151          *
+    152          * Description : Set the delay used in OSProbe_Task().
+    153          *
+    154          * Argument(s) : delay       Delay, in milliseconds.
+    155          *
+    156          * Return(s)   : none.
+    157          *
+    158          * Caller(s)   : Application.
+    159          *
+    160          * Note(s)     : none.
+    161          *********************************************************************************************************
+    162          */
+    163          
+    164          #if (OS_PROBE_TASK > 0)
+    165          void  OSProbe_SetDelay (INT16U  delay)
+    166          {
+    167              OSProbe_Delay = delay;
+    168          }
+    169          #endif
+    170          
+    171          
+    172          /*
+    173          *********************************************************************************************************
+    174          *                                       OSProbe_TimeGetCycles()
+    175          *
+    176          * Description : Get time as accurately as possible, stored in a 32-bit variable.
+    177          *
+    178          * Argument(s) : none.
+    179          *
+    180          * Return(s)   : A 32-bit representation of time.
+    181          *
+    182          * Caller(s)   : OSProbe_TaskSwHook(),
+    183          *               OSProbe_TaskCreateHook().
+    184          *
+    185          * Note(s)     : (1) Since the cycles count returned by this function will eventually overflow a 32-bit
+    186          *                   integer, it should only be used for comparative time lapse measurements (e.g., to
+    187          *                   determine a time lapse between two events which can be compared to similarly
+    188          *                   calculated time lapses).  In such a measurement, the difference between two cycle
+    189          *                   counts will be computed.  The application MUST guarantee that this difference does
+    190          *                   not overflow a 32-bit integer.  For example, if the underlying timer increments at a
+    191          *                   rate of 100MHz, then the maximum time lapse that can be measured is
+    192          *
+    193          *                                2^32 - 1
+    194          *                       tmax = ------------ s = 42.9497 s
+    195          *                               100 * 10^6
+    196          *
+    197          *               (2) When using a 16-bit timer, this function MUST be called with sufficient frequency
+    198          *                   that timer overflows do not occur.  If necessary, the timer should be configured with
+    199          *                   a sufficient prescaler in order to decrease the probability of timer overflows.
+    200          *
+    201          *                   For example, a 16-bit timer incrementing at 48-MHz with a prescaler of 128 will
+    202          *                   require that this function be called at
+    203          *
+    204          *                                   48 * 10^6
+    205          *                       freqmin = ------------- Hz = 5.72 Hz
+    206          *                                  128 * 65536
+    207          *
+    208          *                   A possible solution is that this would be called from the tick handler of the
+    209          *                   application's OS (assuming the tick rate is greater than 5.72 Hz).
+    210          *********************************************************************************************************
+    211          */
+    212          
+    213          #if (OS_PROBE_HOOKS_EN > 0)
+    214          INT32U  OSProbe_TimeGetCycles (void)
+    215          {
+    216              INT32U     cycles;
+    217          #if (OS_PROBE_TMR_32_BITS > 0)
+    218              INT32U     cnts32;
+    219              INT32U     cnts32_delta;
+    220          #else
+    221              INT16U     cnts16;
+    222              INT16U     cnts16_delta;
+    223          #endif
+    224          #if (OS_CRITICAL_METHOD == 3)                                   /* Allocate storage for CPU status register.            */
+    225              OS_CPU_SR  cpu_sr = 0;
+    226          #endif
+    227          
+    228          
+    229              OS_ENTER_CRITICAL();
+    230          #if (OS_PROBE_TMR_32_BITS > 0)
+    231              cnts32               = OSProbe_TmrRd();                     /* Read current counts of the free running counter.     */
+    232              cnts32_delta         = cnts32 - OSProbe_TmrCntsPrev;
+    233              OSProbe_TmrCntsPrev  = cnts32;                              /* Save current counts for next time.                   */
+    234              OSProbe_CyclesCtr   += cnts32_delta;
+    235          #else
+    236              cnts16               = (INT16U)OSProbe_TmrRd();             /* Read current counts of the free running counter.     */
+    237              cnts16_delta         = cnts16 - OSProbe_TmrCntsPrev;
+    238              OSProbe_TmrCntsPrev  = cnts16;                              /* Save current counts for next time.                   */
+    239              OSProbe_CyclesCtr   += (INT32U)cnts16_delta;
+    240          #endif
+    241              cycles               = OSProbe_CyclesCtr;
+    242              OS_EXIT_CRITICAL();
+    243          
+    244              return (cycles);
+    245          }
+    246          #endif
+    247          
+    248          
+    249          /*
+    250          *********************************************************************************************************
+    251          *********************************************************************************************************
+    252          *                                             TASK HOOKS
+    253          *********************************************************************************************************
+    254          *********************************************************************************************************
+    255          */
+    256          
+    257          /*
+    258          *********************************************************************************************************
+    259          *                                      OSProbe_TaskCreateHook()
+    260          *
+    261          * Description : This function is called when a task is created.
+    262          *
+    263          * Argument(s) : ptcb        Pointer to the task control block of the task being created.
+    264          *
+    265          * Return(s)   : none.
+    266          *
+    267          * Caller(s)   : App_TaskCreateHook().
+    268          *
+    269          * Note(s)     : (1) Interrupts are disabled during this call.
+    270          *
+    271          *               (2) This MUST be called from applications's task create hook function App_TaskCreateHook().
+    272          *********************************************************************************************************
+    273          */
+    274          
+    275          #if (OS_PROBE_HOOKS_EN > 0)
+    276          void  OSProbe_TaskCreateHook (OS_TCB *ptcb)
+    277          {
+    278              ptcb->OSTCBCyclesStart = OSProbe_TimeGetCycles();           /* Get the current start time for this task.            */
+    279              ptcb->OSTCBCyclesTot   = 0;                                 /* Update the task's total execution time.              */
+    280          }
+    281          #endif
+    282          
+    283          
+    284          /*
+    285          *********************************************************************************************************
+    286          *                                        OSProbe_TaskSwHook()
+    287          *
+    288          * Description : This function is called when a task switch is performed.
+    289          *
+    290          * Argument(s) : none.
+    291          *
+    292          * Return(s)   : none.
+    293          *
+    294          * Caller(s)   : App_TaskSwHook().
+    295          *
+    296          * Note(s)     : (1) Interrupts are disabled during this call.
+    297          *
+    298          *               (2) It is assumed that the global pointer 'OSTCBHighRdy' points to the TCB of the task that
+    299          *                   will be 'switched in' (i.e. the highest priority task) and, 'OSTCBCur' points to the
+    300          *                   task being switched out (i.e. the preempted task).
+    301          *
+    302          *               (3) This MUST be called from application's task switch hook function App_TaskSwHook().
+    303          *********************************************************************************************************
+    304          */
+    305          
+    306          #if (OS_PROBE_HOOKS_EN > 0)
+    307          void  OSProbe_TaskSwHook (void)
+    308          {
+    309              INT32U  cycles;
+    310          
+    311          
+    312              cycles                         = OSProbe_TimeGetCycles();   /* This task is done.                                   */
+    313              OSTCBCur->OSTCBCyclesTot      += cycles - OSTCBCur->OSTCBCyclesStart;
+    314              OSTCBHighRdy->OSTCBCyclesStart = cycles;                    /* Save absolute #cycles at task activation.            */
+    315          }
+    316          #endif
+    317          
+    318          
+    319          /*
+    320          *********************************************************************************************************
+    321          *                                         OSProbe_TickHook()
+    322          *
+    323          * Description : This function is called every tick.
+    324          *
+    325          * Argument(s) : none.
+    326          *
+    327          * Return(s)   : none.
+    328          *
+    329          * Caller(s)   : App_TimeTickHook().
+    330          *
+    331          * Note(s)     : (1) Interrupts may or may not be ENABLED during this call.
+    332          *
+    333          *               (2) This MUST be called from user's time tick hook function App_TimeTickHook().
+    334          *********************************************************************************************************
+    335          */
+    336          
+    337          #if (OS_PROBE_HOOKS_EN > 0)
+    338          void  OSProbe_TickHook (void)
+    339          {
+    340              (void)OSProbe_TimeGetCycles();
+    341          }
+    342          #endif
+    343          
+    344          
+    345          /*
+    346          *********************************************************************************************************
+    347          *********************************************************************************************************
+    348          *                                           LOCAL FUNCTIONS
+    349          *********************************************************************************************************
+    350          *********************************************************************************************************
+    351          */
+    352          
+    353          
+    354          /*
+    355          *********************************************************************************************************
+    356          *                                          OSProbe_InitOS()
+    357          *
+    358          * Description : Create the task for the Probe Plug-In for uC/OS-II.
+    359          *
+    360          * Argument(s) : none.
+    361          *
+    362          * Return(s)   : none.
+    363          *
+    364          * Caller(s)   : OSProbe_Init().
+    365          *
+    366          * Note(s)     : none.
+    367          *********************************************************************************************************
+    368          */
+    369          
+    370          #if (OS_PROBE_TASK > 0)
+    371          static  void  OSProbe_InitOS (void)
+    372          {
+    373              INT8U  err;
+    374          
+    375          
+    376          #if (OS_TASK_CREATE_EXT_EN > 0)
+    377              #if (OS_STK_GROWTH == 1)
+    378              err = OSTaskCreateExt((void (*)(void *)) OSProbe_Task,
+    379                                    (void          * ) 0,
+    380                                    (OS_STK        * )&OSProbe_TaskStk[OS_PROBE_TASK_STK_SIZE - 1],
+    381                                    (INT8U           ) OS_PROBE_TASK_PRIO,
+    382                                    (INT16U          ) OS_PROBE_TASK_PRIO,
+    383                                    (OS_STK        * )&OSProbe_TaskStk[0],
+    384                                    (INT32U          ) OS_PROBE_TASK_STK_SIZE,
+    385                                    (void          * ) 0,
+    386                                    (INT16U          )(OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
+    387              #else
+    388              err = OSTaskCreateExt((void (*)(void *)) OSProbe_Task,
+    389                                    (void          * ) 0,
+    390                                    (OS_STK        * )&OSProbe_TaskStk[0],
+    391                                    (INT8U           ) OS_PROBE_TASK_PRIO,
+    392                                    (INT16U          ) OS_PROBE_TASK_PRIO,
+    393                                    (OS_STK        * )&OSProbe_TaskStk[OS_PROBE_TASK_STK_SIZE - 1],
+    394                                    (INT32U          ) OS_PROBE_TASK_STK_SIZE,
+    395                                    (void          * ) 0,
+    396                                    (INT16U          )(OS_TASK_OPT_STK_CHK | OS_TASK_OPT_STK_CLR));
+    397              #endif
+    398          #else
+    399              #if (OS_STK_GROWTH == 1)
+    400              err = OSTaskCreate((void (*)(void *)) OSProbe_Task,
+    401                                 (void          * ) 0,
+    402                                 (OS_STK        * )&OSProbe_TaskStk[OS_PROBE_TASK_STK_SIZE - 1],
+    403                                 (INT8U           ) OS_PROBE_TASK_PRIO);
+    404              #else
+    405              err = OSTaskCreate((void (*)(void *)) OSProbe_Task,
+    406                                 (void          * ) 0,
+    407                                 (OS_STK        * )&OSProbe_TaskStk[0],
+    408                                 (INT8U           ) OS_PROBE_TASK_PRIO);
+    409              #endif
+    410          #endif
+    411          
+    412          #if (OS_TASK_NAME_SIZE > 15)
+    413              OSTaskNameSet(OS_PROBE_TASK_PRIO, (INT8U *)"Probe OS PlugIn", &err);
+    414          #endif
+    415          
+    416              (void)&err;
+    417          }
+    418          #endif
+    419          
+    420          
+    421          /*
+    422          *********************************************************************************************************
+    423          *                                           OSProbe_Task()
+    424          *
+    425          * Description : Updates task CPU usage and task stack usage statistics and calls a user-specified
+    426          *               callback functions, if the user sets this function.
+    427          *
+    428          * Argument(s) : p_arg       Argument passed to OSProbe_Task() by 'OSTaskCreate()'.
+    429          *
+    430          * Return(s)   : none.
+    431          *
+    432          * Caller(s)   : This is a task.
+    433          *
+    434          * Note(s)     : none.
+    435          *********************************************************************************************************
+    436          */
+    437          
+    438          #if (OS_PROBE_TASK > 0)
+    439          static  void  OSProbe_Task (void *p_arg)
+    440          {
+    441                      OS_TCB  *ptcb;
+    442                      INT16U   i;
+    443                      INT32U   cycles_tot;
+    444              static  INT32U   cycles_dif[OS_MAX_TASKS];
+    445              static  INT32U   cycles_tot_last[OS_MAX_TASKS];
+    446          #if (OS_PROBE_USE_FP == 0)
+    447                      INT32U   max;
+    448          #endif
+    449          
+    450          
+    451              (void)p_arg;
+    452          
+    453                                                                          /* Initialize stored CyclesTot values.                  */
+    454              for (i = 0; i < OS_MAX_TASKS; i++) {
+    455                  cycles_tot_last[i]      = 0;
+    456                  OSProbe_TaskStkUsage[i] = 0;
+    457                  OSProbe_TaskCPUUsage[i] = 0;
+    458              }
+    459          
+    460              while (1) {
+    461                  OSTimeDlyHMSM(0, 0, 0, OSProbe_Delay);
+    462                  if (OSProbe_CallbackFnct != (void (*)(void))0) {
+    463                      OSProbe_CallbackFnct();
+    464                  }
+    465          
+    466                                                                          /* Update task CPU usage                                */
+    467                  i          = 0;
+    468                  cycles_tot = 0;
+    469                  ptcb       = &OSTCBTbl[0];                              /*  ... Get pointer to first TCB ...                    */
+    470          
+    471                  while ((i    < OS_MAX_TASKS) &&
+    472                         (ptcb != (OS_TCB *)0) &&
+    473                         (ptcb != (OS_TCB *)1)) {
+    474                                                                          /*  ... Calculate new CyclesDif, the number of cycles   */
+    475                                                                          /*  ... used by the task since the last reading.  Half  */
+    476                                                                          /*  ... the previous value is added to provide some     */
+    477                                                                          /*  ... hysteresis, thereby reducing the natural        */
+    478                                                                          /*  ... "jitter" in the data.                           */
+    479                      cycles_dif[i]       = (ptcb->OSTCBCyclesTot - cycles_tot_last[i]) / 2 + (cycles_dif[i] / 2);
+    480                      cycles_tot_last[i]  = ptcb->OSTCBCyclesTot;
+    481                      cycles_tot         += cycles_dif[i];
+    482          
+    483                      if (ptcb->OSTCBStkSize == 0) {
+    484                          OSProbe_TaskStkUsage[i] = 0;
+    485                      } else {
+    486          #if (OS_PROBE_USE_FP > 0)
+    487          #if (OS_STK_GROWTH == 1)
+    488                          OSProbe_TaskStkUsage[i] = (FP32)(((INT32U)(ptcb->OSTCBStkBase) - (INT32U)(ptcb->OSTCBStkPtr))  * 100)
+    489                                                  / ((ptcb->OSTCBStkSize) * sizeof (OS_STK));
+    490          #else
+    491                          OSProbe_TaskStkUsage[i] = (FP32)(((INT32U)(ptcb->OSTCBStkPtr)  - (INT32U)(ptcb->OSTCBStkBase)) * 100)
+    492                                                  / ((ptcb->OSTCBStkSize) * sizeof (OS_STK));
+    493          #endif
+    494          #else
+    495                          max = ((ptcb->OSTCBStkSize) * sizeof (OS_STK)) / 100L;
+    496          
+    497          #if (OS_STK_GROWTH == 1)
+    498                          OSProbe_TaskStkUsage[i] = (INT16U)(((INT32U)(ptcb->OSTCBStkBase) - (INT32U)(ptcb->OSTCBStkPtr))  / max);
+    499          #else
+    500                          OSProbe_TaskStkUsage[i] = (INT16U)(((INT32U)(ptcb->OSTCBStkPtr)  - (INT32U)(ptcb->OSTCBStkBase)) / max);
+    501          #endif
+    502          #endif
+    503                      }
+    504          
+    505                      ptcb = ptcb->OSTCBPrev;
+    506          
+    507                      i++;
+    508                  }
+    509          
+    510          #if (OS_PROBE_USE_FP == 0)
+    511                  max = cycles_tot / 100L;
+    512          #endif
+    513                                                                          /*  ... For each task, calculate percent CPU usage.     */
+    514                  for (i = 0; i < OS_MAX_TASKS; i++) {
+    515          #if (OS_PROBE_USE_FP > 0)
+    516                      OSProbe_TaskCPUUsage[i] = (FP32)(cycles_dif[i] * 100) / cycles_tot;
+    517          #else
+    518                      OSProbe_TaskCPUUsage[i] = (INT16U)(cycles_dif[i] / max);
+    519          #endif
+    520                  }
+    521              }
+    522          }
+    523          #endif
+
+   Maximum stack usage in bytes:
+
+     Function               .cstack
+     --------               -------
+     OSProbe_Init                8
+     OSProbe_InitOS             32
+     OSProbe_SetCallback         0
+     OSProbe_SetDelay            0
+     OSProbe_Task               24
+     OSProbe_TaskCreateHook      8
+     OSProbe_TaskSwHook          8
+     OSProbe_TickHook            8
+     OSProbe_TimeGetCycles      16
+
+
+   Section sizes:
+
+     Function/Label         Bytes
+     --------------         -----
+     OSProbe_CallbackFnct      4
+     OSProbe_Delay             2
+     OSProbe_TaskCPUUsage     40
+     OSProbe_TaskStkUsage     40
+     OSProbe_CyclesCtr         4
+     OSProbe_TmrCntsPrev       2
+     OSProbe_TaskStk         512
+     OSProbe_Init             36
+     OSProbe_SetCallback       6
+     OSProbe_SetDelay          6
+     OSProbe_TimeGetCycles    50
+     OSProbe_TaskCreateHook   16
+     OSProbe_TaskSwHook       44
+     OSProbe_TickHook          8
+     OSProbe_InitOS           52
+     OSProbe_Task            288
+     cycles_dif               40
+     cycles_tot_last          40
+     ??DataTable5              4
+     ??DataTable8              4
+     ??DataTable9              4
+     ??DataTable11             4
+
+ 
+ 684 bytes in section .bss
+ 522 bytes in section .text
+ 
+ 522 bytes of CODE memory
+ 684 bytes of DATA memory
+
+Errors: none
+Warnings: none

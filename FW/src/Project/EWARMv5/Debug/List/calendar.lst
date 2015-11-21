@@ -1,0 +1,451 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:11 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\Drivers\calendar.c                          #
+#    Command line =  E:\T6\FW\src\Drivers\calendar.c -lcN                     #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\calendar.lst     #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\calendar.o        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\Drivers\calendar.c
+      1          /**
+      2          * @file		calendar.c
+      3          * @brief	终端实时时钟维护的模块
+      4          * @author   joe
+      5          * @version  v1.00
+      6          * @date     2009.10.15
+      7          * @note    
+      8          */
+      9          
+     10          #include "stm32f10x_lib.h"
+     11          #include "sd2068.h"
+     12          #include "calendar.h"
+     13          
+     14          /**
+     15           * @def这是等待LSE起振的超时时限
+     16           * @note 此值必须足够大，才能保证等到了/LSE起振，然后才能进入RTC的配置程序.
+     17           *		
+     18           */
+     19          #define LSEStartUp_TimeOut   0xffffff   
+     20          
+     21          
+     22          #ifdef  TAMPER_DETECT_ENABLE
+     23          static void Tamper_IRQ_Enable(void);
+     24          static void Tamper_setup(void);
+     25          #endif
+     26          
+     27          /**
+     28           * @brief  系统的当前日期时间
+     29           */
+     30          TypedefDateTime       currentDateTime;	
+     31          	
+     32          
+     33          /**
+     34          * @brief  系统是否被入侵的标记
+     35          */
+     36          #ifdef  TAMPER_DETECT_ENABLE
+     37          unsigned int	tamper_event_flag;	
+     38          #endif
+     39          
+     40          /**
+     41          * @brief  系统的RTC功能是否OK的标记
+     42          */
+     43          unsigned int	RTC_OK_flag;
+     44          
+     45          /**
+     46          * @brief      Initializes calendar application.
+     47          * @param[in]  none
+     48          * @param[out] none
+     49          * @return     none
+     50          * @note                    
+     51          */
+     52          void Calendar_Init(void)
+     53          {
+     54          	/* PWR and BKP clocks selection --------------------------------------------*/
+     55          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);
+     56          	
+     57          	/* Allow access to BKP Domain */
+     58          	PWR_BackupAccessCmd(ENABLE);
+     59          
+     60          	RTC_OK_flag = 1;
+     61          	SD2068A_Initial();
+     62          
+     63          //	if(BKP_ReadBackupRegister(BKP_DR1) != 0xA5A5)
+     64          //	{
+     65          //#ifdef  TAMPER_DETECT_ENABLE
+     66          //		tamper_event_flag = 1;
+     67          //        Tamper_setup();           //重新开启或者是第一次开启侵入检测的功能
+     68          //        Tamper_IRQ_Enable();      //打开侵入检测的中断
+     69          //#endif
+     70          //		Beep(800);
+     71          //
+     72          //		currentDateTime.sec					= 0x00;
+     73          //		currentDateTime.min					= 0x00;
+     74          //		currentDateTime.hour					= 0x00;
+     75          //		currentDateTime.week					= 0x00;
+     76          //		currentDateTime.day						= 0x01;
+     77          //		currentDateTime.month					= 0x01;
+     78          //		currentDateTime.year					= 2010 - 2000;
+     79          //		// 设置时间
+     80          //		SD2068A_SetTime((unsigned char*)&currentDateTime);		//设置初始时间为2010.01.01 00 00 00
+     81          //
+     82          //
+     83          //		// 立即获取时间
+     84          //		SD2068A_GetTime((unsigned char*)&currentDateTime);
+     85          //
+     86          //		// 时间不对，即为RTC故障
+     87          //		if(currentDateTime.year + 2000 != 2010 )
+     88          //		{
+     89          //			RTC_OK_flag = 0;		//置位RTC故障的标记
+     90          //		}
+     91          //
+     92          //
+     93          //		BKP_WriteBackupRegister(BKP_DR1, 0xA5A5);
+     94          //	}
+     95          //	else
+     96          	{
+     97          		
+     98          #ifdef  TAMPER_DETECT_ENABLE	 
+     99          		Tamper_IRQ_Enable();      //打开侵入检测的中断
+    100          #endif
+    101          
+    102          		SD2068A_GetTime((unsigned char*)&currentDateTime);
+    103          		if (currentDateTime.year + 2000 > 2200)
+    104          		{
+    105          			currentDateTime.sec					= 0x00;
+    106          			currentDateTime.min					= 0x00;
+    107          			currentDateTime.hour				= 0x00;
+    108          			currentDateTime.week				= 0x00;
+    109          			currentDateTime.day					= 0x01;
+    110          			currentDateTime.month				= 0x01;
+    111          			currentDateTime.year				= 2010 - 2000;
+    112          			// 设置时间
+    113          			SD2068A_SetTime((unsigned char*)&currentDateTime);		//设置初始时间为2010.01.01 00 00 00
+    114          
+    115          
+    116          			// 立即获取时间
+    117          			SD2068A_GetTime((unsigned char*)&currentDateTime);
+    118          
+    119          			// 时间不对，即为RTC故障
+    120          			if(currentDateTime.year + 2000 != 2010 )
+    121          			{
+    122          				RTC_OK_flag = 0;		//置位RTC故障的标记
+    123          			}
+    124          
+    125          		}
+    126          	}
+    127          }
+    128          
+    129          
+    130          /**
+    131          * @brief      简单的检查系统日期时间的格式
+    132          * @param[in]  none
+    133          * @param[out] none
+    134          * @return     none
+    135          * @note    没有检查闰年 月大月小的问题     
+    136          */
+    137          static int check_time_format(void)
+    138          {
+    139          	if (currentDateTime.sec >= 60)
+    140          	{
+    141          		return -1;
+    142          	}
+    143          
+    144          	if (currentDateTime.min >= 60)
+    145          	{
+    146          		return -1;
+    147          	}
+    148          
+    149          	if (currentDateTime.hour >= 24)
+    150          	{
+    151          		return -1;
+    152          	}
+    153          
+    154          	if (currentDateTime.day > 31)
+    155          	{
+    156          		return -1;
+    157          	}
+    158          
+    159          	if (currentDateTime.month > 12)
+    160          	{
+    161          		return -1;
+    162          	}
+    163          
+    164          	return 0;
+    165          
+    166          }
+    167          
+    168          /**
+    169          * @brief      如果RTC获取的时间格式有问题，构造Dummy时间
+    170          * @param[in]  none
+    171          * @param[out] none
+    172          * @return     none
+    173          * @note    没有检查闰年 月大月小的问题     
+    174          */
+    175          static int dummy_time_format(void)
+    176          {
+    177          	while(currentDateTime.sec >= 60)
+    178          	{
+    179          		currentDateTime.sec -= 60;
+    180          		currentDateTime.min++;
+    181          	}
+    182          
+    183          	while(currentDateTime.min >= 60)
+    184          	{
+    185          		currentDateTime.min -= 60;
+    186          		currentDateTime.hour++;
+    187          	}
+    188          
+    189          	while(currentDateTime.hour >= 24)
+    190          	{
+    191          		currentDateTime.hour -= 24;
+    192          		currentDateTime.day++;
+    193          	}
+    194          
+    195          	while(currentDateTime.day > 31)
+    196          	{
+    197          		currentDateTime.day -= 31;
+    198          		currentDateTime.month++;
+    199          	}
+    200          
+    201          	while(currentDateTime.month > 12)
+    202          	{
+    203          		currentDateTime.month -= 12;
+    204          		currentDateTime.year++;
+    205          	}
+    206          
+    207          	return 0;
+    208          
+    209          }
+    210          
+    211          
+    212          /**
+    213          * @brief      设置系统日期时间
+    214          * @param[in]  unsigned char * timebuf  输入的新的时间缓冲区
+    215          * @param[out] none
+    216          * @return     none
+    217          * @note       
+    218          *       输入的年份需要在实际年份的基础上减去2000
+    219          */
+    220          void SetDateTime(void)
+    221          {
+    222          	if(SD2068A_SetTime((unsigned char*)&currentDateTime))
+    223          	{
+    224          		if (SD2068A_SetTime((unsigned char*)&currentDateTime))
+    225          		{
+    226          			RTC_OK_flag = 0;		//置位RTC功能异常标记
+    227          		}
+    228          	}
+    229          }
+    230          
+    231          /**
+    232          * @brief     获取系统日期时间
+    233          * @param[in]  none
+    234          * @param[out] none
+    235          * @return     none
+    236          * @note                    
+    237          */
+    238          void GetDateTime(void)
+    239          {
+    240          	unsigned char cnt = 0;
+    241          	do 
+    242          	{
+    243          		if (SD2068A_GetTime((unsigned char*)&currentDateTime))
+    244          		{
+    245          			if (SD2068A_GetTime((unsigned char*)&currentDateTime))
+    246          			{
+    247          				RTC_OK_flag = 0;
+    248          			}
+    249          		}
+    250          
+    251          		cnt++;
+    252          	} while (check_time_format() && (cnt < 4));
+    253          
+    254          
+    255          	if (cnt == 4)
+    256          	{
+    257          		dummy_time_format();
+    258          	}
+    259          
+    260          }
+    261          /**
+    262          * @brief     系统时间转换为BCD码
+    263          * @param[out] BYTE * time_bcd
+    264          * @return    none
+    265          * @note                    
+    266          */
+    267          void Systime2BCD(unsigned char * time_bcd)
+    268          {
+    269          	//time_bcd[0] = (((currentDateTime.year + 2000)/1000) << 4) + ((currentDateTime.year + 2000)%1000)/100;	 //0x20
+    270          	//time_bcd[1] = ((((currentDateTime.year + 2000)%100)/10) << 4) + (currentDateTime.year + 2000)%10;	 //0x10
+    271          
+    272          	//为了提高速度，将上面年份的高两位固定为0x20，这样会导致设置系统时间超过2100年时，系统时间显示错误。
+    273          	time_bcd[0] = 0x20;
+    274          	time_bcd[1] = ((currentDateTime.year/10) << 4) + currentDateTime.year%10;	 //0x10
+    275          	time_bcd[2] = ((currentDateTime.month/10) << 4) + currentDateTime.month%10;	 //0x05
+    276          	time_bcd[3] = ((currentDateTime.day/10) << 4) + currentDateTime.day%10;	 //0x11
+    277          
+    278          	time_bcd[4] = ((currentDateTime.hour/10) << 4) + currentDateTime.hour%10;
+    279          	time_bcd[5] = ((currentDateTime.min/10) << 4) + currentDateTime.min%10;
+    280          	time_bcd[6] = ((currentDateTime.sec/10) << 4) + currentDateTime.sec%10;
+    281          }
+    282          
+    283          /**
+    284          * @brief	使能入侵检测的中断
+    285          * @param[in]  none
+    286          * @param[out] none
+    287          * @return     none
+    288          * @note                   
+    289          */
+    290          #ifdef  TAMPER_DETECT_ENABLE
+    291          static void Tamper_IRQ_Enable(void)
+    292          {
+    293              NVIC_InitTypeDef                  NVIC_InitStructure; 
+    294              //设置Tamper Detect的中断向量
+    295              NVIC_InitStructure.NVIC_IRQChannel = TAMPER_IRQChannel;
+    296              NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 0;
+    297              NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    298              NVIC_Init(&NVIC_InitStructure); 
+    299              
+    300              //Enable the Tamper event interrupt                   
+    301              BKP_ITConfig(ENABLE);                                 //BKP_CSR.TPIE = 1 允许Tamper引脚的侵入中断
+    302          }
+    303          
+    304          /**
+    305          * @brief	入侵检测的中断服务函数
+    306          * @param[in]  none
+    307          * @param[out] none
+    308          * @return     none
+    309          * @note       处理系统在运行的状况下，出现侵入的情况            
+    310          */
+    311          void TAMPER_IRQ_Handle(void)
+    312          {
+    313              if(BKP_GetITStatus() != RESET )         //如果是产生了Tamper中断
+    314              {
+    315                  /* Allow access to BKP Domain */
+    316                  PWR_BackupAccessCmd(ENABLE);
+    317                  //Clear Tamper Event flag
+    318                  BKP_ClearFlag();                                      //BKP_CSR.TEF = 0  清除备份控制/状态寄存器的侵入事件标记
+    319          		
+    320                  //Clear Tamper interrupt falg
+    321                  BKP_ClearITPendingBit();                              //BKP_CSR.TIF = 0  清除备份控制/状态寄存器的侵入中断标记
+    322          		
+    323                  //Disable access to BKP Domain                
+    324                  //PWR_BackupAccessCmd(DISABLE);
+    325          		
+    326                  tamper_event_flag = 1;
+    327          		
+    328                  if ((BKP_ReadBackupRegister(BKP_DR1) == 0) &&
+    329          			(BKP_ReadBackupRegister(BKP_DR2) == 0))           //理论上产生了中断都会清掉数据备份区的数据的
+    330                  {
+    331                      //@to do ....
+    332                      //此处添加检测到侵入事件后的处理代码，比V如可以将侵入的时间记录到NM区域，擦除关键的数据
+    333          			
+    334                  }
+    335                  else    //如果备份数据没有清掉，或者备份数据还没有设置好，那么什么都不做
+    336                  {
+    337          			;
+    338                  }
+    339          	}
+    340          }
+    341          
+    342          /**
+    343          * @brief	入侵检测功能设定
+    344          * @param[in]  none
+    345          * @param[out] none
+    346          * @return     none
+    347          * @note                  
+    348          */
+    349          static void Tamper_setup(void)
+    350          {
+    351          	/* PWR and BKP clocks selection ------------------------------------------*/
+    352          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE);
+    353          	
+    354          	/* Allow access to BKP Domain */
+    355          	PWR_BackupAccessCmd(ENABLE);
+    356          	
+    357          	//Set Tamper Event Low Level active 
+    358          	BKP_TamperPinLevelConfig(BKP_TamperPinLevel_High);     //BKP_CR.TPAL = 0  Tamper引脚上的高电平会清除所有数据备份寄存器
+    359          	//BKP_TamperPinLevelConfig(BKP_TamperPinLevel_Low);      //BKP_CR.TPAL = 1  Tamper引脚上的低电平会清除所有数据备份寄存器
+    360          	
+    361          	//Enalbe Tamper detect function
+    362          	BKP_TamperPinCmd(ENABLE);                             //BKP_CR.TPE = 1  开启Tamper引脚的侵入检测功能
+    363          	
+    364          	//Clear Tamper Event flag
+    365          	BKP_ClearFlag();                                      //BKP_CSR.TEF = 0  清除备份控制/状态寄存器的侵入事件标记
+    366          	
+    367          	//Clear Tamper interrupt falg
+    368          	BKP_ClearITPendingBit();                              //BKP_CSR.TIF = 0  清除备份控制/状态寄存器的侵入中断标记
+    369          	
+    370          	//在备份寄存器中设一个标记，如果检测到侵入，那么BKP_DR1会被清掉的
+    371          	//BKP_WriteBackupRegister(BKP_DR1,0xa5a5);        //这个放到RTC的初始化函数中去做了          
+    372          	
+    373          	// @to do .....
+    374          	//在此处对系统的关键数据进行初始化，如果检测到侵入，那么系统开机时会在此处将保存在NVM中的关键参数初始化了。
+    375          }
+    376          #endif
+    377          
+    378          
+
+   Maximum stack usage in bytes:
+
+     Function          .cstack
+     --------          -------
+     Calendar_Init          8
+     GetDateTime            8
+     SetDateTime            8
+     Systime2BCD            8
+     check_time_format      0
+     dummy_time_format      0
+
+
+   Section sizes:
+
+     Function/Label    Bytes
+     --------------    -----
+     currentDateTime      8
+     RTC_OK_flag          4
+     Calendar_Init      132
+     check_time_format   74
+     dummy_time_format  154
+     SetDateTime         30
+     GetDateTime         58
+     Systime2BCD        190
+     ??DataTable49        4
+     ??DataTable61        4
+
+ 
+  12 bytes in section .bss
+ 646 bytes in section .text
+ 
+ 646 bytes of CODE memory
+  12 bytes of DATA memory
+
+Errors: none
+Warnings: none

@@ -1,0 +1,250 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     17/Nov/2015  15:49:33 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_istr.c                  #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_istr.c" -D DEBUG_VER   #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_istr #
+#                    .lst                                                     #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_istr. #
+#                    o                                                        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_istr.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : usb_istr.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.2.1
+      5          * Date               : 09/22/2008
+      6          * Description        : ISTR events interrupt service routines
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "usb_lib.h"
+     18          #include "usb_prop.h"
+     19          #include "usb_pwr.h"
+     20          #include "usb_istr.h"
+     21          
+     22          /* Private typedef -----------------------------------------------------------*/
+     23          /* Private define ------------------------------------------------------------*/
+     24          /* Private macro -------------------------------------------------------------*/
+     25          /* Private variables ---------------------------------------------------------*/
+     26          volatile u16 wIstr;  /* ISTR register last read value */
+     27          volatile u8 bIntPackSOF = 0;  /* SOFs received between 2 consecutive packets */
+     28          
+     29          /* Extern variables ----------------------------------------------------------*/
+     30          /* Private function prototypes -----------------------------------------------*/
+     31          /* Private functions ---------------------------------------------------------*/
+     32          /* function pointers to non-control endpoints service routines */
+     33          void (*pEpInt_IN[7])(void) =
+     34            {
+     35              EP1_IN_Callback,
+     36              EP2_IN_Callback,
+     37              EP3_IN_Callback,
+     38              EP4_IN_Callback,
+     39              EP5_IN_Callback,
+     40              EP6_IN_Callback,
+     41              EP7_IN_Callback,
+     42            };
+     43          
+     44          void (*pEpInt_OUT[7])(void) =
+     45            {
+     46              EP1_OUT_Callback,
+     47              EP2_OUT_Callback,
+     48              EP3_OUT_Callback,
+     49              EP4_OUT_Callback,
+     50              EP5_OUT_Callback,
+     51              EP6_OUT_Callback,
+     52              EP7_OUT_Callback,
+     53            };
+     54          
+     55          
+     56          /*******************************************************************************
+     57          * Function Name  : USB_Istr.
+     58          * Description    : ISTR events interrupt service routine.
+     59          * Input          : None.
+     60          * Output         : None.
+     61          * Return         : None.
+     62          *******************************************************************************/
+     63          void USB_Istr(void)
+     64          {
+     65          
+     66            wIstr = _GetISTR();
+     67          #if (IMR_MSK & ISTR_CTR)			//Correct TRansfer中断
+     68            if (wIstr & ISTR_CTR & wInterrupt_Mask)
+     69            {
+     70          	  /* servicing of the endpoint correct transfer interrupt */
+     71          	  /* clear of the CTR flag into the sub */
+     72          	  CTR_LP();
+     73          #ifdef CTR_CALLBACK
+     74          	  CTR_Callback();
+     75          #endif
+     76            }
+     77          #endif
+     78          
+     79          
+     80          #if (IMR_MSK & ISTR_RESET)				//Reset中断
+     81            if (wIstr & ISTR_RESET & wInterrupt_Mask)
+     82            {
+     83              _SetISTR((u16)CLR_RESET);
+     84              Device_Property.Reset();
+     85          #ifdef RESET_CALLBACK
+     86              RESET_Callback();
+     87          #endif
+     88            }
+     89          #endif
+     90            /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+     91          #if (IMR_MSK & ISTR_DOVR)				//DMA OVER RUN or Under Run中断 
+     92            if (wIstr & ISTR_DOVR & wInterrupt_Mask)
+     93            {
+     94              _SetISTR((u16)CLR_DOVR);
+     95          #ifdef DOVR_CALLBACK
+     96              DOVR_Callback();
+     97          #endif
+     98            }
+     99          #endif
+    100            /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+    101          #if (IMR_MSK & ISTR_ERR)		//Error中断
+    102            if (wIstr & ISTR_ERR & wInterrupt_Mask)
+    103            {
+    104              _SetISTR((u16)CLR_ERR);
+    105          #ifdef ERR_CALLBACK
+    106              ERR_Callback();
+    107          #endif
+    108            }
+    109          #endif
+    110            /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+    111          #if (IMR_MSK & ISTR_WKUP)		//WakeUp中断
+    112            if (wIstr & ISTR_WKUP & wInterrupt_Mask)
+    113            {
+    114              _SetISTR((u16)CLR_WKUP);
+    115              Resume(RESUME_EXTERNAL);
+    116          #ifdef WKUP_CALLBACK
+    117              WKUP_Callback();
+    118          #endif
+    119            }
+    120          #endif
+    121            /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+    122          #if (IMR_MSK & ISTR_SUSP)			//SUSPEND中断
+    123            if (wIstr & ISTR_SUSP & wInterrupt_Mask)
+    124            {
+    125          
+    126              /* check if SUSPEND is possible */
+    127              if (fSuspendEnabled)
+    128              {
+    129                Suspend();
+    130              }
+    131              else
+    132              {
+    133                /* if not possible then resume after xx ms */
+    134                Resume(RESUME_LATER);
+    135              }
+    136              /* clear of the ISTR bit must be done after setting of CNTR_FSUSP */
+    137              _SetISTR((u16)CLR_SUSP);
+    138          #ifdef SUSP_CALLBACK
+    139              SUSP_Callback();
+    140          #endif
+    141            }
+    142          #endif
+    143            /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+    144          #if (IMR_MSK & ISTR_SOF)			//Start of Frame中断
+    145            if (wIstr & ISTR_SOF & wInterrupt_Mask)
+    146            {
+    147              _SetISTR((u16)CLR_SOF);
+    148              bIntPackSOF++;
+    149          
+    150          #ifdef SOF_CALLBACK
+    151              SOF_Callback();
+    152          #endif
+    153            }
+    154          #endif
+    155            /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+    156          #if (IMR_MSK & ISTR_ESOF)			//Expected Start of Frame中断
+    157            if (wIstr & ISTR_ESOF & wInterrupt_Mask)
+    158            {
+    159              _SetISTR((u16)CLR_ESOF);
+    160              /* resume handling timing is made with ESOFs */
+    161              Resume(RESUME_ESOF); /* request without change of the machine state */
+    162          
+    163          #ifdef ESOF_CALLBACK
+    164              ESOF_Callback();
+    165          #endif
+    166            }
+    167          #endif
+    168            /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
+    169            wIstr = _GetISTR();
+    170          
+    171          #if (IMR_MSK & ISTR_RESET)		//Reset 中断
+    172            if (wIstr & ISTR_RESET & wInterrupt_Mask)
+    173            {
+    174          	  _SetISTR((u16)CLR_RESET);
+    175          	  Device_Property.Reset();
+    176          #ifdef RESET_CALLBACK
+    177          	  RESET_Callback();
+    178          #endif
+    179            }
+    180          #endif
+    181          } /* USB_Istr */
+    182          
+    183          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function .cstack
+     -------- -------
+     USB_Istr      8
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     wIstr             2
+     bIntPackSOF       1
+     pEpInt_IN        28
+     pEpInt_OUT       28
+     USB_Istr        156
+
+ 
+   3 bytes in section .bss
+  56 bytes in section .data
+ 156 bytes in section .text
+ 
+ 156 bytes of CODE memory
+  59 bytes of DATA memory
+
+Errors: none
+Warnings: none

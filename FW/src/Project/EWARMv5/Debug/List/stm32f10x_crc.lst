@@ -1,0 +1,186 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:11 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\Lib\src\stm32f10x_crc.c             #
+#    Command line =  "E:\BT Printer\FW\src\Lib\src\stm32f10x_crc.c" -D        #
+#                    DEBUG_VER -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Deb #
+#                    ug\List\" -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug #
+#                    \Obj\" --no_cse --no_unroll --no_inline                  #
+#                    --no_code_motion --no_tbaa --no_clustering               #
+#                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
+#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
+#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
+#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
+#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
+#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
+#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\stm32f10 #
+#                    x_crc.lst                                                #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\stm32f10x #
+#                    _crc.o                                                   #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\Lib\src\stm32f10x_crc.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : stm32f10x_crc.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.0.3
+      5          * Date               : 09/22/2008
+      6          * Description        : This file provides all the CRC firmware functions.
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "stm32f10x_crc.h"
+     18          
+     19          /* Private typedef -----------------------------------------------------------*/
+     20          /* Private define ------------------------------------------------------------*/
+     21          
+     22          /* CR register bit mask */
+     23          #define CR_RESET_Set    ((u32)0x00000001)
+     24          
+     25          /* Private macro -------------------------------------------------------------*/
+     26          /* Private variables ---------------------------------------------------------*/
+     27          /* Private function prototypes -----------------------------------------------*/
+     28          /* Private functions ---------------------------------------------------------*/
+     29          
+     30          /*******************************************************************************
+     31          * Function Name  : CRC_ResetDR
+     32          * Description    : Resets the CRC Data register (DR).
+     33          * Input          : None
+     34          * Output         : None
+     35          * Return         : None
+     36          *******************************************************************************/
+     37          void CRC_ResetDR(void)
+     38          {
+     39            /* Reset CRC generator */
+     40            CRC->CR = CR_RESET_Set;
+     41          }
+     42          
+     43          /*******************************************************************************
+     44          * Function Name  : CRC_CalcCRC
+     45          * Description    : Computes the 32-bit CRC of a given data word(32-bit).
+     46          * Input          : - Data: data word(32-bit) to compute its CRC
+     47          * Output         : None
+     48          * Return         : 32-bit CRC
+     49          *******************************************************************************/
+     50          u32 CRC_CalcCRC(u32 Data)
+     51          {
+     52            CRC->DR = Data;
+     53            
+     54            return (CRC->DR);
+     55          }
+     56          
+     57          /*******************************************************************************
+     58          * Function Name  : CRC_CalcBlockCRC
+     59          * Description    : Computes the 32-bit CRC of a given buffer of data word(32-bit).
+     60          * Input          : - pBuffer: pointer to the buffer containing the data to be 
+     61          *                    computed
+     62          *                  - BufferLength: length of the buffer to be computed					
+     63          * Output         : None
+     64          * Return         : 32-bit CRC
+     65          *******************************************************************************/
+     66          u32 CRC_CalcBlockCRC(u32 pBuffer[], u32 BufferLength)
+     67          {
+     68            u32 index = 0;
+     69            
+     70            for(index = 0; index < BufferLength; index++)
+     71            {
+     72              CRC->DR = pBuffer[index];
+     73            }
+     74          
+     75            return (CRC->DR);
+     76          }
+     77          
+     78          /*******************************************************************************
+     79          * Function Name  : CRC_GetCRC
+     80          * Description    : Returns the current CRC value.
+     81          * Input          : None
+     82          * Output         : None
+     83          * Return         : 32-bit CRC
+     84          *******************************************************************************/
+     85          u32 CRC_GetCRC(void)
+     86          {
+     87            return (CRC->DR);
+     88          }
+     89          
+     90          /*******************************************************************************
+     91          * Function Name  : CRC_SetIDRegister
+     92          * Description    : Stores a 8-bit data in the Independent Data(ID) register.
+     93          * Input          : - IDValue: 8-bit value to be stored in the ID register 					
+     94          * Output         : None
+     95          * Return         : None
+     96          *******************************************************************************/
+     97          void CRC_SetIDRegister(u8 IDValue)
+     98          {
+     99            CRC->IDR = IDValue;
+    100          }
+    101          
+    102          /*******************************************************************************
+    103          * Function Name  : CRC_GetIDRegister
+    104          * Description    : Returns the 8-bit data stored in the Independent Data(ID) register
+    105          * Input          : None
+    106          * Output         : None
+    107          * Return         : 8-bit value of the ID register 
+    108          *******************************************************************************/
+    109          u8 CRC_GetIDRegister(void)
+    110          {
+    111            return (CRC->IDR);
+    112          }
+    113          
+    114          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function          .cstack
+     --------          -------
+     CRC_CalcBlockCRC       8
+     CRC_CalcCRC            0
+     CRC_GetCRC             0
+     CRC_GetIDRegister      0
+     CRC_ResetDR            0
+     CRC_SetIDRegister      0
+
+
+   Section sizes:
+
+     Function/Label    Bytes
+     --------------    -----
+     CRC_ResetDR         12
+     CRC_CalcCRC         10
+     CRC_CalcBlockCRC    32
+     CRC_GetCRC           6
+     CRC_SetIDRegister    6
+     CRC_GetIDRegister    8
+     ??DataTable4         4
+     ??DataTable6         4
+
+ 
+ 82 bytes in section .text
+ 
+ 82 bytes of CODE memory
+
+Errors: none
+Warnings: none

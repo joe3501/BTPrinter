@@ -1,0 +1,369 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:15 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_app_config.c            #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_app_config.c" -D       #
+#                    DEBUG_VER -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Deb #
+#                    ug\List\" -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug #
+#                    \Obj\" --no_cse --no_unroll --no_inline                  #
+#                    --no_code_motion --no_tbaa --no_clustering               #
+#                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
+#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
+#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
+#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
+#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
+#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
+#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_app_ #
+#                    config.lst                                               #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_app_c #
+#                    onfig.o                                                  #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_app_config.c
+      1          /**
+      2          * @file usb_config.c
+      3          * @brief 配置USB模式的模块
+      4          *
+      5          * @version V0.0.1
+      6          * @author kent.zhou
+      7          * @date 2015年11月16日
+      8          * @note
+      9          * 
+     10          * @copy
+     11          *
+     12          * 此代码为深圳合计电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     13          * 本公司以外的项目。本司保留一切追究权利。
+     14          *
+     15          * <h1><center>&copy; COPYRIGHT 2015 heroje</center></h1>
+     16          */
+     17          
+     18          /* Includes ------------------------------------------------------------------*/
+     19          #include <string.h>
+     20          #include "usb_app_config.h"
+     21          #include "stm32f10x_lib.h"
+     22          #include "hw_config.h"
+     23          #include "usb_init.h"
+     24          #include "TimeBase.h"
+     25          #include "usb_lib.h"
+     26          #include "usb_pwr.h"
+     27          #include "usb_desc.h"
+     28          
+     29          
+     30          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+     31          unsigned char	g_mass_storage_device_type;
+     32          #ifdef DUMMY_FAT_FS
+     33          unsigned char	g_send_buff[512];
+     34          #endif
+     35          #endif
+     36          
+     37          
+     38          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+     39          unsigned char buffer_out[512];
+     40          unsigned int	count_out;
+     41          #endif
+     42          
+     43          unsigned char				g_usb_type;
+     44          extern u32 count_in;
+     45          
+     46          
+     47          /*******************************************************************************
+     48          * Function Name  : Set_USBClock
+     49          * Description    : Configures USB Clock input (48MHz)
+     50          * Input          : None.
+     51          * Return         : None.
+     52          *******************************************************************************/
+     53          static void usb_SetClock(void)
+     54          {
+     55          	/* Enable GPIOA, GPIOD and USART1 clock */
+     56          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOD, ENABLE);
+     57          
+     58          	/* USBCLK = PLLCLK / 1.5 */
+     59          	RCC_USBCLKConfig(RCC_USBCLKSource_PLLCLK_1Div5);
+     60          	/* Enable USB clock */
+     61          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USB, ENABLE);
+     62          }
+     63          
+     64          /*******************************************************************************
+     65          * Function Name  : USB_Interrupts_Config
+     66          * Description    : Configures the USB interrupts
+     67          * Input          : None.
+     68          * Return         : None.
+     69          *******************************************************************************/
+     70          static void usb_Interrupts_Config(void)
+     71          {
+     72          	NVIC_InitTypeDef NVIC_InitStructure;
+     73          
+     74          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+     75          
+     76          	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN_RX0_IRQChannel;
+     77          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+     78          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+     79          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     80          	NVIC_Init(&NVIC_InitStructure);
+     81          
+     82          	NVIC_InitStructure.NVIC_IRQChannel = USB_HP_CAN_TX_IRQChannel;
+     83          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+     84          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;
+     85          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     86          	NVIC_Init(&NVIC_InitStructure);
+     87          }
+     88          
+     89          /*******************************************************************************
+     90          * Function Name  : USB_Cable_Config
+     91          * Description    : Software Connection/Disconnection of USB Cable
+     92          * Input          : None.
+     93          * Return         : Status
+     94          *******************************************************************************/
+     95          void usb_Cable_Config (unsigned char NewState)
+     96          {
+     97          	//@todo....
+     98          }
+     99          
+    100          
+    101          /**
+    102          * @brief 设备的初始化
+    103          * @note
+    104          */
+    105          void usb_device_init(unsigned char device_type)
+    106          {
+    107          #if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_VIRTUAL_COMM_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
+    108          	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_KEYBOARD)&&(device_type != USB_MASSSTORAGE))
+    109          	{
+    110          		return;
+    111          	}
+    112          #endif
+    113          
+    114          #if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_VIRTUAL_COMM_DEVICE))
+    115          	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_KEYBOARD))
+    116          	{
+    117          		return;
+    118          	}
+    119          #endif
+    120          
+    121          #if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
+    122          	if ((device_type != USB_KEYBOARD)&&(device_type != USB_MASSSTORAGE))
+    123          	{
+    124          		return;
+    125          	}
+    126          #endif
+    127          
+    128          #if(USB_DEVICE_CONFIG == (_USE_USB_VIRTUAL_COMM_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
+    129          	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_MASSSTORAGE))
+    130          	{
+    131          		return;
+    132          	}
+    133          #endif
+    134          
+    135          #if(USB_DEVICE_CONFIG ==  _USE_USB_MASS_STOARGE_DEVICE)
+    136          	if (device_type != USB_MASSSTORAGE)
+    137          	{
+    138          		return;
+    139          	}
+    140          #endif
+    141          
+    142          #if(USB_DEVICE_CONFIG == _USE_USB_KEYBOARD_DEVICE)
+    143          	if (device_type != USB_KEYBOARD)
+    144          	{
+    145          		return;
+    146          	}
+    147          #endif
+    148          
+    149          #if(USB_DEVICE_CONFIG == _USE_USB_VIRTUAL_COMM_DEVICE)
+    150          	if (device_type != USB_VIRTUAL_PORT)
+    151          	{
+    152          		return;
+    153          	}
+    154          #endif
+    155          
+    156          	if (g_usb_type != device_type)
+    157          	{
+    158          		g_usb_type = device_type;
+    159          		usb_SetClock();
+    160          		usb_Interrupts_Config();
+    161          		USB_Init();
+    162          	}
+    163          }
+    164          
+    165          
+    166          void usb_SendData(unsigned char *pData, int length)
+    167          {
+    168          	volatile int i = 0;
+    169                  unsigned int	delay_cnt;
+    170                  
+    171          #if (USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)        
+    172          	int batch = length/VIRTUAL_COM_PORT_DATA_SIZE;
+    173          	int res	  = length%VIRTUAL_COM_PORT_DATA_SIZE;
+    174          #endif 
+    175          	
+    176          
+    177          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    178          	if (g_usb_type == USB_KEYBOARD)	//按键
+    179          	{
+    180          		count_in = length;
+    181          		UserToPMABufferCopy(pData, GetEPTxAddr(ENDP1), count_in);
+    182          		SetEPTxCount(ENDP1, count_in);
+    183          		/* enable endpoint for transmission */
+    184          		SetEPTxValid(ENDP1);
+    185          		//StartDelay(600);	//3S的延时
+    186          		delay_cnt = 300;
+    187          		while (count_in != 0 && delay_cnt != 0 &&(bDeviceState == CONFIGURED))
+    188          		{
+    189          			delay_cnt--;
+    190          			delay_ms(10);
+    191          		}
+    192          	}
+    193          	else 
+    194          #elif (USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    195          	if(g_usb_type == USB_VIRTUAL_PORT)
+    196          	{
+    197          		for (i = 0; i < batch; i++)
+    198          		{
+    199          			count_in	= VIRTUAL_COM_PORT_DATA_SIZE;
+    200          			UserToPMABufferCopy(pData+i*VIRTUAL_COM_PORT_DATA_SIZE, ENDP1_TXADDR, count_in);
+    201          			SetEPTxCount(ENDP1, count_in);
+    202          			SetEPTxValid(ENDP1);
+    203          			//StartDelay(600);
+    204          			delay_cnt = 300;
+    205          			while (count_in != 0 && delay_cnt != 0 && (bDeviceState == CONFIGURED))
+    206          			{
+    207          				delay_cnt--;
+    208          				delay_ms(10);
+    209          			}
+    210          		}
+    211          		if (res > 0)
+    212          		{
+    213          			//最后一包
+    214          			count_in	= res;
+    215          			UserToPMABufferCopy(pData+batch*VIRTUAL_COM_PORT_DATA_SIZE, ENDP1_TXADDR, count_in);
+    216          			SetEPTxCount(ENDP1, count_in);
+    217          			SetEPTxValid(ENDP1);
+    218          			//StartDelay(600);
+    219          			delay_cnt = 300;
+    220          			while (count_in != 0 && delay_cnt != 0 &&(bDeviceState == CONFIGURED))
+    221          			{
+    222          				delay_cnt--;
+    223          				delay_ms(10);
+    224          			}
+    225          		}
+    226          	}//Virtual port
+    227          	else 
+    228          #elif (USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    229          #ifdef DUMMY_FAT_FS
+    230          	if((g_usb_type == USB_MASSSTORAGE)&&(g_mass_storage_device_type == MASSTORAGE_DEVICE_TYPE_DUMMY_FAT))
+    231          	{
+    232          		if (length > G_SEND_BUF_LENGTH)
+    233          		{
+    234          			length = G_SEND_BUF_LENGTH;
+    235          		}
+    236          		memcpy(g_send_buff,pData,length);
+    237          	}//USB_Masstorage
+    238          #endif
+    239          #endif
+    240                  ;
+    241          }
+    242          
+    243          //int usb_test_connect(void)
+    244          //{
+    245          //	volatile int i = 0;
+    246          //	unsigned char pData[2] = {0};
+    247          //
+    248          //	count_in = 1;
+    249          //	UserToPMABufferCopy(pData, GetEPTxAddr(ENDP1), count_in);
+    250          //	/* enable endpoint for transmission */
+    251          //	SetEPTxValid(ENDP1);
+    252          //	while (count_in != 0 && i < 100000)
+    253          //	{
+    254          //		i++;
+    255          //	}
+    256          //	if (count_in == 0)
+    257          //	{
+    258          //		return 0;
+    259          //	}
+    260          //	return -1;
+    261          //}
+    262          
+    263          /*******************************************************************************
+    264          * Function Name  : Get_SerialNum.
+    265          * Description    : Create the serial number string descriptor.
+    266          * Input          : None.
+    267          * Output         : None.
+    268          * Return         : None.
+    269          *******************************************************************************/
+    270          void usb_Get_SerialNum(void)
+    271          {
+    272          	u32 Device_Serial0, Device_Serial1, Device_Serial2;
+    273          
+    274          	Device_Serial0 = *(u32*)(0x1FFFF7E8);
+    275          	Device_Serial1 = *(u32*)(0x1FFFF7EC);
+    276          	Device_Serial2 = *(u32*)(0x1FFFF7F0);
+    277          
+    278          	if (Device_Serial0 != 0)
+    279          	{
+    280          		USB_APP_StringSerial[2] = (u8)(Device_Serial0 & 0x000000FF);
+    281          		USB_APP_StringSerial[4] = (u8)((Device_Serial0 & 0x0000FF00) >> 8);
+    282          		USB_APP_StringSerial[6] = (u8)((Device_Serial0 & 0x00FF0000) >> 16);
+    283          		USB_APP_StringSerial[8] = (u8)((Device_Serial0 & 0xFF000000) >> 24);
+    284          
+    285          		USB_APP_StringSerial[10] = (u8)(Device_Serial1 & 0x000000FF);
+    286          		USB_APP_StringSerial[12] = (u8)((Device_Serial1 & 0x0000FF00) >> 8);
+    287          		USB_APP_StringSerial[14] = (u8)((Device_Serial1 & 0x00FF0000) >> 16);
+    288          		USB_APP_StringSerial[16] = (u8)((Device_Serial1 & 0xFF000000) >> 24);
+    289          
+    290          		USB_APP_StringSerial[18] = (u8)(Device_Serial2 & 0x000000FF);
+    291          		USB_APP_StringSerial[20] = (u8)((Device_Serial2 & 0x0000FF00) >> 8);
+    292          		USB_APP_StringSerial[22] = (u8)((Device_Serial2 & 0x00FF0000) >> 16);
+    293          		USB_APP_StringSerial[24] = (u8)((Device_Serial2 & 0xFF000000) >> 24);
+    294          	}
+    295          }
+
+   Maximum stack usage in bytes:
+
+     Function              .cstack
+     --------              -------
+     usb_Cable_Config           0
+     usb_Get_SerialNum          8
+     usb_Interrupts_Config      8
+     usb_SendData               8
+     usb_SetClock               8
+     usb_device_init            8
+
+
+   Section sizes:
+
+     Function/Label             Bytes
+     --------------             -----
+     g_mass_storage_device_type    1
+     g_usb_type                    1
+     usb_SetClock                 28
+     usb_Interrupts_Config        72
+     usb_Cable_Config              2
+     usb_device_init              40
+     usb_SendData                 10
+     usb_Get_SerialNum           104
+
+ 
+   2 bytes in section .bss
+ 256 bytes in section .text
+ 
+ 256 bytes of CODE memory
+   2 bytes of DATA memory
+
+Errors: none
+Warnings: 1

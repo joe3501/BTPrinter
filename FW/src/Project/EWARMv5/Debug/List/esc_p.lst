@@ -1,0 +1,256 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  18:18:44 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\esc_p.c                         #
+#    Command line =  "E:\BT Printer\FW\src\App\esc_p.c" -D DEBUG_VER -lcN     #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\esc_p.ls #
+#                    t                                                        #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\esc_p.o   #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\esc_p.c
+      1          #include "hw_platform.h"
+      2          #include "ringbuffer.h"
+      3          #include <string.h>
+      4          #include "basic_fun.h"
+      5          #include "Terminal_Para.h"
+      6          #include "DotFill.h"
+      7          #include <assert.h>
+      8          #include "Font.h"
+      9          #include "uart.h"
+     10          //======================================================================================================
+     11          //======================================================================================================
+     12          //======================================================================================================
+     13          //#define NULL	(0x00)
+     14          #define SOH		(0x01)
+     15          #define STX		(0x02)
+     16          #define ETX		(0x03)
+     17          #define EOT		(0x04)
+     18          #define ENQ		(0x05)
+     19          #define ACK		(0x06)
+     20          #define BEL		(0x07)
+     21          #define BS		(0x08)
+     22          #define HT		(0x09)
+     23          #define LF		(0x0a)
+     24          #define VT		(0x0b)
+     25          #define FF		(0x0c)
+     26          #define CR		(0x0d)
+     27          #define SO		(0x0e)
+     28          #define SI		(0x0f)
+     29          #define DLE		(0x10)
+     30          #define DC1		(0x11)
+     31          #define DC2		(0x12)
+     32          #define DC3		(0x13)
+     33          #define DC4		(0x14)
+     34          #define NAK		(0x15)
+     35          #define SYN		(0x16)
+     36          #define ETB		(0x17)
+     37          #define ESC_CAN		(0x18)
+     38          #define EM		(0x19)
+     39          #define SUB		(0x1a)
+     40          #define ESC		(0x1b)
+     41          #define FS		(0x1c)
+     42          #define GS		(0x1d)
+     43          #define RS		(0x1e)
+     44          #define US		(0x1f)
+     45          #define SP		(0x20)
+     46          
+     47          ESC_P_STS_T  esc_sts[MAX_PT_CHANNEL];
+     48          unsigned char	 current_channel;		//当前正在处理的通道
+     49          	
+     50          extern void esc_p_init(void)
+     51          {
+     52          	uint8_t i,n;
+     53          //----chang
+     54          	for (n = 0; n < MAX_PT_CHANNEL; n++)
+     55          	{
+     56          		esc_sts[n].international_character_set = 0;    // english
+     57          		esc_sts[n].character_code_page = g_param.character_code_page;
+     58          
+     59          		esc_sts[n].prt_on = 0;
+     60          		esc_sts[n].larger = 0;
+     61          #ifdef ASCII9X24
+     62          		esc_sts[n].font_en = FONT_B_WIDTH;	// 字体
+     63          #else
+     64          		esc_sts[n].font_en = FONT_A_WIDTH;	// 字体
+     65          #endif
+     66          		esc_sts[n].font_cn = FONT_CN_A_WIDTH;	// 字体
+     67          		esc_sts[n].bold = 0;		// 粗体
+     68          		esc_sts[n].double_strike=0;//重叠打印
+     69          		esc_sts[n].underline = 0;	// 下划线
+     70          		esc_sts[n].revert = 0;		// 反白显示
+     71          		esc_sts[n].rotate = 0;
+     72          		esc_sts[n].start_dot = 0;
+     73          		esc_sts[n].smoothing_mode = 0;	// 平滑模式
+     74          		esc_sts[n].dot_minrow = ARRAY_SIZE(esc_sts[n].dot[0]);
+     75          		memset(esc_sts[n].dot, 0 ,sizeof(esc_sts[n].dot));
+     76          		for(i=0; i<8; i++)
+     77          		{
+     78          			esc_sts[n].tab[i] = 9+8*i;
+     79          		}
+     80          		esc_sts[n].linespace = 30;
+     81          		esc_sts[n].charspace = 0;
+     82          		esc_sts[n].align = 0;
+     83          		esc_sts[n].leftspace = 0;
+     84          		esc_sts[n].print_width=LineDot;
+     85          		esc_sts[n].upside_down=0;//倒置
+     86          		esc_sts[n].barcode_height = 50;
+     87          		esc_sts[n].barcode_width = 2;
+     88          		esc_sts[n].barcode_leftspace = 0;
+     89          		esc_sts[n].barcode_char_pos = 0;//不显示
+     90          		esc_sts[n].barcode_font = 0;
+     91          		esc_sts[n].userdefine_char = 0;
+     92          		esc_sts[n].asb_mode=0;
+     93          
+     94          		esc_sts[n].chinese_mode = 1;
+     95          		esc_sts[n].bitmap_flag = 0;
+     96          
+     97          		if(esc_sts[n].status4 == 0)
+     98          		{
+     99          			esc_sts[n].status4=0x12;
+    100          		}
+    101          	}
+    102          
+    103          	current_channel = 0;
+    104          }
+    105          extern esc_init(void)
+    106          {
+    107          	esc_p_init();
+    108          }
+    109          
+    110          extern void esc_p(void)
+    111          {
+    112          	uint8_t cmd;
+    113          
+    114          	switch(cmd=Getchar())
+    115          	{
+    116          		case LF:	// line feed
+    117          			PrintCurrentBuffer(0);
+    118          			break;
+    119          		case CR:      // carry return
+    120          			break;
+    121          		case ESC:		// ESC
+    122          			break;
+    123          		case FS:		// FS
+    124          			break;
+    125          		case GS:		// GS
+    126          			break;
+    127          		case ESC_CAN:
+    128          			break;
+    129          		default:
+    130          			{
+    131          				//----chang
+    132          #if !defined(CHINESE_FONT)||defined (CODEPAGE)
+    133          				if((cmd >= 0x20) && (cmd <= 0xff))
+    134          				{
+    135          					GetEnglishFont(cmd);
+    136          				}
+    137          #else
+    138          				if((cmd >= 0x20) && (cmd <= 0x7f))
+    139          				{
+    140          					GetEnglishFont(cmd);
+    141          				}
+    142          #if defined(GBK) || defined(GB18030)
+    143          				else if ((cmd >= 0x81) && (cmd <= 0xfe))
+    144          				{
+    145          					uint8_t chs[4];
+    146          					chs[0] = cmd;
+    147          					chs[1] = Getchar();
+    148          #if defined(GB18030)
+    149          					if ((chs[1] >= 0x30) && (chs[1] <= 0x39))
+    150          #else
+    151          					if (0)
+    152          #endif
+    153          					{
+    154          						chs[2] = Getchar();
+    155          						chs[3] = Getchar();
+    156          						// GB18030定义的4字节扩展
+    157          						if (((chs[2] >= 0x81) && (chs[2] <= 0xfe)) && ((chs[3] >= 0x30) && (chs[3] <= 0x39)))
+    158          						{
+    159          							GetChineseFont(chs, CHINESE_FONT_GB18030);
+    160          						}
+    161          						else
+    162          						{
+    163          							GetEnglishFont('?');
+    164          							GetEnglishFont('?');
+    165          							GetEnglishFont('?');
+    166          							GetEnglishFont('?');
+    167          						}
+    168          					}
+    169          					// GB13000定义的2字节扩展
+    170          					else if ((chs[1] >= 0x40) && (chs[1] <= 0xfe) && (chs[1] != 0x7f))
+    171          					{
+    172          						GetChineseFont(chs, CHINESE_FONT_GB13000);
+    173          					}
+    174          					else
+    175          					{
+    176          						GetEnglishFont('?');
+    177          						GetEnglishFont('?');
+    178          					}
+    179          				}
+    180          #endif
+    181          #endif
+    182          			}
+    183          
+    184          		}
+    185          }
+    186          //======================================================================================================
+    187          
+
+   Maximum stack usage in bytes:
+
+     Function   .cstack
+     --------   -------
+     esc_init        8
+     esc_p           8
+     esc_p_init      8
+     memset          8
+
+
+   Section sizes:
+
+     Function/Label  Bytes
+     --------------  -----
+     memset             20
+     esc_sts         14024
+     current_channel     1
+     esc_p_init        624
+     esc_init            8
+     esc_p             146
+
+ 
+ 14 025 bytes in section .bss
+    798 bytes in section .text
+ 
+    778 bytes of CODE memory (+ 20 bytes shared)
+ 14 025 bytes of DATA memory
+
+Errors: none
+Warnings: 1

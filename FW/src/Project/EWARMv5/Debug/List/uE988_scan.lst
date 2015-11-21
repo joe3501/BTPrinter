@@ -1,0 +1,1176 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  11:22:26 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\Drivers\uE988_scan.c                        #
+#    Command line =  E:\T6\FW\src\Drivers\uE988_scan.c -lcN                   #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\uE988_scan.lst   #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\uE988_scan.o      #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\Drivers\uE988_scan.c
+      1          /**
+      2          * @file  uE988_scan.c
+      3          * @brief uE988 Scan Engine 条码扫描仪的驱动模块
+      4          * @version 1.0
+      5          * @author yinzh
+      6          * @date 2011年01月24日
+      7          * @note
+      8          */
+      9          #include "scanner.h"
+     10          
+     11          #if(SCANNER == SCANNER_UE988)
+     12          #include <string.h>
+     13          #include "stm32f10x_lib.h"
+     14          #include "ucos_ii.h"
+     15          #include "uE988_scan.h"
+     16          #include "TimeBase.h"
+     17          #include "keypad.h"
+     18          //#include "gui.h"
+     19          #include "PCUsart.h"
+     20          #include "uart_drv.h"
+     21          
+     22          //#define UE988_DEBUG
+     23          
+     24          /**************	命令代码(Op_code)	**********************/
+     25          #define		BEEP						0xE6
+     26          #define		CMD_ACK						0xD0
+     27          #define		CMD_NAK						0xD1
+     28          #define		DECODE_DATA					0xF3
+     29          #define		EVENT						0xF6
+     30          #define		LED_OFF						0xE8
+     31          #define		LED_ON						0xE7
+     32          #define		PARAM_DEFAULTS				0xC8
+     33          #define		PARAM_REQUEST				0xC7
+     34          #define		PARAM_SEND					0xC6
+     35          #define		REPLY_REVISION				0xA4
+     36          #define		REQUEST_REVISION			0xA3
+     37          #define		SCAN_DISABLE				0xEA
+     38          #define		SCAN_ENABLE					0xE9
+     39          #define		SLEEP						0xE8
+     40          #define		START_DECODE				0xE4
+     41          #define		STOP_DECODE					0xE5
+     42          #define		CUSTOM_DEFAULTS				0x12
+     43          
+     44          #define		RES_CHECKFAILURE			1
+     45          #define		RES_UNKOWN_MSG				2
+     46          #define		RESPONSE_SUCCESS			3
+     47          #define		RESPONSE_ACK				4
+     48          #define		RESPONSE_NAK				5
+     49          
+     50          //条码类型代号与类型名称的对应结构体
+     51          typedef struct  
+     52          {
+     53          	unsigned char type;
+     54          	unsigned char *name;
+     55          }TCodeTypeName;
+     56          
+     57          static unsigned char	g_ack_enable;							//indicate whether ack/nck handshaking is enabled  1: enable; 0: disable
+     58          #define MAX_DECODE_DATA		50
+     59          //static unsigned char	g_decode_data[MAX_DECODE_DATA];
+     60          
+     61          TUE988Command	g_resCmd;		//scan decoder -> host
+     62          unsigned char	*g_pReqCmd;		//host -> scan decoder
+     63          
+     64          const	unsigned char	host_ack[6] = {0x04, CMD_ACK, 0x04, 0x0, 0xFF, 0x28};
+     65          
+     66          static	unsigned char scaner_version[21];		//扫描头版本
+     67          static	unsigned int	wait_time_out;			//get_barcode命令的等待超时设置
+     68          static  unsigned int    scanner_baudrate;
+     69          
+     70          TCodeTypeName code_type_name_tbl[] = {
+     71          	{0x01, "Code 39"}, {0x02, "Codabar"}, {0x03, "Code 128"},
+     72          	{0x04, "Discrete 2"}, {0x05, "IATA 2"}, {0x06, "Interleaved 2 of 5"},
+     73          	{0x07, "Code 93"}, {0x08, "UPC A"}, {0x48, "UPC A 2S"},
+     74          	{0x88, "UPC A 5S"}, {0x09, "UPC E0"}, {0x49, "UPC E0 2S"},
+     75          	{0x89, "UPC E0 5S"}, {0x0A, "EAN 8"}, {0x0B, "EAN 13"},
+     76          	{0x4B, "EAN 13 2S"}, {0x8B, "EAN 13 5S"}, {0x0E, "MSI"},
+     77          	{0x0F, "EAN 128"}, {0x10, "UPC E1"}, {0x50, "UPC E1 2S"},
+     78          	{0x90, "UPC E1 5S"}, {0x15, "Tp Code 39"}, {0x23, "RSS-Limit"},
+     79          	{0x24, "RSS-14"}, {0x25, "RSS-Expanded"},{0x13,"UK"},{0x11,"China Post"},
+     80          	{0x0c,"Code 11"},{0x0d,"Matrix 2 0f 5"}, {0, 0}
+     81          };
+     82          
+     83          //TCodeTypeName code_type_name_tbl_OldVersion[] = {
+     84          //	{0x01, "Code 39"}, {0x02, "Codabar"}, {0x03, "Code 128"},
+     85          //	{0x04, "Discrete 2"}, {0x05, "IATA 2"}, {0x06, "Interleaved 2 of 5"},
+     86          //	{0x07, "Code 93"}, {0x08, "UPC A"}, {0x48, "UPC A 2S"},
+     87          //	{0x88, "UPC A 5S"}, {0x09, "UPC E0"}, {0x49, "UPC E0 2S"},
+     88          //	{0x89, "UPC E0 5S"}, {0x0A, "EAN 8"}, {0x0B, "EAN 13"},
+     89          //	{0x4B, "EAN 13 2S"}, {0x8B, "EAN 13 5S"}, {0x0E, "MSI"},
+     90          //	{0x0F, "EAN 128"}, {0x10, "UPC E1"}, {0x50, "UPC E1 2S"},
+     91          //	{0x90, "UPC E1 5S"}, {0x15, "Tp Code 39"}, {0x23, "RSS-Limit"},
+     92          //	{0x24, "RSS-14"}, {0x25, "RSS-Expanded"},{0x13,"UK"},{0x11,"China Post"},
+     93          //	{0x0c,"Code 11"},{0x0d,"Matrix 2 0f 5"}, {0, 0}
+     94          //};
+     95          
+     96          //unsigned int	scan_start;
+     97          
+     98          static int write_cmd_to_scanner(const unsigned char *pData, unsigned short length);
+     99          static void pack_command(unsigned char cmd_code, unsigned char cmd_status, unsigned char *pCmddata, unsigned char data_len);
+    100          static int UE988_get_curParam(unsigned char param_num);
+    101          static int UE988_set_curParam(unsigned char param_num, unsigned char param_value, unsigned char set_type);
+    102          static void UE988_wakeup(void);
+    103          
+    104          ///* 
+    105          //* @brief: 控制支持/不支持某种条码
+    106          //* @param[in] codeType: 条码代号，见以上的宏定义
+    107          //*				 ctrl: 只能取ENABLE 或 DISABLE
+    108          //* @note: 
+    109          //*/
+    110          //int UE988_codeType_ctrl(unsigned char codeType, unsigned char ctrl)
+    111          //{
+    112          //	unsigned char req_data[8] = {0};
+    113          //	unsigned char cur_pos = 0;
+    114          //
+    115          //	req_data[cur_pos++] = 0xFF;	//beep code
+    116          //	if (codeType == ChinaPost || codeType == RSS14 ||
+    117          //		codeType == RSSLimited || codeType == RSSExpanded)
+    118          //	{
+    119          //		req_data[cur_pos++] = 0xF0;
+    120          //	}
+    121          //	req_data[cur_pos++] = codeType;
+    122          //	req_data[cur_pos++] = ctrl;
+    123          //	pack_command(PARAM_SEND, 0x08, req_data, cur_pos);
+    124          //	if (write_cmd_to_scanner(g_pReqCmd, strlen(g_pReqCmd)) == 0)
+    125          //	{
+    126          //		return 0;
+    127          //	}
+    128          //
+    129          //	return -1;
+    130          //}
+    131          
+    132          
+    133          /* 
+    134          * @brief: 开启/关闭某种条码类型
+    135          * @param[in] codeType: 条码类型代号，见宏定义
+    136          *				 ctrl: 只能为ENABLE 或 DISABLE
+    137          * @note: 默认情况下， code 11  code93
+    138          China Post
+    139          Codabar
+    140          MSI
+    141          RSS系列(RSS-14 RSS-Limited RSS-Expanded)都是关闭的
+    142          */
+    143          int UE988_codeType_ctrl(unsigned char codeType, unsigned char ctrl)
+    144          {
+    145          	unsigned char req_data[8] = {0};
+    146          	unsigned char cur_pos = 0;
+    147          
+    148          	req_data[cur_pos++] = 0xFF;	//beep code
+    149          	if (codeType == ChinaPost || codeType == RSS14 ||
+    150          		codeType == RSSLimited || codeType == RSSExpanded)
+    151          	{
+    152          		req_data[cur_pos++] = 0xF0;
+    153          	}
+    154          	else if (codeType == Matrix20f5 || codeType == UK)
+    155          	{
+    156          		req_data[cur_pos++] = 0xF2;
+    157          	}
+    158          
+    159          	req_data[cur_pos++] = codeType;
+    160          	req_data[cur_pos++] = ctrl;
+    161          	pack_command(PARAM_SEND, 0x08, req_data, cur_pos);
+    162          	if (write_cmd_to_scanner(g_pReqCmd, strlen(g_pReqCmd)) == 0)
+    163          	{
+    164          		return 0;
+    165          	}
+    166          
+    167          	return -1;
+    168          }
+    169          
+    170          /* 
+    171          * @brief: 各种条码的参数设置
+    172          * @param[in] unsigned char *param: 需设置的参数命令 
+    173          */
+    174          int UE988_set_codeParam(unsigned char *param, unsigned char param_len)
+    175          {
+    176          	unsigned char req_data[16] = {0};
+    177          
+    178          	if (param_len > 15)
+    179          	{
+    180          		return -1;
+    181          	}
+    182          
+    183          	req_data[0] = 0xFF;		//beep code
+    184          	memcpy(req_data+1, param, param_len);
+    185          
+    186          	pack_command(PARAM_SEND, 0x08, req_data, param_len+1);
+    187          	if (write_cmd_to_scanner(g_pReqCmd, strlen(g_pReqCmd)) == 0)
+    188          	{
+    189          		return 0;
+    190          	}
+    191          
+    192          	return -1;
+    193          }
+    194          
+    195          
+    196          /**
+    197          * @brief 根据类型代号获取类型名称
+    198          * @param[in] unsigned char type 类型代号
+    199          * @return unsigned char * name 类型名称
+    200          */
+    201          static unsigned char *type2name(unsigned char type)
+    202          {
+    203          	unsigned int i = 0;
+    204          
+    205          	if(type == 0)
+    206          		return 0;
+    207          
+    208          	while (code_type_name_tbl[i].type != 0) 
+    209          	{
+    210          		if (type == code_type_name_tbl[i].type) 
+    211          		{
+    212          			return code_type_name_tbl[i].name;
+    213          		}
+    214          		i++;
+    215          	}
+    216          	return 0;
+    217          }
+    218          /*
+    219           * @brief: 初始化模块端口
+    220          */
+    221          static void UE988_GPIO_config(unsigned int baudrate)
+    222          {
+    223          	GPIO_InitTypeDef				GPIO_InitStructure;
+    224          	USART_InitTypeDef				USART_InitStructure;
+    225          
+    226          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
+    227          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
+    228          
+    229          	//Power
+    230          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_8;
+    231                  GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    232          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+    233          	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    234          	GPIO_SetBits(GPIOC, GPIO_Pin_8);
+    235          
+    236          	// 使用UART3, PB10,PB11
+    237          	/* Configure USART3 Tx (PB.10) as alternate function push-pull */
+    238          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+    239          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    240          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    241          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    242          
+    243          	/* Configure USART3 Rx (PB.11) as input floating				*/
+    244          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_11;
+    245          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    246          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    247          
+    248          	USART_InitStructure.USART_BaudRate		= baudrate;					
+    249          	USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+    250          	USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+    251          	USART_InitStructure.USART_Parity		= USART_Parity_No;
+    252          	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    253          	USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
+    254          
+    255          	USART_Init(USART3, &USART_InitStructure);
+    256          	USART_Cmd(USART3, ENABLE);
+    257          }
+    258          
+    259          static void UE988_NVIC_config(void)
+    260          {
+    261          	NVIC_InitTypeDef NVIC_InitStructure;
+    262          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+    263          
+    264          	/* Enable the USART1 Interrupt */
+    265          	NVIC_InitStructure.NVIC_IRQChannel				=USART3_IRQChannel;
+    266          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority	= 0;
+    267          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 1;
+    268          	NVIC_InitStructure.NVIC_IRQChannelCmd			= ENABLE;
+    269          	NVIC_Init(&NVIC_InitStructure);
+    270          
+    271          	USART_ClearITPendingBit(USART3, USART_IT_RXNE); 
+    272          	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
+    273          }
+    274          
+    275          static void reset_resVar(void)
+    276          {
+    277          	g_resCmd.CmdPos = 0;
+    278          	g_resCmd.DataLength = 0;
+    279          	g_resCmd.status	 = 0;
+    280          }
+    281          
+    282          /*
+    283          *brief: 硬件唤醒扫描仪
+    284          */
+    285          #if 0
+    286          static void hardware_wakeup(void)
+    287          {
+    288          	int i = 0;
+    289          
+    290          	GPIO_ResetBits(GPIOA, GPIO_Pin_6);
+    291          	for (i = 0; i < 1000; i++)
+    292          	{
+    293          		;
+    294          	}
+    295          
+    296          	GPIO_SetBits(GPIOA, GPIO_Pin_6);
+    297          }
+    298          #endif
+    299          /**
+    300          * @brief  发数据给条形码扫描仪
+    301          * @param[in] unsigned char *pData 要发送的数据
+    302          * @param[in] int length 要发送数据的长度
+    303          */
+    304          static void send_data_to_scanner(const unsigned char *pData, unsigned short length)
+    305          {
+    306          	while(length--)
+    307          	{
+    308          		USART_SendData(USART3, *pData++);
+    309          		while(USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET)
+    310          		{
+    311          		}
+    312          	}
+    313          	while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET){};
+    314          }
+    315          
+    316          /**
+    317          * @brief  发命令给条形码扫描仪
+    318          * @param[in] unsigned char *pData 要发送的数据
+    319          * @param[in] int length 要发送数据的长度
+    320          * @param[out]	0: 成功
+    321          *				-1: 失败
+    322          */
+    323          static int write_cmd_to_scanner(const unsigned char *pData, unsigned short length)
+    324          {
+    325          	unsigned char	retry_times		= 2;
+    326          
+    327          	UE988_wakeup();		//先唤醒模块
+    328          
+    329          loop:
+    330          	retry_times--;
+    331          	send_data_to_scanner(pData, length);
+    332          
+    333          	if (g_ack_enable == 0)	//ack/nak handshaking disabled
+    334          	{
+    335          		return 0;
+    336          	}
+    337          
+    338          	//wait host ack
+    339          	reset_resVar();
+    340          	StartDelay(200);			/* 延时1S		*/
+    341          	while (DelayIsEnd() != 0)
+    342          	{
+    343          		if (g_resCmd.status == RESPONSE_ACK)
+    344          		{
+    345          			return 0;
+    346          		}
+    347          		else if (g_resCmd.status == RESPONSE_NAK)
+    348          		{
+    349          			return -1;
+    350          		}
+    351          	}
+    352          	if (retry_times == 0)
+    353          	{
+    354          		return -1;
+    355          	}
+    356          	goto	loop;
+    357          }
+    358          
+    359          static unsigned short calc_checksum(unsigned char *pData, unsigned char data_len)
+    360          {
+    361          	unsigned int i = 0;
+    362          	unsigned short checksum = 0;
+    363          
+    364          	for (i = 0; i < data_len; i++)
+    365          	{
+    366          		checksum	+= pData[i];
+    367          	}
+    368          
+    369          	checksum	= ~checksum;
+    370          	checksum	+= 1;
+    371          
+    372          	return checksum;
+    373          }
+    374          
+    375          /**
+    376          * @brief  打包命令(host->scanner)
+    377          * @param[in] unsigned char cmd_code 命令代码
+    378          * @param[in] unsigned char cmd_status 
+    379          * @param[in] unsigned char *pCmddata 命令数据
+    380          * @param[in] unsigned char data_len 命令数据长度
+    381          * @note: 命令格式
+    382          *	---------------------------------------------------------------
+    383          *  | length | Op-code | Message Source | Status | Data | Checksum |
+    384          *	---------------------------------------------------------------
+    385          */
+    386          static void pack_command(unsigned char cmd_code, unsigned char cmd_status, unsigned char *pCmddata, unsigned char data_len)
+    387          {
+    388          	unsigned short cur_pos	= 0;
+    389          	unsigned short checksum = 0;
+    390                  
+    391                  memset(g_pReqCmd,0,50);
+    392          
+    393          	g_pReqCmd[cur_pos]	= 4 + data_len;		//length
+    394          	cur_pos++;
+    395          	g_pReqCmd[cur_pos] = cmd_code;			//Op_code
+    396          	cur_pos++;
+    397          	g_pReqCmd[cur_pos] = 0x04;				// Message Source
+    398          	cur_pos++;
+    399          	g_pReqCmd[cur_pos]	= cmd_status;		//Status
+    400          	cur_pos++;
+    401          
+    402          	if (data_len > 0 && pCmddata != 0)
+    403          	{
+    404          		memcpy(g_pReqCmd+cur_pos, pCmddata, data_len);		//Data
+    405          		cur_pos		+=	data_len;
+    406          	}
+    407          
+    408          	checksum = calc_checksum(g_pReqCmd, cur_pos);
+    409          	g_pReqCmd[cur_pos] = (checksum>>8)&0xFF;
+    410          	cur_pos++;
+    411          	g_pReqCmd[cur_pos] = checksum&0xFF;
+    412          }
+    413          
+    414          static void	send_ack_to_scanner(void)
+    415          {
+    416          	send_data_to_scanner(host_ack, 6);
+    417          }
+    418          
+    419          /*
+    420          * @param[in] cause	RES_CHECKFAILURE			
+    421          *					RES_UNKOWN_MSG
+    422          */
+    423          static void send_nak_to_sanner(unsigned char cause)
+    424          {
+    425          	unsigned short checksum;
+    426          	unsigned char	host_nak[7] = {0x05, CMD_NAK, 0x04, 0x0, 0x0, 0x0, 0x0};
+    427          
+    428          	host_nak[4]	= cause;
+    429          	checksum = calc_checksum(host_nak, 5);
+    430          	host_nak[5]	= (checksum>>8)&0xFF;
+    431          	host_nak[6] = (checksum&0xFF);
+    432          	send_data_to_scanner(host_nak, 7);
+    433          }
+    434          
+    435          
+    436          static int set_UE_param_default(void)
+    437          {
+    438          	unsigned char cmd_buf[] = {0x04, 0xD8, 0x04, 0x00, 0xFF, 0x20};
+    439          
+    440          	if (write_cmd_to_scanner(cmd_buf, 6) == 0)
+    441          	{
+    442          		return 0;
+    443          	}
+    444          
+    445          	return -1;
+    446          }
+    447          /* 
+    448          * @brief: 将模块Trigger Mode设为 Host模式
+    449          * @note: 仅仅在第一次使用模块时设置，以后会永远保存
+    450          */
+    451          static int switch_to_Host_Mode(void)
+    452          {
+    453          	unsigned char param_num = 0x8A;
+    454          	unsigned char cmd_buf[] = {0x07, 0xC6, 0x04, 0x08, 0x00, 0x8A, 0x08, 0xFE, 0x95};
+    455          	int cur_mode = 0;
+    456          
+    457          	/* step 1: 先查询trigger mode, 如果为0x08, 则表明已经是Host 模式, 否则, 就修改 */
+    458          	cur_mode = UE988_get_curParam(param_num);
+    459          	if (cur_mode == -1 || cur_mode == -2)
+    460          	{
+    461          		return cur_mode;    //返回错误码， -2：表示响应超时，可能是波特率错误，或者扫描头损坏，未安装
+    462          	}
+    463          
+    464          	if (cur_mode == 0x08)	//已经是Host模式
+    465          	{
+    466          		return 0;
+    467          	}
+    468          
+    469          	//将参数设置为MD默认参数
+    470          	OSTimeDlyHMSM(0,0,0,500);
+    471          	set_UE_param_default();
+    472          	OSTimeDlyHMSM(0,0,0,500);
+    473          
+    474          	/* step 2:  将模式修改成为Host模式			*/
+    475          	if (write_cmd_to_scanner(cmd_buf, 9) == 0)
+    476          	{
+    477          		return 0;
+    478          	}
+    479          
+    480          	return -1;
+    481          }
+    482          
+    483          /* 
+    484          * @brief: 将decode data packet format 设置为Packed Data, 默认为Data only模式
+    485          * @note: 仅仅在第一次使用模块时设置，以后会永远保存
+    486          */
+    487          static int set_decode_data_format(void)
+    488          {
+    489          	unsigned char param_num = 0xEE;
+    490          	unsigned char cmd_buf[] = {0x07, 0xC6, 0x04, 0x08, 0x00, 0xEE, 0x01, 0xFE, 0x38};
+    491          	int cur_mode = 0;
+    492          
+    493          	/* step 1: 先查询trigger mode, 如果为0x08, 则表明已经是Host 模式, 否则, 就修改 */
+    494          	cur_mode = UE988_get_curParam(param_num);
+    495          	if (cur_mode == -1)
+    496          	{
+    497          		return -1;
+    498          	}
+    499          	if (cur_mode == 0x01)	//已经是packed data
+    500          	{
+    501          		return 0;
+    502          	}
+    503          
+    504          	/* step 2:  将模式修改成为Host模式			*/
+    505          	OSTimeDlyHMSM(0,0,0,500);
+    506          	if (write_cmd_to_scanner(cmd_buf, 9) == 0)
+    507          	{
+    508          		return 0;
+    509          	}
+    510          
+    511          	return -1;
+    512          }
+    513          
+    514          /*
+    515          * @breif: 初始化一些参数
+    516          */
+    517          static int UE988_Init_param(void)
+    518          {
+    519          	int   ret;
+    520          	//将trigger mode 设为 host
+    521          	ret = switch_to_Host_Mode();
+    522          	if(ret == -2)
+    523          	{
+    524          		//响应超时，可以尝试切换主机的波特率，再次尝试一次
+    525          		UE988_GPIO_config(115200);
+    526          
+    527          		ret = switch_to_Host_Mode();
+    528          		if(ret)
+    529          		{
+    530          			return ret;
+    531          		}
+    532          		else
+    533          		{
+    534          			scanner_baudrate = 115200;
+    535          		}
+    536          	}
+    537          	else
+    538          	{
+    539          		scanner_baudrate = 9600;
+    540          	}
+    541          
+    542          	//设置Decode Data Packet Format 为Packed Data
+    543          	set_decode_data_format();
+    544          
+    545          	//将默认打开的扫描到条码之后的蜂鸣功能关闭
+    546          	UE988_set_curParam(0x38,0,1);
+    547          
+    548          	if(scanner_baudrate == 115200)
+    549          	{
+    550          	  UE988_set_curParam(0x9C,0x06,1);    //将扫描头的波特率设置为9600 
+    551          	 UE988_GPIO_config(9600);
+    552          	}
+    553          
+    554          	return 0;
+    555          }
+    556          
+    557          //设置扫描头的解码器开关
+    558          void scanner_set_decoder_switch(unsigned short switch_map)
+    559          {
+    560          	UE988_codeType_ctrl(EAN8,((switch_map&(0x0001<<0))?ENABLE:DISABLE));
+    561          	UE988_codeType_ctrl(EAN13,((switch_map&(0x0001<<0))?ENABLE:DISABLE));
+    562          	UE988_codeType_ctrl(UCCEAN128,((switch_map&(0x0001<<0))?ENABLE:DISABLE));
+    563          
+    564          	UE988_codeType_ctrl(UPCA,((switch_map&(0x0001<<1))?ENABLE:DISABLE));
+    565          	UE988_codeType_ctrl(UPCE,((switch_map&(0x0001<<1))?ENABLE:DISABLE));
+    566          	UE988_codeType_ctrl(UPCE1,((switch_map&(0x0001<<1))?ENABLE:DISABLE));
+    567          
+    568          	UE988_codeType_ctrl(Code39,((switch_map&(0x0001<<2))?ENABLE:DISABLE));
+    569          
+    570          	UE988_codeType_ctrl(Code93,((switch_map&(0x0001<<3))?ENABLE:DISABLE));
+    571          
+    572          	UE988_codeType_ctrl(Code11,((switch_map&(0x0001<<4))?ENABLE:DISABLE));
+    573          
+    574          	UE988_codeType_ctrl(Code128,((switch_map&(0x0001<<5))?ENABLE:DISABLE));
+    575          
+    576          	UE988_codeType_ctrl(IL2of5,((switch_map&(0x0001<<6))?ENABLE:DISABLE));
+    577          
+    578          	UE988_codeType_ctrl(Matrix20f5,((switch_map&(0x0001<<7))?ENABLE:DISABLE));
+    579          
+    580          	UE988_codeType_ctrl(InDus2of5,((switch_map&(0x0001<<8))?ENABLE:DISABLE));
+    581          
+    582          	UE988_codeType_ctrl(MSI,((switch_map&(0x0001<<9))?ENABLE:DISABLE));
+    583          
+    584          	UE988_codeType_ctrl(RSS14,((switch_map&(0x0001<<10))?ENABLE:DISABLE));
+    585          	UE988_codeType_ctrl(RSSLimited,((switch_map&(0x0001<<10))?ENABLE:DISABLE));
+    586          	UE988_codeType_ctrl(RSSExpanded,((switch_map&(0x0001<<10))?ENABLE:DISABLE));
+    587          
+    588          	UE988_codeType_ctrl(ChinaPost,((switch_map&(0x0001<<11))?ENABLE:DISABLE));
+    589          }
+    590          /*
+    591          * @brief: 模块初始化
+    592          */
+    593          void scanner_mode_init(unsigned short switch_map)
+    594          {
+    595          	unsigned int	tmp;
+    596          	//unsigned char IL2of5_len[5] = {0x16, 0x01, 0x17, 0x20};
+    597          	//unsigned char Indus2of5_len[5] = {0x14, 0x01, 0x15, 0x20};
+    598          	//unsigned char MSI_len[5] = {0x1E, 0x01, 0x1F, 0x20};
+    599          	//unsigned char MSI_checkTrans[3] = {0x2E, 0x01};
+    600          	
+    601          
+    602          	UE988_GPIO_config(9600);
+    603          	UE988_NVIC_config();
+    604          	
+    605          	g_pReqCmd	= g_send_buff;
+    606          	g_resCmd.CmdBuffer	= g_receive_buff;
+    607          
+    608          	reset_resVar();
+    609          	g_ack_enable	= 1;
+    610          
+    611          
+    612          	//初始化串口配置
+    613          	Comm_SetReceiveProc(COMM3, (CommIsrInByte)scanner_RxISRHandler);						//设置串口回调函数
+    614          
+    615          #ifndef UE988_DEBUG
+    616          	if(UE988_Init_param())
+    617          	{
+    618          		return;
+    619          	}
+    620          
+    621          	//code 11
+    622          	//China Post
+    623          	//Codabar
+    624          //MSI
+    625          //RSS系列(RSS-14 RSS-Limited RSS-Expanded)
+    626          	//这些条码类型的支持默认是关闭的，需要打开对他们的支持
+    627          #if 1
+    628          
+    629          	scanner_set_decoder_switch(switch_map);
+    630          	//UE988_codeType_ctrl(Code11,ENABLE);
+    631          	//UE988_codeType_ctrl(ChinaPost,ENABLE);
+    632          	//UE988_codeType_ctrl(Codabar,ENABLE);
+    633          	//UE988_codeType_ctrl(MSI,ENABLE);
+    634          	//UE988_codeType_ctrl(RSS14,ENABLE);
+    635          	//UE988_codeType_ctrl(RSSLimited,ENABLE);
+    636          	//UE988_codeType_ctrl(RSSExpanded,ENABLE);
+    637          	//UE988_codeType_ctrl(Code93,ENABLE);
+    638          	//UE988_codeType_ctrl(IL2of5,ENABLE);
+    639          	//UE988_codeType_ctrl(TriopCode39, ENABLE);
+    640          
+    641          	//UE988_codeType_ctrl(InDus2of5, ENABLE);
+    642          	//UE988_codeType_ctrl(UPCE1, ENABLE);
+    643          
+    644          	UE988_set_codeParam("\x16\x01\x17\x20", 4);				//UE988_set_codeParam(IL2of5_len, 4);
+    645          	UE988_set_codeParam("\x14\x01\x15\x20", 4);				//UE988_set_codeParam(Indus2of5_len, 4);
+    646          	//UE988_set_codeParam("\x1e\x01\x1f\x20", 4);				//UE988_set_codeParam(MSI_len, 4);
+    647          	//UE988_set_codeParam("\x2e\x01", 2);						//UE988_set_codeParam(MSI_checkTrans, 2);
+    648          
+    649          	write_cmd_to_scanner("\x07\xC6\x04\x08\x00\x34\x00\xFE\xF3", 9);
+    650          
+    651          #endif
+    652          
+    653          	//Comm_InitPort(COMM3,9600, 0);									//配置串口参数  串口参数已经配置
+    654          
+    655          	//wait_time_out = 29;
+    656          	//if(0 == UE988_get_softVersion(scaner_version,(unsigned char*)&tmp))
+    657          	//{
+    658          	//	if (memcmp(scaner_version,"uE_HW",5) == 0)
+    659          	//	{
+    660          	//		//明德的扫描头版本号是：uE_HW2.3_SW1.5.29_HY
+    661          	//		//另外一款扫描头的版本号是:NBRSYPAC(D)...
+    662          	//		wait_time_out = 48;
+    663          	//	}
+    664          	//}
+    665          
+    666          	wait_time_out = 48;
+    667          #endif
+    668          	//scan_start = 0;
+    669          }
+    670          
+    671          
+    672          /**
+    673          * @brief 处理host收到scanner的数据
+    674          * @param[in] unsigned char c 读入的字符
+    675          * @return 0:success put in buffer
+    676          *        -1:fail
+    677          */
+    678          int scanner_RxISRHandler(unsigned char c)
+    679          {
+    680          	unsigned short checksum = 0;
+    681          
+    682          		g_resCmd.CmdBuffer[g_resCmd.CmdPos++] = c;
+    683          
+    684          #ifdef UE988_DEBUG
+    685          
+    686          		if (g_resCmd.CmdPos == 20)
+    687          		{
+    688          			g_resCmd.CmdPos = 0;
+    689          			g_resCmd.status	= RESPONSE_SUCCESS;
+    690          		}
+    691          #else
+    692          		/*-------------------------------------------------------*/
+    693          		/*以下代码检查数据包格式是否正确                      */
+    694          		/*-------------------------------------------------------*/
+    695          		if (g_resCmd.CmdPos == 1)
+    696          		{
+    697          			g_resCmd.DataLength = g_resCmd.CmdBuffer[0];
+    698          			if (g_resCmd.DataLength == 0)
+    699          			{
+    700          				g_resCmd.CmdPos = 0;
+    701          				g_resCmd.status = RES_UNKOWN_MSG;
+    702          				return -1;
+    703          			}
+    704          		}
+    705          
+    706          		if (g_resCmd.CmdPos == 3)
+    707          		{
+    708          			if (g_resCmd.CmdBuffer[2] != 0)	//Message Source, must be 0 
+    709          			{
+    710          				g_resCmd.CmdPos = 0;
+    711          				g_resCmd.status = RES_UNKOWN_MSG;
+    712          				return -1;
+    713          			}
+    714          		}
+    715          
+    716          		if (g_resCmd.CmdPos == g_resCmd.DataLength+2)	//接收完成
+    717          		{
+    718          			checksum = calc_checksum(g_resCmd.CmdBuffer, g_resCmd.DataLength);
+    719          			if (((checksum>>8)&0xFF) != g_resCmd.CmdBuffer[g_resCmd.DataLength] ||
+    720          				 (checksum&0xFF) != g_resCmd.CmdBuffer[g_resCmd.DataLength+1]
+    721          				)
+    722          			{
+    723          				g_resCmd.CmdPos = 0;
+    724          				g_resCmd.status = RES_CHECKFAILURE;
+    725          				return -1;
+    726          			}
+    727          			else
+    728          			{
+    729          				if (g_resCmd.CmdBuffer[1] == CMD_ACK)
+    730          				{
+    731          					g_resCmd.status = RESPONSE_ACK;
+    732          				}
+    733          				else if (g_resCmd.CmdBuffer[1] == CMD_NAK)
+    734          				{
+    735          					g_resCmd.status = RESPONSE_NAK;
+    736          				}
+    737          				else
+    738          				{
+    739          					g_resCmd.status	= RESPONSE_SUCCESS;
+    740          				}
+    741          			}
+    742          		}
+    743          		
+    744          		if (g_resCmd.CmdPos > g_resCmd.DataLength+2)
+    745          		{
+    746          			reset_resVar();
+    747          			g_resCmd.status = RES_UNKOWN_MSG;
+    748          			return -1;
+    749          		}
+    750          #endif
+    751          	return 0;
+    752          }
+    753          
+    754          /*
+    755          * @brief: host控制scanner的beep
+    756          * @param[in] beep_code: 取值范围 0x00-0x19
+    757          */
+    758          void UE988_beep(unsigned char beep_code)
+    759          {
+    760          	unsigned char op_code = BEEP;
+    761          	unsigned char status = 0x0;
+    762          	unsigned char cmd_buf[2] = {0};
+    763          
+    764          	cmd_buf[0] = beep_code;
+    765          	pack_command(op_code, status, cmd_buf, 1);
+    766          	write_cmd_to_scanner(g_pReqCmd, 7);
+    767          }
+    768          
+    769          /*
+    770          * @brief: host控制scanner的LED
+    771          * @param[in] ctrl_type: UE988_LED_OFF	1
+    772          *						UE988_LED_ON	2
+    773          */
+    774          void UE988_led_ctrl(unsigned char ctrl_type)
+    775          {
+    776          	unsigned char led_select[2] = {0x01};
+    777          
+    778          	if (ctrl_type == UE988_LED_OFF)
+    779          	{
+    780          		pack_command(LED_OFF, 0, led_select, 1);
+    781          	}
+    782          	else if (ctrl_type == UE988_LED_ON)
+    783          	{
+    784          		pack_command(LED_ON, 0, led_select, 1);
+    785          	}
+    786          	else
+    787          	{
+    788          		return;
+    789          	}
+    790          
+    791          	write_cmd_to_scanner(g_pReqCmd, 7);
+    792          }
+    793          
+    794          /*
+    795          * @brief: reset the decoders parameter settings to the factory default values
+    796          */
+    797          void scanner_reset_param(void)
+    798          {
+    799          	pack_command(PARAM_DEFAULTS, 0, 0, 0);
+    800          	write_cmd_to_scanner(g_pReqCmd, 6);
+    801          }
+    802          
+    803          /*
+    804          * @brief: 获取decoder当前的参数信息
+    805          * @param[in] param_num: 参数代号
+    806          * @ret:		-1: 获取失败
+    807          *			其它: 参数值
+    808          */
+    809          static int UE988_get_curParam(unsigned char param_num)
+    810          {
+    811          	unsigned char req_data[2] = {0};
+    812          
+    813          	req_data[0] = param_num;
+    814          	pack_command(PARAM_REQUEST, 0, req_data, 1);
+    815          	g_ack_enable	= 0;	//the response to this command is PARAM_SEND, not ACK
+    816          	write_cmd_to_scanner(g_pReqCmd, 7);
+    817          
+    818          	//wait response (PARAM_SEND)
+    819          	reset_resVar();
+    820          	StartDelay(400);			/* 延时2S		*/
+    821          	while (DelayIsEnd() != 0)
+    822          	{
+    823          		if (g_resCmd.status == RESPONSE_SUCCESS) //成功收到响应
+    824          		{
+    825          			if (g_resCmd.CmdBuffer[1] != PARAM_SEND ||
+    826          				g_resCmd.CmdBuffer[5] != param_num)	//响应数据错误
+    827          			{
+    828          				g_ack_enable	= 1;
+    829          				OSTimeDlyHMSM(0,0,0,500);
+    830          				send_nak_to_sanner(RES_UNKOWN_MSG);
+    831          				return -1;
+    832          			}
+    833          			else
+    834          			{
+    835          				g_ack_enable	= 1;
+    836          				OSTimeDlyHMSM(0,0,0,500);
+    837          				send_ack_to_scanner();
+    838          				return	g_resCmd.CmdBuffer[6];
+    839          			}
+    840          		}//成功收到响应
+    841          		else if (g_resCmd.status == RESPONSE_NAK)	//响应失败
+    842          		{
+    843          			g_ack_enable	= 1;
+    844          			return -1;
+    845          		}
+    846          		else if (g_resCmd.status == RES_CHECKFAILURE)
+    847          		{
+    848          			g_ack_enable	= 1;
+    849          			OSTimeDlyHMSM(0,0,0,500);
+    850          			send_nak_to_sanner(RES_CHECKFAILURE);
+    851          			return -1;
+    852          		}
+    853          		else if (g_resCmd.status == RES_UNKOWN_MSG)
+    854          		{
+    855          			g_ack_enable	= 1;
+    856          			OSTimeDlyHMSM(0,0,0,500);
+    857          			send_nak_to_sanner(RES_UNKOWN_MSG);
+    858          			return -1;
+    859          		}
+    860          	}//延时
+    861          
+    862          	//超时
+    863          	g_ack_enable	= 1;
+    864          	return -2;
+    865          }
+    866          
+    867          /*
+    868          * @brief: 设置decoder当前的参数信息
+    869          * @param[in] param_num: 参数代号
+    870          * @param[in] param_value: 参数值
+    871          * @param[in] set_type: 设置方式 0: 暂时设置，断电后恢复到原值; 1: 永久设置
+    872          * @ret:		-1: 设置失败
+    873          *			0: 设置成功
+    874          */
+    875          static int UE988_set_curParam(unsigned char param_num, unsigned char param_value, unsigned char set_type)
+    876          {
+    877          	unsigned char status;
+    878          	unsigned char param_data[3] = {0};
+    879          	int ret;
+    880          
+    881          	param_data[0] = 0xFF;	//Beep Code, ignore
+    882          	param_data[1] = param_num;
+    883          	param_data[2] = param_value;
+    884          
+    885          	status = (set_type == 0)? 0x0 : 0x08;
+    886          
+    887          	pack_command(PARAM_SEND, status, param_data, 3);
+    888          	ret = write_cmd_to_scanner(g_pReqCmd, 9);
+    889          
+    890          	return ret;
+    891          }
+    892          
+    893          /*
+    894          * @brief: 控制decoder的扫描状态
+    895          * @param[in] ctrl_type: UE988_SCAN_DISABLE  UE988_SCAN_ENABLE
+    896          */
+    897          void UE988_scan_ctrl(unsigned char ctrl_type)
+    898          {
+    899          	if (ctrl_type == UE988_SCAN_DISABLE)
+    900          	{
+    901          		pack_command(SCAN_DISABLE, 0, 0, 0);
+    902          	}
+    903          	else if (ctrl_type == UE988_SCAN_ENABLE)
+    904          	{
+    905          		pack_command(SCAN_ENABLE, 0, 0, 0);
+    906          	}
+    907          	else
+    908          	{
+    909          		return;
+    910          	}
+    911          
+    912          	write_cmd_to_scanner(g_pReqCmd, 6);
+    913          }
+    914          
+    915          /*
+    916          * @brief: 进入休眠状态
+    917          * @note:
+    918          *	如果初始化模块时开启了低功耗模式，那么模块会自动进入低功耗，不需要调用此函数
+    919          *	默认状态下，模块开启低功耗模块
+    920          */
+    921          void UE988_enter_sleep(void)
+    922          {
+    923          	pack_command(SLEEP, 0, 0, 0);
+    924          	write_cmd_to_scanner(g_pReqCmd, 6);
+    925          }
+    926          
+    927          /*
+    928          * @brief: 唤醒模块
+    929          */
+    930          static void UE988_wakeup(void)
+    931          {
+    932          	unsigned char cmd[2] = {0};
+    933          
+    934          	send_data_to_scanner(cmd, 1);
+    935          
+    936          	StartDelay(10);			/* 延时50ms		*/
+    937          	while (DelayIsEnd() != 0)
+    938          	{
+    939          		;
+    940          	}
+    941          }
+    942          
+    943          /*
+    944          * @breif:  开始 或 停止扫描条码
+    945          * @param[in]: ctrl_type: UE988_START_DECODE  UE988_STOP_DECODE
+    946          */
+    947          void UE988_start_stop_decode(unsigned char ctrl_type)
+    948          {
+    949          	if (ctrl_type == UE988_START_DECODE)
+    950          	{
+    951          		pack_command(START_DECODE, 0, 0, 0);
+    952          	}
+    953          	else if (ctrl_type == UE988_STOP_DECODE)
+    954          	{
+    955          		pack_command(STOP_DECODE, 0, 0, 0);
+    956          	}
+    957          	else
+    958          	{
+    959          		return;
+    960          	}
+    961          
+    962          	write_cmd_to_scanner(g_pReqCmd, 6);
+    963          }
+    964          
+    965          /*
+    966          * @breif:  获取条形码
+    967          * @param[out]: unsigned char *code_type: 条形码类型		10个字节
+    968          * @param[out]: unsigned char *code_buf: 存储条形码的缓存, code Type + decode data
+    969          * @param[in]:  unsigned char inbuf_size: 传进来用来存放decode_data的buf大小
+    970          * @param[out]  unsigned char *code_len:	 实际获取的条形码的长度，如果实际获取的长度比传进来的buf大，那么只返回传进来的buf大小的数据
+    971          */
+    972          int scanner_get_barcode(unsigned char *code_buf,unsigned int inbuf_size,unsigned char *code_type,unsigned int *code_len)
+    973          {
+    974          	unsigned char *code_name;
+    975          	int		i = 0;
+    976          
+    977          	//start decode
+    978                  UE988_start_stop_decode(UE988_START_DECODE);
+    979          
+    980          	//get code data
+    981          	reset_resVar();
+    982          	//StartDelay(800);			/* 延时4S		*/    //明德的扫描头的超时有4S
+    983          	//for(i = 0; i < 48; i++)
+    984          	for(i = 0; i < wait_time_out; i++)   //新扫描头的超时只有3S左右
+    985          	{
+    986          		if (g_resCmd.status == RESPONSE_SUCCESS) //成功收到响应
+    987          		{
+    988          			send_ack_to_scanner();
+    989          			if (g_resCmd.CmdBuffer[1] == DECODE_DATA)
+    990          			{
+    991          				*code_len	= g_resCmd.CmdBuffer[0]-5;
+    992          				memcpy(code_buf, &g_resCmd.CmdBuffer[5], ((*code_len > inbuf_size)?inbuf_size:*code_len));
+    993          				code_name	= type2name(g_resCmd.CmdBuffer[4]);
+    994          				if ((code_name != 0)&&(code_type != 0))
+    995          				{
+    996          					strcpy(code_type, code_name);
+    997          				}
+    998          				//Beep(400);
+    999          				//scan_start = 0;
+   1000          				return 0;
+   1001          			}
+   1002          			else
+   1003          			{
+   1004          				return -1;
+   1005          			}
+   1006          		}//成功收到响应
+   1007          		else if (g_resCmd.status == RESPONSE_NAK)	//响应失败
+   1008          		{
+   1009          			//scan_start = 0;
+   1010          			return -1;
+   1011          		}
+   1012          		else if (g_resCmd.status == RES_CHECKFAILURE)
+   1013          		{
+   1014          			send_nak_to_sanner(RES_CHECKFAILURE);
+   1015          
+   1016          			//scan_start = 0;
+   1017          			return -1;
+   1018          		}
+   1019          		else if (g_resCmd.status == RES_UNKOWN_MSG)
+   1020          		{
+   1021          			send_nak_to_sanner(RES_UNKOWN_MSG);
+   1022          			//scan_start = 0;
+   1023          			return -1;
+   1024          		}
+   1025          
+   1026          		OSTimeDlyHMSM(0, 0, 0, 100);
+   1027          	}//延时
+   1028          
+   1029          	//scan_start = 0;
+   1030          	return -1;
+   1031          }
+   1032          
+   1033          
+   1034          /*
+   1035          * @brief: 获取 扫描头软件版本号
+   1036          * @note unsigned char *softVer 20字节的缓冲区
+   1037          */
+   1038          int scanner_get_softVersion(unsigned char *softVer, unsigned char *plen)
+   1039          {
+   1040          	unsigned int cnt;
+   1041          
+   1042          	pack_command(REQUEST_REVISION, 0, 0, 0);
+   1043          	g_ack_enable = 0;
+   1044          	if(write_cmd_to_scanner(g_pReqCmd, 6))
+   1045          	{
+   1046                         g_ack_enable = 1;
+   1047          		return -1;
+   1048          	}
+   1049          
+   1050          	//wait response (PARAM_SEND)
+   1051          	reset_resVar();
+   1052          	cnt = 180;			/* 延时2S		*/
+   1053          	while (cnt--)
+   1054          	{
+   1055          		if (g_resCmd.status == RESPONSE_SUCCESS) //成功收到响应
+   1056          		{
+   1057          			if (g_resCmd.CmdBuffer[1] != REPLY_REVISION)	//响应数据错误
+   1058          			{
+   1059          				send_nak_to_sanner(RES_UNKOWN_MSG);
+   1060          				g_ack_enable = 1;
+   1061                                          return -1;
+   1062          			}
+   1063          			else
+   1064          			{
+   1065          				send_ack_to_scanner();
+   1066          				(*plen) = g_resCmd.CmdBuffer[0] - 4;
+   1067          				memcpy(softVer, g_resCmd.CmdBuffer+4, ((*plen)>20)?20:(*plen));
+   1068          				if(*plen > 20)
+   1069          				{
+   1070          					*plen = 20;
+   1071          				}
+   1072          				g_ack_enable = 1;
+   1073          				return	0;
+   1074          			}
+   1075          		}//成功收到响应
+   1076          		else if (g_resCmd.status == RESPONSE_NAK)	//响应失败
+   1077          		{
+   1078                            g_ack_enable = 1;
+   1079          			return -1;
+   1080          		}
+   1081          		else if (g_resCmd.status == RES_CHECKFAILURE)
+   1082          		{
+   1083          			send_nak_to_sanner(RES_CHECKFAILURE);
+   1084          			g_ack_enable = 1;
+   1085                                  return -1;
+   1086          		}
+   1087          		else if (g_resCmd.status == RES_UNKOWN_MSG)
+   1088          		{
+   1089          			send_nak_to_sanner(RES_UNKOWN_MSG);
+   1090          			g_ack_enable = 1;
+   1091                                  return -1;
+   1092          		}
+   1093          
+   1094          		//OSTimeDlyHMSM(0,0,0,10);
+   1095                          Delay(5000);
+   1096          	}//延时
+   1097          
+   1098          	//超时
+   1099          	g_ack_enable = 1;
+   1100                  return -1;
+   1101          }
+   1102          
+   1103          
+   1104          #if 0
+   1105          void UE988_scan_task(void)
+   1106          {
+   1107          	unsigned char cur_key;
+   1108          	unsigned char code_type[20];
+   1109          	unsigned char code_len;
+   1110          
+   1111          	while (1)
+   1112          	{
+   1113          		memset(g_decode_data, 0, MAX_DECODE_DATA);
+   1114          		if (UE988_get_barcode(code_type, g_decode_data, &code_len) == 0)
+   1115          		{
+   1116          			gui_TextOut(30, 178, &g_decode_data[0], 1);
+   1117          			StartDelay(200);			/* 延时1S		*/
+   1118          			while (DelayIsEnd() != 0)
+   1119          			{}
+   1120          		}
+   1121          		cur_key = *keypad_getkey();
+   1122          		if (cur_key != KEY_FUN1)
+   1123          		{
+   1124          			break;
+   1125          		}
+   1126          	}
+   1127          
+   1128          	gui_TextOut(30, 178, "                  ", 0);
+   1129          }
+   1130          #endif
+   1131          
+   1132          #endif
+
+
+ 
+ 
+ 0 bytes of memory
+
+Errors: none
+Warnings: none

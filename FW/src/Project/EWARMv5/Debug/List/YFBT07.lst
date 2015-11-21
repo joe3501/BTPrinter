@@ -1,0 +1,540 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:20 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\Drivers\YFBT07.c                            #
+#    Command line =  E:\T6\FW\src\Drivers\YFBT07.c -lcN                       #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\YFBT07.lst       #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\YFBT07.o          #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\Drivers\YFBT07.c
+      1          /**
+      2           * @file YFBT07.c
+      3           * @brief 蓝牙模块的驱动 
+      4           * @version 1.0
+      5           * @author joe
+      6           * @date 2013年10月25日
+      7           * @note
+      8           *   蓝牙模块YFBT07的驱动，SPI接口，通讯协议是基于《蓝牙键盘模块通讯协议.docx》
+      9           * 
+     10           */
+     11          
+     12          #include "stm32f10x_lib.h"
+     13          #include "YFBT07.h"
+     14          #include "basic_fun.h"
+     15          #include "keypad.h"
+     16          #include "os_cpu.h"
+     17          #include "gui.h"
+     18          
+     19          //LA 57648
+     20          
+     21          /**
+     22          *@def 定义了与蓝牙模块连接的硬件资源的配置及IO操作的宏定义
+     23          */
+     24          
+     25          #define YFBT07_SPI_PORT					SPI1					//与蓝牙模块连接的是SPI1接口
+     26          #define YFBT07_SPI_PORT_CLK				RCC_APB2Periph_SPI1
+     27          #define ENABLE_YFBT07_SPI_PORT_CLK()	RCC_APB2PeriphClockCmd(YFBT07_SPI_PORT_CLK, ENABLE)
+     28          
+     29          #define YFBT07_SPI_SCK		GPIO_Pin_5	//PA5
+     30          #define YFBT07_SPI_MISO		GPIO_Pin_6	//PA6
+     31          #define YFBT07_SPI_MOSI		GPIO_Pin_7	//PA7
+     32          
+     33          #define YFBT07_SPI_INT		GPIO_Pin_13	//PD13		STM32需要与YFBT07模块进行通讯时就需要拉低此信号，一旦拉低此信号蓝牙模块就会输出SPI时钟信号，并发送数据过来
+     34          #define YFBT07_STATUS		GPIO_Pin_14	//PD14		此IO指示了蓝牙模块与主机的连接状态，未连接到蓝牙主机时输出低电平，连接到蓝牙主机时输出高电平
+     35          #define YFBT07_POWER_ENABLE	GPIO_Pin_9	//PC9		控制蓝牙模块电源的IO
+     36          
+     37          #define YFBT07_SPI_INT_LOW()       GPIO_ResetBits(GPIOD, YFBT07_SPI_INT)
+     38          #define YFBT07_SPI_INT_HIGH()      GPIO_SetBits(GPIOD, YFBT07_SPI_INT)
+     39          
+     40          #define YFBT07_POWER_ON()			GPIO_ResetBits(GPIOC, YFBT07_POWER_ENABLE)
+     41          #define YFBT07_POWER_OFF()			GPIO_SetBits(GPIOC, YFBT07_POWER_ENABLE)
+     42          
+     43          #define LOW_LEVEL		0
+     44          #define HIGH_LEVEL		1
+     45          
+     46          //#define GET_YFBT07_SPI_SCK_LEVEL()		GPIO_ReadInputDataBit(GPIOA,YFBT07_SPI_SCK)
+     47          //#define GET_YFBT07_SPI_MOSI_LEVEL()		GPIO_ReadInputDataBit(GPIOA,YFBT07_SPI_MOSI)
+     48          
+     49          #define GET_YFBT07_SPI_SCK_LEVEL()		(((*(volatile unsigned long *) 0x40010808) & 0x0020) != 0)
+     50          #define GET_YFBT07_SPI_MOSI_LEVEL()		(((*(volatile unsigned long *) 0x40010808) & 0x0080) != 0)
+     51          
+     52          //#define SET_YFBT07_SPI_MISO()			GPIO_SetBits(GPIOA,YFBT07_SPI_MISO)
+     53          //#define RESET_YFBT07_SPI_MISO()			GPIO_ResetBits(GPIOA,YFBT07_SPI_MISO)
+     54          
+     55          #define SET_YFBT07_SPI_MISO()		(*((volatile unsigned long *) 0x40010810) = YFBT07_SPI_MISO)
+     56          #define RESET_YFBT07_SPI_MISO()		(*((volatile unsigned long *) 0x40010814) = YFBT07_SPI_MISO)
+     57          
+     58          //检测蓝牙模块是否已经与蓝牙主机建立起连接
+     59          #define GET_YFBT07_CONNECT_STATE()		GPIO_ReadInputDataBit(GPIOD,YFBT07_STATUS)
+     60          /**
+     61          * @brief  初始化连接蓝牙模块的硬件IO资源 
+     62          * @param  None
+     63          * @retval : 0 成功
+     64          *          -1 失败
+     65          */
+     66          static int YFBT07_HW_init(void)
+     67          {
+     68          	SPI_InitTypeDef		SPI_InitStructure;
+     69          	GPIO_InitTypeDef	GPIO_InitStructure;
+     70          
+     71          	/* Enable SPI1 and GPIO clocks */
+     72          	//ENABLE_YFBT07_SPI_PORT_CLK();	//使能与蓝牙模块通讯的SPI接口的时钟
+     73          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD, ENABLE);
+     74          
+     75          	/* Configure SPI1 pins: SCK, MISO and MOSI */
+     76          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7;
+     77          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+     78          	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+     79          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+     80          
+     81          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+     82          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+     83          	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+     84          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+     85          
+     86          	/* Configure I/O for SPI_INT */
+     87          	GPIO_InitStructure.GPIO_Pin = YFBT07_SPI_INT;
+     88          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+     89          	GPIO_Init(GPIOD, &GPIO_InitStructure);
+     90          	YFBT07_SPI_INT_HIGH();
+     91          
+     92          	/* Configure I/O for YFBT07_POWER_ENABLE */
+     93          	GPIO_InitStructure.GPIO_Pin = YFBT07_POWER_ENABLE;
+     94          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;//;
+     95          	GPIO_Init(GPIOC, &GPIO_InitStructure);
+     96          	YFBT07_POWER_OFF();
+     97          
+     98          	/* Configure I/O for SPI_STATUS */
+     99          	GPIO_InitStructure.GPIO_Pin = YFBT07_STATUS;
+    100          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    101          	GPIO_Init(GPIOD, &GPIO_InitStructure);
+    102          
+    103          
+    104          	/* SPI1 configuration */
+    105          	//从机模式
+    106          	//SPI_Cmd(YFBT07_SPI_PORT, DISABLE);
+    107          	//SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
+    108          	//SPI_InitStructure.SPI_Mode = SPI_Mode_Slave;
+    109          	//SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
+    110          	//SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
+    111          	//SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
+    112          	//SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
+    113          	//SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_32;		
+    114          	//SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+    115          	//SPI_InitStructure.SPI_CRCPolynomial = 7;
+    116          	//SPI_Init(YFBT07_SPI_PORT, &SPI_InitStructure);
+    117          
+    118          	//SPI_NSSInternalSoftwareConfig(YFBT07_SPI_PORT, SPI_NSSInternalSoft_Reset);
+    119          	///* Enable SPI1  */
+    120          	//SPI_Cmd(YFBT07_SPI_PORT, ENABLE);
+    121          	return 0;										// 成功
+    122          }
+    123          
+    124          //利用IO模拟SPI接口，发送一个字节到蓝牙模块
+    125          static unsigned char SendByte2YFBT07(unsigned char data)
+    126          {
+    127          	unsigned char  i,tmp = 0;
+    128          	unsigned int	cnt = 0;
+    129          	OS_CPU_SR  cpu_sr = 0;
+    130          
+    131          	OS_ENTER_CRITICAL();
+    132          	SET_YFBT07_SPI_MISO();
+    133          	for(i = 0; i < 8;i++)
+    134          	{
+    135          		//while(GET_YFBT07_SPI_SCK_LEVEL() == HIGH_LEVEL);
+    136          		while(GET_YFBT07_SPI_SCK_LEVEL()&&(cnt<100000))
+    137                          {
+    138                            cnt++;
+    139                          }
+    140          		if (data&(0x80>>i))
+    141          		{
+    142          			SET_YFBT07_SPI_MISO();
+    143          		}
+    144          		else
+    145          		{
+    146          			RESET_YFBT07_SPI_MISO();
+    147          		}
+    148          		//while(GET_YFBT07_SPI_SCK_LEVEL() == LOW_LEVEL);
+    149          		cnt = 0;
+    150                          while(!GET_YFBT07_SPI_SCK_LEVEL()&&(cnt<100000))
+    151                          {
+    152                            cnt++;
+    153                          }
+    154          	}
+    155          	
+    156          	SET_YFBT07_SPI_MISO();
+    157          
+    158          	OS_EXIT_CRITICAL();
+    159                  
+    160              return tmp;
+    161          }
+    162          
+    163          //发送数据到蓝牙模块
+    164          inline static unsigned char SendByteArray2YFBT07(unsigned char *data,unsigned int len)
+    165          {
+    166          	unsigned char i;
+    167          	volatile unsigned char tmp;
+    168          
+    169          	YFBT07_SPI_INT_LOW();
+    170          	for(i = 0;i < len;i++)
+    171          	{
+    172          		//YFBT07_SPI_PORT->DR = data[i];		//此语句会清除TXE  TXE = 0；
+    173          		//while((YFBT07_SPI_PORT->SR && (1<<1))==0);	 //等待发送缓冲区空，理论上此处应该会检测SPI主机的时钟信号，在时钟信号的同步下将发送缓冲区的数据发送出去，发送完会置位TXE，使TXE = 1；
+    174          		//tmp = (unsigned char)YFBT07_SPI_PORT->DR;	 //清除RXNE标志，同时接收到主机发送过来的数据
+    175          
+    176          		SendByte2YFBT07(data[i]);
+    177          	}
+    178          	YFBT07_SPI_INT_HIGH();
+    179          }
+    180          
+    181          
+    182          //测试YFBT07模块的SPI通讯是否ok，只要拉低INT信号，可以检测到YFBT07模块输出的时钟信号，即认为模块工作正常
+    183          int YFBT07_check(void)
+    184          {
+    185          	int cnt = 0;
+    186          #if 1
+    187          	RESET_YFBT07_SPI_MISO();
+    188          	YFBT07_SPI_INT_LOW();
+    189          	//while((GET_YFBT07_SPI_SCK_LEVEL() == HIGH_LEVEL)&&(cnt < 100000))		//检测时钟信号的到来
+    190          	while((GET_YFBT07_SPI_SCK_LEVEL())&&(cnt < 100000))		//检测时钟信号的到来
+    191          	{
+    192          		cnt++;
+    193          	}
+    194          
+    195          	YFBT07_SPI_INT_HIGH();
+    196                  //SET_YFBT07_SPI_MISO();
+    197                  
+    198          	if (cnt == 100000)
+    199          	{
+    200          		return -1;
+    201          	}
+    202          #endif
+    203          	return 0;
+    204          
+    205          }
+    206          
+    207          
+    208          /**
+    209          * @brief   延时
+    210          * @author joe
+    211          * @param[in] vu16 nCount   延时值
+    212          * @return none
+    213          * @note  
+    214          *      调用方法：Lcd_Delay(100);
+    215          */
+    216          static void YFBT07_Delayms(vu16 nCount)
+    217          {
+    218          	u32  i;
+    219          	for (i = 0; i < nCount*6000; i++) {
+    220          		;
+    221          	}
+    222          }
+    223          
+    224          
+    225          #define READ_YFBT07_DUMMY_BYTE		0xFF
+    226          
+    227          /**
+    228          * @brief  初始化蓝牙模块 
+    229          * @param  None
+    230          * @retval : 0 成功
+    231          *          -1 失败
+    232          */
+    233          int YFBT07_init(void)
+    234          {
+    235          	unsigned char status;
+    236          
+    237          	YFBT07_HW_init();		//初始化硬件资源
+    238          	YFBT07_POWER_ON();		//开启蓝牙模块的电源
+    239          
+    240          	YFBT07_Delayms(2000);	//200ms 延时一段时间等待模块上电进入正常的工作状态，此等待时间待测试
+    241          	
+    242          	//测试蓝牙模块是否工作正常，其实只能检测SPI的通信是否正常
+    243          	if (YFBT07_check())
+    244          	{
+    245          		return -1;
+    246          	}
+    247          	return 0;
+    248          }
+    249          
+    250          //控制蓝牙模块的电源
+    251          void YFBT07_power_ctrl(unsigned char on_off)
+    252          {
+    253          	if (on_off)
+    254          	{
+    255          		YFBT07_POWER_ON();
+    256          		YFBT07_SPI_INT_HIGH();
+    257          		SET_YFBT07_SPI_MISO();
+    258          	}
+    259          	else
+    260          	{
+    261          		YFBT07_POWER_OFF();	
+    262          		YFBT07_SPI_INT_LOW();
+    263          		RESET_YFBT07_SPI_MISO();
+    264          	}
+    265          	YFBT07_Delayms(500);
+    266          }
+    267          
+    268          /**
+    269          * @brief  使蓝牙模块进入待配对状态 
+    270          * @param  None
+    271          * @retval : 0 成功
+    272          *          -1 失败
+    273          */
+    274          int YFBT07_Enter_Match_Mode(void)
+    275          {
+    276          	unsigned char status;
+    277          	unsigned int	timeout = 0;
+    278          	OS_CPU_SR  cpu_sr = 0;
+    279          
+    280          	OS_ENTER_CRITICAL();
+    281          	//发送使蓝牙模块进入待配对状态的命令
+    282          	YFBT07_SPI_INT_LOW();
+    283          	SendByte2YFBT07(0x5a);
+    284          	SendByte2YFBT07(0xa5);
+    285          	YFBT07_SPI_INT_HIGH();
+    286          	OS_EXIT_CRITICAL();
+    287          	return 0;
+    288          }
+    289          
+    290          static unsigned char calc_check_value(unsigned char *buf,unsigned int len)
+    291          {
+    292          	unsigned char i;
+    293          	unsigned char xor = 0;
+    294          
+    295          	for(i = 0;i < len;i++)
+    296          	{
+    297          		xor ^= buf[i];
+    298          	}
+    299          
+    300          	return xor;
+    301          }
+    302          
+    303          /**
+    304          * @brief  利用蓝牙模块是否与蓝牙主机建立了连接
+    305          * @param  None
+    306          * @retval : 0		断开状态
+    307          *           1		连接状态
+    308          */
+    309          int YFBT07_Connect_state(void)
+    310          {
+    311          	return (int)GET_YFBT07_CONNECT_STATE();
+    312          }
+    313          
+    314          /**
+    315          * @brief  利用蓝牙模块发送键值 
+    316          * @param  None
+    317          * @retval : 0 成功
+    318          *          -1 失败
+    319          */
+    320          int YFBT07_SendKey(unsigned char *key_buffer,unsigned int len)
+    321          {
+    322          	unsigned char report_buf[11];
+    323          	unsigned char send_num = 0;
+    324          
+    325          	report_buf[0] = 0x55;
+    326          	while(len)
+    327          	{
+    328          		send_num = ascii_to_keyreport2_ext(key_buffer,len,report_buf+1);	//已构造的键值报表
+    329          		
+    330          		report_buf[10] = calc_check_value(report_buf,10);
+    331          
+    332                  SendByteArray2YFBT07(report_buf,11);
+    333          
+    334          		//发送释放键
+    335                  //memset(report_buf+1,0,9);
+    336          	//	report_buf[10] = 0x55;
+    337                
+    338          	//	SendByteArray2YFBT07(report_buf,11);
+    339          
+    340          		YFBT07_Delayms(20);
+    341                          
+    342                  len -= send_num;
+    343                  key_buffer += send_num;
+    344          	}
+    345          	return 0;
+    346          }
+    347          
+    348          
+    349          //测试蓝牙模块
+    350          void YFBT07_Test(void)
+    351          {
+    352          	int  i,timeout = 0;
+    353          	unsigned char *key;
+    354          	unsigned char buf[50];
+    355          	unsigned char offset = 0;
+    356          	unsigned char test_state = 0;
+    357          
+    358          	gui_clear(BG_COLOR);
+    359          	gui_TextOut(0,0,"蓝牙测试",0,1);
+    360          
+    361          	while(1)
+    362          	{
+    363          		if (YFBT07_Connect_state() == 0)
+    364          		{
+    365                      gui_FillRect(0,13,GUI_WIDTH,GUI_HEIGHT-13,BG_COLOR,1);            
+    366          			gui_TextOut(0,13,"待匹配状态...",0,1);
+    367          
+    368          			//如果蓝牙模块还没有与蓝牙注解建立起连接
+    369          			//发送命令使模块进入配对状态，等待蓝牙主机与其连接
+    370                      //可以先等待5S，什么都不做，如果5S之后仍旧没有连接到主机，再发送配对命令
+    371          			while(YFBT07_Connect_state() == 0)
+    372          			{
+    373          				if (timeout < 30000)
+    374          				{
+    375          					timeout++;
+    376          				}
+    377          
+    378          				if (timeout == 30000)
+    379          				{
+    380          					timeout = 0;
+    381          					break;	//超时时间内还没有与蓝牙主机建立起连接，退出此循环，重新发送配对命令
+    382          				}
+    383          
+    384          				YFBT07_Delayms(1);
+    385          			}
+    386          
+    387          			YFBT07_Enter_Match_Mode();
+    388          		}
+    389          		else
+    390          		{
+    391          			if (test_state == 0)
+    392          			{
+    393          				gui_TextOut(0,13,"已连接状态...",0,1);
+    394          				gui_TextOut(0,26,"按[SCAN]键发送键值",0,1);
+    395          				//gui_TextOut(0,39,"此次发送键值:",0,1);
+    396          				key = keypad_getkey();
+    397          				if (*key == KEY_SCAN)
+    398          				{
+    399          					Beep(BEEP_DELAY);
+    400          					for (i = 0;i < 10;i++)
+    401          					{
+    402          						buf[i] = 0x3a+i;
+    403          					}
+    404          					buf[10] = 0;
+    405          
+    406          					//gui_TextOut(0,52,"                    ",1,1);
+    407          					//gui_TextOut(0,52,buf,0,1);
+    408          					YFBT07_SendKey(buf,10);
+    409          					YFBT07_SendKey("\x0d",1);
+    410          					test_state = 1;
+    411          					gui_FillRect(0,13,GUI_WIDTH,GUI_HEIGHT-13,BG_COLOR,1);
+    412          				}
+    413          			}
+    414          
+    415          			if (test_state == 1)
+    416          			{
+    417          				gui_TextOut(0,26,"蓝牙模块测试OK",0,1);
+    418          				gui_TextOut(0,39,"按[SCAN]键继续测试",0,1);
+    419          				if (*key == KEY_SCAN)
+    420          				{
+    421          					Beep(BEEP_DELAY);
+    422          					return;
+    423          				}
+    424          			}
+    425          			
+    426          			/*else if (*key == KEY_DOWN)
+    427          			{
+    428          				for (i = 0; i < 47; i++)
+    429          				{
+    430          					buf[i] = 0x20+i;
+    431          				}
+    432          				YFBT07_SendKey(buf,47);
+    433          			}
+    434          			else if (*key == KEY_UP)
+    435          			{
+    436          				for (i = 0; i < 48; i++)
+    437          				{
+    438          					buf[i] = 0x20+47+i;
+    439          				}
+    440          				YFBT07_SendKey(buf,48);
+    441          			}*/
+    442          		}
+    443          		YFBT07_Delayms(100);
+    444          	}
+    445          	
+    446          }
+
+   Maximum stack usage in bytes:
+
+     Function                .cstack
+     --------                -------
+     SendByte2YFBT07             24
+     SendByteArray2YFBT07        16
+     YFBT07_Connect_state         8
+     YFBT07_Delayms               8
+     YFBT07_Enter_Match_Mode     16
+     YFBT07_HW_init               8
+     YFBT07_SendKey              32
+     YFBT07_Test                 80
+     YFBT07_check                 8
+     YFBT07_init                  8
+     YFBT07_power_ctrl            8
+     calc_check_value             8
+
+
+   Section sizes:
+
+     Function/Label                                 Bytes
+     --------------                                 -----
+     YFBT07_HW_init                                  156
+     SendByte2YFBT07                                 114
+     SendByteArray2YFBT07                             48
+     YFBT07_check                                     66
+     YFBT07_Delayms                                   30
+     YFBT07_init                                      42
+     YFBT07_power_ctrl                                72
+     YFBT07_Enter_Match_Mode                          54
+     calc_check_value                                 30
+     YFBT07_Connect_state                             14
+     YFBT07_SendKey                                   78
+     YFBT07_Test                                     344
+     ??DataTable17                                     4
+     ??DataTable20                                     4
+     ??DataTable24                                     4
+     ??DataTable25                                     4
+     ??DataTable27                                     4
+     ??DataTable30                                     4
+     ?<Constant "\300\266\321\300\262\342\312\324">   12
+     ?<Constant "\264\375\306\245\305\344\327\264\3   16
+     ?<Constant "\322\321\301\254\275\323\327\264\3   16
+     ?<Constant "\260\264[SCAN]\274\374\267\242\313   20
+     ?<Constant "\r">                                  2
+     ?<Constant "\300\266\321\300\304\243\277\351\2   16
+     ?<Constant "\260\264[SCAN]\274\374\274\314\320   20
+
+ 
+   102 bytes in section .rodata
+ 1 072 bytes in section .text
+ 
+ 1 072 bytes of CODE  memory
+   102 bytes of CONST memory
+
+Errors: none
+Warnings: 6

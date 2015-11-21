@@ -1,0 +1,534 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:16 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_scsi.c                  #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_scsi.c" -D DEBUG_VER   #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_scsi #
+#                    .lst                                                     #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_scsi. #
+#                    o                                                        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_scsi.c
+      1          /******************** (C) COPYRIGHT 2010 STMicroelectronics ********************
+      2          * File Name          : usb_scsi.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V3.1.1
+      5          * Date               : 04/07/2010
+      6          * Description        : All processing related to the SCSI commands
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "usb_app_config.h"
+     18          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+     19          #include "hw_config.h"
+     20          #include "usb_scsi.h"
+     21          #include "mass_mal.h"
+     22          #include "usb_bot.h"
+     23          #include "usb_regs.h"
+     24          #include "memory.h"
+     25          //#include "nand_if.h"
+     26          //#include "platform_config.h"
+     27          #include "usb_lib.h"
+     28          
+     29          /* Private typedef -----------------------------------------------------------*/
+     30          /* Private define ------------------------------------------------------------*/
+     31          /* Private macro -------------------------------------------------------------*/
+     32          /* Private variables ---------------------------------------------------------*/
+     33          /* External variables --------------------------------------------------------*/
+     34          extern u8 Bulk_Data_Buff[BULK_MAX_PACKET_SIZE];  /* data buffer*/
+     35          extern u8 Bot_State;
+     36          extern Bulk_Only_CBW CBW;
+     37          extern Bulk_Only_CSW CSW;
+     38          extern u32 Mass_Memory_Size[2];
+     39          extern u32 Mass_Block_Size[2];
+     40          extern u32 Mass_Block_Count[2];
+     41          extern u8 TransferState;
+     42          /* Private function prototypes -----------------------------------------------*/
+     43          /* Private functions ---------------------------------------------------------*/
+     44          
+     45          /*******************************************************************************
+     46          * Function Name  : SCSI_Inquiry_Cmd
+     47          * Description    : SCSI Inquiry Command routine.
+     48          * Input          : None.
+     49          * Output         : None.
+     50          * Return         : None.
+     51          *******************************************************************************/
+     52          void SCSI_Inquiry_Cmd(u8 lun)
+     53          {
+     54            u8* Inquiry_Data;
+     55            u16 Inquiry_Data_Length;
+     56          
+     57            if (CBW.CB[1] & 0x01)/*Evpd is set*/
+     58            {
+     59              Inquiry_Data = Page00_Inquiry_Data;
+     60              Inquiry_Data_Length = 5;
+     61            }
+     62            else
+     63            {
+     64          
+     65              if ( lun == 0)
+     66              {
+     67                Inquiry_Data = Standard_Inquiry_Data;
+     68              }
+     69              else
+     70              {
+     71                Inquiry_Data = Standard_Inquiry_Data2;
+     72              }
+     73          
+     74              if (CBW.CB[4] <= STANDARD_INQUIRY_DATA_LEN)
+     75                Inquiry_Data_Length = CBW.CB[4];
+     76              else
+     77                Inquiry_Data_Length = STANDARD_INQUIRY_DATA_LEN;
+     78          
+     79            }
+     80            Transfer_Data_Request(Inquiry_Data, Inquiry_Data_Length);
+     81          }
+     82          
+     83          /*******************************************************************************
+     84          * Function Name  : SCSI_ReadFormatCapacity_Cmd
+     85          * Description    : SCSI ReadFormatCapacity Command routine.
+     86          * Input          : None.
+     87          * Output         : None.
+     88          * Return         : None.
+     89          *******************************************************************************/
+     90          void SCSI_ReadFormatCapacity_Cmd(u8 lun)
+     91          {
+     92          
+     93            if (MAL_GetStatus(lun) != 0 )
+     94            {
+     95              Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
+     96              Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
+     97              Bot_Abort(DIR_IN);
+     98              return;
+     99            }
+    100            ReadFormatCapacity_Data[4] = (u8)(Mass_Block_Count[lun] >> 24);
+    101            ReadFormatCapacity_Data[5] = (u8)(Mass_Block_Count[lun] >> 16);
+    102            ReadFormatCapacity_Data[6] = (u8)(Mass_Block_Count[lun] >>  8);
+    103            ReadFormatCapacity_Data[7] = (u8)(Mass_Block_Count[lun]);
+    104          
+    105            ReadFormatCapacity_Data[9] = (u8)(Mass_Block_Size[lun] >>  16);
+    106            ReadFormatCapacity_Data[10] = (u8)(Mass_Block_Size[lun] >>  8);
+    107            ReadFormatCapacity_Data[11] = (u8)(Mass_Block_Size[lun]);
+    108            Transfer_Data_Request(ReadFormatCapacity_Data, READ_FORMAT_CAPACITY_DATA_LEN);
+    109          }
+    110          
+    111          /*******************************************************************************
+    112          * Function Name  : SCSI_ReadCapacity10_Cmd
+    113          * Description    : SCSI ReadCapacity10 Command routine.
+    114          * Input          : None.
+    115          * Output         : None.
+    116          * Return         : None.
+    117          *******************************************************************************/
+    118          void SCSI_ReadCapacity10_Cmd(u8 lun)
+    119          {
+    120          
+    121            if (MAL_GetStatus(lun))
+    122            {
+    123              Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
+    124              Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
+    125              Bot_Abort(DIR_IN);
+    126              return;
+    127            }
+    128          
+    129            ReadCapacity10_Data[0] = (u8)(Mass_Block_Count[lun] - 1 >> 24);
+    130            ReadCapacity10_Data[1] = (u8)(Mass_Block_Count[lun] - 1 >> 16);
+    131            ReadCapacity10_Data[2] = (u8)(Mass_Block_Count[lun] - 1 >>  8);
+    132            ReadCapacity10_Data[3] = (u8)(Mass_Block_Count[lun] - 1);
+    133          
+    134            ReadCapacity10_Data[4] = (u8)(Mass_Block_Size[lun] >>  24);
+    135            ReadCapacity10_Data[5] = (u8)(Mass_Block_Size[lun] >>  16);
+    136            ReadCapacity10_Data[6] = (u8)(Mass_Block_Size[lun] >>  8);
+    137            ReadCapacity10_Data[7] = (u8)(Mass_Block_Size[lun]);
+    138            Transfer_Data_Request(ReadCapacity10_Data, READ_CAPACITY10_DATA_LEN);
+    139          }
+    140          
+    141          /*******************************************************************************
+    142          * Function Name  : SCSI_ModeSense6_Cmd
+    143          * Description    : SCSI ModeSense6 Command routine.
+    144          * Input          : None.
+    145          * Output         : None.
+    146          * Return         : None.
+    147          *******************************************************************************/
+    148          void SCSI_ModeSense6_Cmd (u8 lun)
+    149          {
+    150            Transfer_Data_Request(Mode_Sense6_data, MODE_SENSE6_DATA_LEN);
+    151          }
+    152          
+    153          /*******************************************************************************
+    154          * Function Name  : SCSI_ModeSense10_Cmd
+    155          * Description    : SCSI ModeSense10 Command routine.
+    156          * Input          : None.
+    157          * Output         : None.
+    158          * Return         : None.
+    159          *******************************************************************************/
+    160          void SCSI_ModeSense10_Cmd (u8 lun)
+    161          {
+    162            Transfer_Data_Request(Mode_Sense10_data, MODE_SENSE10_DATA_LEN);
+    163          }
+    164          
+    165          /*******************************************************************************
+    166          * Function Name  : SCSI_RequestSense_Cmd
+    167          * Description    : SCSI RequestSense Command routine.
+    168          * Input          : None.
+    169          * Output         : None.
+    170          * Return         : None.
+    171          *******************************************************************************/
+    172          void SCSI_RequestSense_Cmd (u8 lun)
+    173          {
+    174            u8 Request_Sense_data_Length;
+    175          
+    176            if (CBW.CB[4] <= REQUEST_SENSE_DATA_LEN)
+    177            {
+    178              Request_Sense_data_Length = CBW.CB[4];
+    179            }
+    180            else
+    181            {
+    182              Request_Sense_data_Length = REQUEST_SENSE_DATA_LEN;
+    183            }
+    184            Transfer_Data_Request(Scsi_Sense_Data, Request_Sense_data_Length);
+    185          }
+    186          
+    187          /*******************************************************************************
+    188          * Function Name  : Set_Scsi_Sense_Data
+    189          * Description    : Set Scsi Sense Data routine.
+    190          * Input          : u8 Sens_Key
+    191                             u8 Asc.
+    192          * Output         : None.
+    193          * Return         : None.
+    194          *******************************************************************************/
+    195          void Set_Scsi_Sense_Data(u8 lun, u8 Sens_Key, u8 Asc)
+    196          {
+    197            Scsi_Sense_Data[2] = Sens_Key;
+    198            Scsi_Sense_Data[12] = Asc;
+    199          }
+    200          
+    201          /*******************************************************************************
+    202          * Function Name  : SCSI_Start_Stop_Unit_Cmd
+    203          * Description    : SCSI Start_Stop_Unit Command routine.
+    204          * Input          : None.
+    205          * Output         : None.
+    206          * Return         : None.
+    207          *******************************************************************************/
+    208          void SCSI_Start_Stop_Unit_Cmd(u8 lun)
+    209          {
+    210            Set_CSW (CSW_CMD_PASSED, SEND_CSW_ENABLE);
+    211          }
+    212          
+    213          /*******************************************************************************
+    214          * Function Name  : SCSI_Read10_Cmd
+    215          * Description    : SCSI Read10 Command routine.
+    216          * Input          : None.
+    217          * Output         : None.
+    218          * Return         : None.
+    219          *******************************************************************************/
+    220          void SCSI_Read10_Cmd(u8 lun , u32 LBA , u32 BlockNbr)
+    221          {
+    222          
+    223            if (Bot_State == BOT_IDLE)
+    224            {
+    225              if (!(SCSI_Address_Management(CBW.bLUN, SCSI_READ10, LBA, BlockNbr)))/*address out of range*/
+    226              {
+    227                return;
+    228              }
+    229          
+    230              if ((CBW.bmFlags & 0x80) != 0)
+    231              {
+    232                Bot_State = BOT_DATA_IN;
+    233                TransferState = TXFR_IDLE;
+    234                Read_Memory(lun, LBA , BlockNbr);
+    235              }
+    236              else
+    237              {
+    238                Bot_Abort(BOTH_DIR);
+    239                Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_FIELED_IN_COMMAND);
+    240                Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
+    241              }
+    242              return;
+    243            }
+    244            else if (Bot_State == BOT_DATA_IN)
+    245            {
+    246              Read_Memory(lun , LBA , BlockNbr);
+    247            }
+    248          }
+    249          
+    250          /*******************************************************************************
+    251          * Function Name  : SCSI_Write10_Cmd
+    252          * Description    : SCSI Write10 Command routine.
+    253          * Input          : None.
+    254          * Output         : None.
+    255          * Return         : None.
+    256          *******************************************************************************/
+    257          void SCSI_Write10_Cmd(u8 lun , u32 LBA , u32 BlockNbr)
+    258          {
+    259          
+    260            if (Bot_State == BOT_IDLE)
+    261            {
+    262              if (!(SCSI_Address_Management(CBW.bLUN, SCSI_WRITE10 , LBA, BlockNbr)))/*address out of range*/
+    263              {
+    264                return;
+    265              }
+    266          
+    267              if ((CBW.bmFlags & 0x80) == 0)
+    268              {
+    269                Bot_State = BOT_DATA_OUT;
+    270              #ifndef STM32F10X_CL
+    271                SetEPRxStatus(ENDP2, EP_RX_VALID);
+    272              #endif /* STM32F10X_CL */
+    273              }
+    274              else
+    275              {
+    276                Bot_Abort(DIR_IN);
+    277                Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_FIELED_IN_COMMAND);
+    278                Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    279              }
+    280              return;
+    281            }
+    282            else if (Bot_State == BOT_DATA_OUT)
+    283            {
+    284              Write_Memory(lun , LBA , BlockNbr);
+    285            }
+    286          }
+    287          
+    288          /*******************************************************************************
+    289          * Function Name  : SCSI_Verify10_Cmd
+    290          * Description    : SCSI Verify10 Command routine.
+    291          * Input          : None.
+    292          * Output         : None.
+    293          * Return         : None.
+    294          *******************************************************************************/
+    295          void SCSI_Verify10_Cmd(u8 lun)
+    296          {
+    297            if ((CBW.dDataLength == 0) && !(CBW.CB[1] & BLKVFY))/* BLKVFY not set*/
+    298            {
+    299              Set_CSW (CSW_CMD_PASSED, SEND_CSW_ENABLE);
+    300            }
+    301            else
+    302            {
+    303              Bot_Abort(BOTH_DIR);
+    304              Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_FIELED_IN_COMMAND);
+    305              Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    306            }
+    307          }
+    308          /*******************************************************************************
+    309          * Function Name  : SCSI_Valid_Cmd
+    310          * Description    : Valid Commands routine.
+    311          * Input          : None.
+    312          * Output         : None.
+    313          * Return         : None.
+    314          *******************************************************************************/
+    315          void SCSI_Valid_Cmd(u8 lun)
+    316          {
+    317            if (CBW.dDataLength != 0)
+    318            {
+    319              Bot_Abort(BOTH_DIR);
+    320              Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_COMMAND);
+    321              Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    322            }
+    323            else
+    324              Set_CSW (CSW_CMD_PASSED, SEND_CSW_ENABLE);
+    325          }
+    326          /*******************************************************************************
+    327          * Function Name  : SCSI_Valid_Cmd
+    328          * Description    : Valid Commands routine.
+    329          * Input          : None.
+    330          * Output         : None.
+    331          * Return         : None.
+    332          *******************************************************************************/
+    333          void SCSI_TestUnitReady_Cmd(u8 lun)
+    334          {
+    335            if (MAL_GetStatus(lun))
+    336            {
+    337              Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
+    338              Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
+    339              Bot_Abort(DIR_IN);
+    340              return;
+    341            }
+    342            else
+    343            {
+    344              Set_CSW (CSW_CMD_PASSED, SEND_CSW_ENABLE);
+    345            }
+    346          }
+    347          /*******************************************************************************
+    348          * Function Name  : SCSI_Format_Cmd
+    349          * Description    : Format Commands routine.
+    350          * Input          : None.
+    351          * Output         : None.
+    352          * Return         : None.
+    353          *******************************************************************************/
+    354          void SCSI_Format_Cmd(u8 lun)
+    355          {
+    356            if (MAL_GetStatus(lun))
+    357            {
+    358              Set_Scsi_Sense_Data(CBW.bLUN, NOT_READY, MEDIUM_NOT_PRESENT);
+    359              Set_CSW (CSW_CMD_FAILED, SEND_CSW_ENABLE);
+    360              Bot_Abort(DIR_IN);
+    361              return;
+    362            }
+    363          #ifdef USE_STM3210E_EVAL
+    364            else
+    365            {
+    366              NAND_Format();
+    367              Set_CSW (CSW_CMD_PASSED, SEND_CSW_ENABLE);
+    368            }
+    369          #endif
+    370          }
+    371          /*******************************************************************************
+    372          * Function Name  : SCSI_Invalid_Cmd
+    373          * Description    : Invalid Commands routine
+    374          * Input          : None.
+    375          * Output         : None.
+    376          * Return         : None.
+    377          *******************************************************************************/
+    378          void SCSI_Invalid_Cmd(u8 lun)
+    379          {
+    380            if (CBW.dDataLength == 0)
+    381            {
+    382              Bot_Abort(DIR_IN);
+    383            }
+    384            else
+    385            {
+    386              if ((CBW.bmFlags & 0x80) != 0)
+    387              {
+    388                Bot_Abort(DIR_IN);
+    389              }
+    390              else
+    391              {
+    392                Bot_Abort(BOTH_DIR);
+    393              }
+    394            }
+    395            Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_COMMAND);
+    396            Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    397          }
+    398          
+    399          /*******************************************************************************
+    400          * Function Name  : SCSI_Address_Management
+    401          * Description    : Test the received address.
+    402          * Input          : u8 Cmd : the command can be SCSI_READ10 or SCSI_WRITE10.
+    403          * Output         : None.
+    404          * Return         : Read\Write status (bool).
+    405          *******************************************************************************/
+    406          bool SCSI_Address_Management(u8 lun , u8 Cmd , u32 LBA , u32 BlockNbr)
+    407          {
+    408          
+    409            if ((LBA + BlockNbr) > Mass_Block_Count[lun] )
+    410            {
+    411              if (Cmd == SCSI_WRITE10)
+    412              {
+    413                Bot_Abort(BOTH_DIR);
+    414              }
+    415              Bot_Abort(DIR_IN);
+    416              Set_Scsi_Sense_Data(lun, ILLEGAL_REQUEST, ADDRESS_OUT_OF_RANGE);
+    417              Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    418              return (FALSE);
+    419            }
+    420          
+    421          
+    422            if (CBW.dDataLength != BlockNbr * Mass_Block_Size[lun])
+    423            {
+    424              if (Cmd == SCSI_WRITE10)
+    425              {
+    426                Bot_Abort(BOTH_DIR);
+    427              }
+    428              else
+    429              {
+    430                Bot_Abort(DIR_IN);
+    431              }
+    432              Set_Scsi_Sense_Data(CBW.bLUN, ILLEGAL_REQUEST, INVALID_FIELED_IN_COMMAND);
+    433              Set_CSW (CSW_CMD_FAILED, SEND_CSW_DISABLE);
+    434              return (FALSE);
+    435            }
+    436            return (TRUE);
+    437          }
+    438          #endif
+    439          /******************* (C) COPYRIGHT 2010 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function                    .cstack
+     --------                    -------
+     SCSI_Address_Management          8
+     SCSI_Format_Cmd                  8
+     SCSI_Inquiry_Cmd                 8
+     SCSI_Invalid_Cmd                 8
+     SCSI_ModeSense10_Cmd             8
+     SCSI_ModeSense6_Cmd              8
+     SCSI_Read10_Cmd                 16
+     SCSI_ReadCapacity10_Cmd          8
+     SCSI_ReadFormatCapacity_Cmd      8
+     SCSI_RequestSense_Cmd            8
+     SCSI_Start_Stop_Unit_Cmd         8
+     SCSI_TestUnitReady_Cmd           8
+     SCSI_Valid_Cmd                   8
+     SCSI_Verify10_Cmd                8
+     SCSI_Write10_Cmd                 8
+     Set_Scsi_Sense_Data              0
+
+
+   Section sizes:
+
+     Function/Label              Bytes
+     --------------              -----
+     SCSI_Inquiry_Cmd              72
+     SCSI_ReadFormatCapacity_Cmd  168
+     SCSI_ReadCapacity10_Cmd      180
+     SCSI_ModeSense6_Cmd           16
+     SCSI_ModeSense10_Cmd          16
+     SCSI_RequestSense_Cmd         30
+     Set_Scsi_Sense_Data           10
+     SCSI_Start_Stop_Unit_Cmd      12
+     SCSI_Read10_Cmd              124
+     SCSI_Write10_Cmd             100
+     SCSI_Verify10_Cmd             58
+     SCSI_Valid_Cmd                48
+     SCSI_TestUnitReady_Cmd        50
+     SCSI_Format_Cmd               42
+     SCSI_Invalid_Cmd              64
+     SCSI_Address_Management      126
+     ??DataTable24                  4
+     ??DataTable36                  4
+     ??DataTable47                  4
+     ??DataTable49                  4
+     ??DataTable50                  4
+
+ 
+ 1 136 bytes in section .text
+ 
+ 1 136 bytes of CODE memory
+
+Errors: none
+Warnings: none

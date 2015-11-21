@@ -1,0 +1,23 @@
+﻿生成启动时间为 2015/11/16 10:59:17。
+     1>项目“E:\BT Printer\FW\src\VCEdit\BTPrinter\BTPrinter\BTPrinter.vcxproj”在节点 2 上(ClCompile 个目标)。
+     1>PrepareForBuild:
+         正在创建目录“E:\BT Printer\FW\src\VCEdit\BTPrinter\Debug\”。
+       ClCompile:
+         C:\Program Files\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt ..\..\..\App\font.c
+         font.c
+     1>e:\bt printer\fw\src\app\font.c(128): warning C4013: “memcpy”未定义；假设外部返回 int
+     1>e:\bt printer\fw\src\app\font.c(133): warning C4013: “memset”未定义；假设外部返回 int
+     1>e:\bt printer\fw\src\app\font.c(195): warning C4013: “ARRAY_SIZE”未定义；假设外部返回 int
+     1>e:\bt printer\fw\src\app\font.c(248): error C2065: “ANTITYPE”: 未声明的标识符
+     1>e:\bt printer\fw\src\app\font.c(248): error C2051: case 表达式不是常量
+     1>e:\bt printer\fw\src\app\font.c(259): error C2065: “CIR_NINETY_DEGREE”: 未声明的标识符
+     1>e:\bt printer\fw\src\app\font.c(259): error C2051: case 表达式不是常量
+     1>e:\bt printer\fw\src\app\font.c(284): error C2065: “CIR_TWO_NINETY_DEGREE”: 未声明的标识符
+     1>e:\bt printer\fw\src\app\font.c(284): error C2051: case 表达式不是常量
+     1>e:\bt printer\fw\src\app\font.c(301): error C2065: “CIR_THREE_NINETY_DEGREE”: 未声明的标识符
+     1>e:\bt printer\fw\src\app\font.c(301): error C2051: case 表达式不是常量
+     1>已完成生成项目“E:\BT Printer\FW\src\VCEdit\BTPrinter\BTPrinter\BTPrinter.vcxproj”(ClCompile 个目标)的操作 - 失败。
+
+生成失败。
+
+已用时间 00:00:00.70

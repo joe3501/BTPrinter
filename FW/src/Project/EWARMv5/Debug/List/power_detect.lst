@@ -1,0 +1,432 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:25 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\Drivers\power_detect.c                      #
+#    Command line =  E:\T6\FW\src\Drivers\power_detect.c -lcN                 #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\power_detect.lst #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\power_detect.o    #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\Drivers\power_detect.c
+      1          /**
+      2          * @file power_detect.c
+      3          * @brief 电池电压检测以及充电状态检测 
+      4          * @version 1.0
+      5          * @author joe
+      6          * @date 2009年11月12日
+      7          * @note
+      8          *    1.利用STM32 的ADC模块检测电池经过一个分压电路之后的分压。  
+      9          *	  2.检测充电IC的状态IO，可以得知是否在充电以及充电是否完成
+     10          */
+     11          #include "stm32f10x_lib.h" 
+     12          #include "power_detect.h"
+     13          
+     14          static void ADC_Module_Init(void);
+     15          unsigned int	charge_state_cnt;
+     16          unsigned int	charge_detect_io_cnt;
+     17          unsigned int	last_charge_detect_io_cnt;
+     18          
+     19          /**
+     20          * @brief	初始化用于电池电压检测的ADC模块
+     21          * @param[in]  none
+     22          * @param[out] none
+     23          * @return     none
+     24          * @note                    
+     25          */
+     26          static void ADC_Module_Init(void)
+     27          {
+     28          	ADC_InitTypeDef   adc_init;
+     29          	GPIO_InitTypeDef  gpio_init;
+     30          
+     31          
+     32          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+     33          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+     34          
+     35          	//PC.2   ADC-IN
+     36          	gpio_init.GPIO_Pin  = PV_DETECT_PIN;
+     37          	gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
+     38          	gpio_init.GPIO_Mode = GPIO_Mode_AIN;
+     39          	GPIO_Init(GPIOC, &gpio_init);
+     40          
+     41          	adc_init.ADC_Mode               = ADC_Mode_Independent;		//
+     42          	adc_init.ADC_ScanConvMode       = DISABLE;
+     43          	adc_init.ADC_ContinuousConvMode = ENABLE;
+     44          	adc_init.ADC_ExternalTrigConv   = ADC_ExternalTrigConv_None;
+     45          	adc_init.ADC_DataAlign          = ADC_DataAlign_Right;
+     46          	adc_init.ADC_NbrOfChannel       = 1;
+     47          	ADC_Init(ADC1, &adc_init);
+     48          
+     49          	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 1, ADC_SampleTime_13Cycles5);
+     50          	ADC_Cmd(ADC1, ENABLE);
+     51          
+     52          	// 下面是ADC自动校准，开机后需执行一次，保证精度
+     53          	// Enable ADC1 reset calibaration register 
+     54          	ADC_ResetCalibration(ADC1);
+     55          	// Check the end of ADC1 reset calibration register
+     56          	while(ADC_GetResetCalibrationStatus(ADC1));
+     57          
+     58          	// Start ADC1 calibaration
+     59          	ADC_StartCalibration(ADC1);
+     60          	// Check the end of ADC1 calibration
+     61          	while(ADC_GetCalibrationStatus(ADC1));
+     62          	// ADC自动校准结束---------------
+     63          
+     64          	ADC_SoftwareStartConvCmd(ADC1, ENABLE);			//开始转换
+     65          }
+     66          
+     67          /**
+     68          * @brief	  初始化用于USB插入检测的IO	 或者 (充电状态检测IO) 
+     69          * @param[in]  none
+     70          * @param[out] none
+     71          * @return     none
+     72          * @note                    
+     73          */
+     74          static void USBLinkDetectIO_Init(void)
+     75          {	
+     76          	GPIO_InitTypeDef  gpio_init;
+     77          	EXTI_InitTypeDef EXTI_InitStructure;
+     78          	NVIC_InitTypeDef	NVIC_InitStructure;
+     79          
+     80          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+     81          
+     82          	//PC.1   ChargePower_Insert detect
+     83          	gpio_init.GPIO_Pin  = USBLINK_INSERT_DETECT_PIN;
+     84          	gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
+     85          	gpio_init.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+     86          	GPIO_Init(GPIOC, &gpio_init);
+     87          
+     88          	//PC.0   for debug  test StartDelay()
+     89          	//gpio_init.GPIO_Pin  = GPIO_Pin_0;
+     90          	//gpio_init.GPIO_Mode = GPIO_Mode_Out_PP;
+     91          	//GPIO_Init(GPIOC, &gpio_init);
+     92          	//GPIO_ResetBits(GPIOC,GPIO_Pin_0);
+     93          
+     94          	/* Connect EXTI Line1 to PC.1 */
+     95          	GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource1);
+     96          
+     97          	EXTI_ClearITPendingBit(EXTI_Line1);
+     98          	EXTI_InitStructure.EXTI_Line = EXTI_Line1;
+     99          	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+    100          	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
+    101          	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+    102          	EXTI_Init(&EXTI_InitStructure); 
+    103          	EXTI_GenerateSWInterrupt(EXTI_Line1);
+    104          
+    105          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);      
+    106          	NVIC_InitStructure.NVIC_IRQChannel = EXTI1_IRQChannel;
+    107          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+    108          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 5;
+    109          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    110          	NVIC_Init(&NVIC_InitStructure);
+    111          
+    112          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
+    113          
+    114          	//PE.0   ChargeState detect
+    115          	gpio_init.GPIO_Pin  = CHARGE_DETECT_PIN;
+    116          	gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
+    117          	gpio_init.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    118          	GPIO_Init(GPIOE, &gpio_init);
+    119          
+    120          	/* Connect EXTI Line0 to PE.0 */
+    121          	GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource0);
+    122          
+    123          	EXTI_ClearITPendingBit(EXTI_Line0);
+    124          	EXTI_InitStructure.EXTI_Line = EXTI_Line0;
+    125          	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+    126          	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
+    127          	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+    128          	EXTI_Init(&EXTI_InitStructure); 
+    129          	EXTI_GenerateSWInterrupt(EXTI_Line0);
+    130          
+    131          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);      
+    132          	NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQChannel;
+    133          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+    134          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;
+    135          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    136          	NVIC_Init(&NVIC_InitStructure);
+    137          
+    138          	charge_detect_io_cnt = 0;
+    139          	last_charge_detect_io_cnt = 1;
+    140          }
+    141          
+    142          /**
+    143          * @brief	  初始化处理电池电压检测以及充电状态检测的模块	  
+    144          * @param[in]  none
+    145          * @param[out] none
+    146          * @return     none
+    147          * @note                    
+    148          */
+    149          void InitPowerDetectModule(void)
+    150          {
+    151          	USBLinkDetectIO_Init();
+    152          	ADC_Module_Init();
+    153          }
+    154          /**
+    155          * @brief	返回检测到的电压的级别
+    156          * @param[in]  none
+    157          * @param[out] none
+    158          * @return     none
+    159          * @note     暂定4级，当系统返回的电压级别是0的时候，表示系统的电压低了
+    160          *			电池的工作电压范围是: 4.7 -- 3.5
+    161          *			VREF+ - VREF- = 3.38V
+    162          *			理论上得到的转换值的最大值是: (8.4 * 110/(110 + 220))/(VREF+ - VREF-) * 0x0fff = 0xD40 (3392)
+    163          *			理论上得到的转换值的最小值是: (6.8 * 110/(110 + 220))/(VREF+ - VREF-) * 0x0fff = 0xABA (2746)
+    164          *			所以每一个级别的粒度是：(3392 - 2746)/ 4 = 161
+    165          *           已经经过测试，实测值和理论值的偏差不大，可以满足应用需求
+    166          */
+    167          unsigned int GetPowerVoltageClass(void)
+    168          { 
+    169          	unsigned int  i,result = 0;
+    170          	unsigned short  temp[20];
+    171          	unsigned short	min,max;
+    172          
+    173          	for(i = 0;i < 20;i++)
+    174          	{
+    175          		temp[i] = ADC_GetConversionValue(ADC1);		//得到AD转换的结果
+    176          		result += temp[i];
+    177          		if (i == 0)
+    178          		{
+    179          			min = temp[i];
+    180          			max = temp[i];
+    181          		}
+    182          
+    183          		if (temp[i] < min)
+    184          		{
+    185          			min = temp[i];
+    186          		}
+    187          
+    188          		if (temp[i] > max)
+    189          		{
+    190          			max = temp[i];
+    191          		}
+    192          	}
+    193          
+    194          	//取20次值之后,去掉最小值和最大周，再取平均值，简单的平滑滤波
+    195          	result -= min;
+    196          	result -= max;
+    197          	result /= 18; 
+    198          
+    199          	if (result > CLASS1_TAP_VALUE) 
+    200          	{
+    201          		return 4;
+    202          	}
+    203          	else if (result > CLASS2_TAP_VALUE) 
+    204          	{
+    205          		return 3;
+    206          	}
+    207          	else if (result > CLASS3_TAP_VALUE) 
+    208          	{
+    209          		return 2;
+    210          	}
+    211          	else if (result > CLASS4_TAP_VALUE) 
+    212          	{
+    213          		return 1;
+    214          	}
+    215          	else
+    216          		return 0;
+    217          }
+    218          /**
+    219          * @brief	返回检测到的电压的百分比值
+    220          * @param[in]  none
+    221          * @param[out] none
+    222          * @return     none
+    223          * @note     比如25%，那么返回值就是25;
+    224          另外，为了避免使用浮点数，采取四舍五入的方式，15.5%时，返回值16
+    225          */
+    226          int GetPowerVoltagePercent(void)
+    227          { 
+    228          #if 0
+    229          	unsigned int  i,result = 0;
+    230          	unsigned short  temp[20];
+    231          	unsigned short	min,max;
+    232          
+    233          	for(i = 0;i < 20;i++)
+    234          	{
+    235          		temp[i] = ADC_GetConversionValue(ADC1);		//得到AD转换的结果
+    236          		result += temp[i];
+    237          		if (i == 0)
+    238          		{
+    239          			min = temp[i];
+    240          			max = temp[i];
+    241          		}
+    242          
+    243          		if (temp[i] < min)
+    244          		{
+    245          			min = temp[i];
+    246          		}
+    247          
+    248          		if (temp[i] > max)
+    249          		{
+    250          			max = temp[i];
+    251          		}
+    252          	}
+    253          
+    254          	//取20次值之后,去掉最小值和最大周，再取平均值，简单的平滑滤波
+    255          	result -= min;
+    256          	result -= max;
+    257          	result /= 18; 
+    258          
+    259          	if (result < CLASS_PROTECTED)
+    260          	{
+    261          		return -1;
+    262          	}
+    263          	if (result > CLASS_MAX_VALUE)
+    264          	{
+    265          		result = CLASS_MAX_VALUE;
+    266          	}
+    267          	if (result < CLASS_MIN_VALUE)
+    268          	{
+    269          		result = CLASS_MIN_VALUE;
+    270          	}
+    271          	result = (result - CLASS_MIN_VALUE)*100;
+    272          
+    273          	i = result/(CLASS_MAX_VALUE - CLASS_MIN_VALUE);
+    274          
+    275          	if (result%(CLASS_MAX_VALUE - CLASS_MIN_VALUE) > ((CLASS_MAX_VALUE - CLASS_MIN_VALUE)/2)) 
+    276          	{
+    277          		i += 1;
+    278          	}
+    279          
+    280          	if ((80<i)&&(i < 88))
+    281          	{
+    282          		i += 5;
+    283          	}
+    284          	if ((15 < i)&&(i<35))
+    285          	{
+    286          		i -= 8;
+    287          	}
+    288          
+    289          	return i;
+    290          #endif
+    291          	return 0;
+    292          
+    293          }
+    294          
+    295          
+    296          
+    297          /**
+    298          * @brief	检测充电状态
+    299          * @param[in]  none
+    300          * @param[out] none
+    301          * @return     1:  充电完成    0: 正在充电
+    302          * @note  正在充电时，充电检测IO输出脉冲，充满后输出低电平 
+    303          *        需要注意的是：此函数只有在得知充电电源已经插入的前提下，再去检测才有意义。因为没有插入充电电源时，检测IO也是低电平的。
+    304          *		利用IO的边沿中断来完成充电状态的检测，如果一直在进中断，那说明正在充电，否则表示充电完成
+    305          */
+    306          unsigned int  ChargeState_Detect(void)
+    307          {
+    308          	if (charge_detect_io_cnt != last_charge_detect_io_cnt)
+    309          	{
+    310          		charge_state_cnt = 50000;
+    311          		last_charge_detect_io_cnt = charge_detect_io_cnt;
+    312          		return 0;
+    313          	}
+    314          	else
+    315          	{
+    316          		if (charge_state_cnt--)
+    317          		{
+    318          			return 0;
+    319          		}
+    320          	}
+    321          
+    322          
+    323          	return 1;
+    324          }
+    325          
+    326          /**
+    327          * @brief	检测USB是否插入
+    328          * @param[in]  none
+    329          * @param[out] none
+    330          * @return     0:  插入    1: 没有插入
+    331          * @note  如果需要在中断里面去实现，那么还需要在初始化时给此检测IO分配外部中断
+    332          *		 如果在任务级查询，那么可以之际调用此函数来检测是否插入充电电源                 
+    333          */
+    334          unsigned int USBLink_Insert_Detect(void)
+    335          {
+    336          	unsigned int i;
+    337          	if(GPIO_ReadInputDataBit(GPIOC, USBLINK_INSERT_DETECT_PIN))
+    338          	{
+    339          		for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
+    340          		if(GPIO_ReadInputDataBit(GPIOC, USBLINK_INSERT_DETECT_PIN))
+    341          		{
+    342          			return 0;
+    343          		}
+    344          		else
+    345          		{
+    346          			return 1;
+    347          		}
+    348          	}
+    349          	else
+    350          		return 1;
+    351          }
+    352          
+    353          
+    354          
+
+   Maximum stack usage in bytes:
+
+     Function               .cstack
+     --------               -------
+     ADC_Module_Init            32
+     ChargeState_Detect          0
+     GetPowerVoltageClass       64
+     GetPowerVoltagePercent      0
+     InitPowerDetectModule       8
+     USBLinkDetectIO_Init       24
+     USBLink_Insert_Detect       8
+
+
+   Section sizes:
+
+     Function/Label            Bytes
+     --------------            -----
+     charge_state_cnt             4
+     charge_detect_io_cnt         4
+     last_charge_detect_io_cnt    4
+     ADC_Module_Init            152
+     USBLinkDetectIO_Init       264
+     InitPowerDetectModule       12
+     GetPowerVoltageClass       154
+     GetPowerVoltagePercent       4
+     ChargeState_Detect          56
+     USBLink_Insert_Detect       46
+     ??DataTable12                4
+     ??DataTable15                4
+     ??DataTable16                4
+     ??DataTable18                4
+
+ 
+  12 bytes in section .bss
+ 704 bytes in section .text
+ 
+ 704 bytes of CODE memory
+  12 bytes of DATA memory
+
+Errors: none
+Warnings: none

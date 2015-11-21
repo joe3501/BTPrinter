@@ -1,0 +1,145 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:08 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\KeyScan.c                       #
+#    Command line =  "E:\BT Printer\FW\src\App\KeyScan.c" -D DEBUG_VER -lcN   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\KeyScan. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\KeyScan.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\KeyScan.c
+      1          #include "Type.h"
+      2          #include "KeyScan.h"
+      3          #include "Event.h"
+      4          #include "stm32f10x_lib.h"
+      5          
+      6          #define KEY_MODE_DB_SHIFT		(1UL << 0)
+      7          #define KEY_MODE_SHIFT			(1UL << 1)
+      8          #define KEY_FEED_DB_SHIFT		(1UL << 2)
+      9          #define KEY_FEED_SHIFT			(1UL << 3)
+     10          
+     11          
+     12          static uint8_t keyStatus;
+     13          
+     14          extern void KeyScanProc(void)
+     15          {
+     16          	if(KEY_FEED())		// FEED key up
+     17          	{
+     18          		if((keyStatus & KEY_FEED_DB_SHIFT) == 0)	// status no changed
+     19          		{
+     20          			if(keyStatus & KEY_FEED_SHIFT)	// previous mode key up
+     21          			{
+     22          				event_post(evtKeyUpFeed); // mode key up
+     23          				keyStatus &= ~KEY_FEED_SHIFT;
+     24          			}
+     25          		}
+     26          		else
+     27          		{
+     28          			keyStatus &= ~KEY_FEED_DB_SHIFT;//keyStatus = xxx0
+     29          		}
+     30          	}
+     31          	else
+     32          	{
+     33          		if(keyStatus & KEY_FEED_DB_SHIFT)	// status no changed
+     34          		{
+     35          			if((keyStatus & KEY_FEED_SHIFT) == 0)	// previous mode key down
+     36          			{
+     37          				event_post(evtKeyDownFeed);	// mode key down
+     38          				keyStatus |= KEY_FEED_SHIFT;//
+     39          			}
+     40          		}
+     41          		else
+     42          		{
+     43          			keyStatus |= KEY_FEED_DB_SHIFT;//keyStatus =xxx1
+     44          		}
+     45          	}
+     46          }
+     47          /*
+     48          static void PowerOnSelfTest(void)
+     49          {
+     50          	// two keys down
+     51          	//if((keyStatus & (KEY_FEED_SHIFT | KEY_MODE_SHIFT)) == (KEY_FEED_SHIFT | KEY_MODE_SHIFT))
+     52          	if((keyStatus & (KEY_FEED_SHIFT)) == (KEY_FEED_SHIFT ))
+     53          	{
+     54          		event_post(evtSelfTest);
+     55          	}
+     56          	systimeRemoveCallback(PowerOnSelfTest);
+     57          }
+     58          */
+     59          
+     60          //°´¼ü³õÊ¼»¯
+     61          void KeyScanInit(void)
+     62          {
+     63          	GPIO_InitTypeDef							GPIO_InitStructure;
+     64          
+     65          	//FEED_KEY	-- PE.2
+     66          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
+     67          
+     68          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
+     69          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPU;
+     70          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_10MHz;
+     71          	GPIO_Init(GPIOE, &GPIO_InitStructure);
+     72          
+     73          	keyStatus = 0;
+     74          }
+     75          
+     76          
+     77          
+     78          
+     79          
+
+   Maximum stack usage in bytes:
+
+     Function    .cstack
+     --------    -------
+     KeyScanInit      8
+     KeyScanProc      8
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     keyStatus         1
+     KeyScanProc     122
+     KeyScanInit      44
+     ??DataTable13     4
+     ??DataTable14     4
+
+ 
+   1 byte  in section .bss
+ 174 bytes in section .text
+ 
+ 174 bytes of CODE memory
+   1 byte  of DATA memory
+
+Errors: none
+Warnings: none

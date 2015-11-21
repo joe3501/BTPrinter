@@ -1,0 +1,249 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:10 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\memory.c                    #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\memory.c" -D DEBUG_VER     #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\memory.l #
+#                    st                                                       #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\memory.o  #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\memory.c
+      1          /******************** (C) COPYRIGHT 2010 STMicroelectronics ********************
+      2          * File Name          : memory.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V3.1.1
+      5          * Date               : 04/07/2010
+      6          * Description        : Memory management layer
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "usb_app_config.h"
+     18          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+     19          #include "memory.h"
+     20          #include "usb_scsi.h"
+     21          #include "usb_bot.h"
+     22          #include "usb_regs.h"
+     23          #include "usb_mem.h"
+     24          #include "usb_conf.h"
+     25          #include "hw_config.h"
+     26          #include "mass_mal.h"
+     27          #include "usb_lib.h"
+     28          #include "usb_sil.h"
+     29          
+     30          /* Private typedef -----------------------------------------------------------*/
+     31          /* Private define ------------------------------------------------------------*/
+     32          /* Private macro -------------------------------------------------------------*/
+     33          /* Private variables ---------------------------------------------------------*/
+     34          volatile u32 Block_Read_count = 0;
+     35          volatile u32 Block_offset;
+     36          volatile u32 Counter = 0;
+     37          u32  Idx;
+     38          //u32 Data_Buffer[BULK_MAX_PACKET_SIZE *2]; /* 512 bytes*/
+     39          u32 Data_Buffer[512]; /* 512 bytes*/
+     40          u8 TransferState = TXFR_IDLE;
+     41          /* Extern variables ----------------------------------------------------------*/
+     42          extern u8 Bulk_Data_Buff[BULK_MAX_PACKET_SIZE];  /* data buffer*/
+     43          extern u16 Data_Len;
+     44          extern u8 Bot_State;
+     45          extern Bulk_Only_CBW CBW;
+     46          extern Bulk_Only_CSW CSW;
+     47          extern u32 Mass_Memory_Size[2];
+     48          extern u32 Mass_Block_Size[2];
+     49          
+     50          /* Private function prototypes -----------------------------------------------*/
+     51          /* Extern function prototypes ------------------------------------------------*/
+     52          /* Private functions ---------------------------------------------------------*/
+     53          
+     54          /*******************************************************************************
+     55          * Function Name  : Read_Memory
+     56          * Description    : Handle the Read operation from the microSD card.
+     57          * Input          : None.
+     58          * Output         : None.
+     59          * Return         : None.
+     60          *******************************************************************************/
+     61          void Read_Memory(u8 lun, u32 Memory_Offset, u32 Transfer_Length)
+     62          {
+     63            static u32 Offset, Length;
+     64          
+     65            if (TransferState == TXFR_IDLE )
+     66            {
+     67              Block_Read_count = 0;		//20120830 joeÔö¼ÓµÄ
+     68              Offset = Memory_Offset * Mass_Block_Size[lun];
+     69              Length = Transfer_Length * Mass_Block_Size[lun];
+     70              TransferState = TXFR_ONGOING;
+     71            }
+     72          
+     73            if (TransferState == TXFR_ONGOING )
+     74            {
+     75              if (!Block_Read_count)
+     76              {
+     77                MAL_Read(lun ,
+     78                         Offset ,
+     79                         Data_Buffer,
+     80                         Mass_Block_Size[lun]);
+     81          
+     82                USB_SIL_Write(EP1_IN, (u8 *)Data_Buffer, BULK_MAX_PACKET_SIZE);
+     83          
+     84                Block_Read_count = Mass_Block_Size[lun] - BULK_MAX_PACKET_SIZE;
+     85                Block_offset = BULK_MAX_PACKET_SIZE;
+     86              }
+     87              else
+     88              {
+     89                USB_SIL_Write(EP1_IN, (u8 *)Data_Buffer + Block_offset, BULK_MAX_PACKET_SIZE);
+     90          
+     91                Block_Read_count -= BULK_MAX_PACKET_SIZE;
+     92                Block_offset += BULK_MAX_PACKET_SIZE;
+     93              }
+     94          
+     95              SetEPTxCount(ENDP1, BULK_MAX_PACKET_SIZE);
+     96              SetEPTxStatus(ENDP1, EP_TX_VALID);
+     97              Offset += BULK_MAX_PACKET_SIZE;
+     98              Length -= BULK_MAX_PACKET_SIZE;
+     99          
+    100              CSW.dDataResidue -= BULK_MAX_PACKET_SIZE;
+    101              //Led_RW_ON();
+    102            }
+    103            if (Length == 0)
+    104            {
+    105              Block_Read_count = 0;
+    106              Block_offset = 0;
+    107              Offset = 0;
+    108              Bot_State = BOT_DATA_IN_LAST;
+    109              TransferState = TXFR_IDLE;
+    110              //Led_RW_OFF();
+    111            }
+    112          }
+    113          
+    114          /*******************************************************************************
+    115          * Function Name  : Write_Memory
+    116          * Description    : Handle the Write operation to the microSD card.
+    117          * Input          : None.
+    118          * Output         : None.
+    119          * Return         : None.
+    120          *******************************************************************************/
+    121          void Write_Memory (u8 lun, u32 Memory_Offset, u32 Transfer_Length)
+    122          {
+    123          
+    124            static u32 W_Offset, W_Length;
+    125          
+    126            u32 temp =  Counter + BULK_MAX_PACKET_SIZE;
+    127          
+    128            if (TransferState == TXFR_IDLE )
+    129            {
+    130              W_Offset = Memory_Offset * Mass_Block_Size[lun];
+    131              W_Length = Transfer_Length * Mass_Block_Size[lun];
+    132              TransferState = TXFR_ONGOING;
+    133            }
+    134          
+    135            if (TransferState == TXFR_ONGOING )
+    136            {
+    137          
+    138              for (Idx = 0 ; Counter < temp; Counter++)
+    139              {
+    140                *((u8 *)Data_Buffer + Counter) = Bulk_Data_Buff[Idx++];
+    141              }
+    142          
+    143              W_Offset += Data_Len;
+    144              W_Length -= Data_Len;
+    145          
+    146              if (!(W_Length % Mass_Block_Size[lun]))
+    147              {
+    148                Counter = 0;
+    149                MAL_Write(lun ,
+    150                          W_Offset - Mass_Block_Size[lun],
+    151                          Data_Buffer,
+    152                          Mass_Block_Size[lun]);
+    153              }
+    154          
+    155              CSW.dDataResidue -= Data_Len;
+    156              SetEPRxStatus(ENDP2, EP_RX_VALID); /* enable the next transaction*/   
+    157          
+    158              //Led_RW_ON();
+    159            }
+    160          
+    161            if ((W_Length == 0) || (Bot_State == BOT_CSW_Send))
+    162            {
+    163              Counter = 0;
+    164              Set_CSW (CSW_CMD_PASSED, SEND_CSW_ENABLE);
+    165              TransferState = TXFR_IDLE;
+    166              //Led_RW_OFF();
+    167            }
+    168          }
+    169          #endif
+    170          /******************* (C) COPYRIGHT 2010 STMicroelectronics *****END OF FILE****/
+    171          
+
+   Maximum stack usage in bytes:
+
+     Function     .cstack
+     --------     -------
+     Read_Memory       8
+     Write_Memory     16
+
+
+   Section sizes:
+
+     Function/Label   Bytes
+     --------------   -----
+     Block_Read_count    4
+     Block_offset        4
+     Counter             4
+     Idx                 4
+     Data_Buffer      2048
+     TransferState       1
+     Read_Memory       264
+     Offset              4
+     Length              4
+     Write_Memory      288
+     W_Offset            4
+     W_Length            4
+     ??DataTable22       4
+     ??DataTable23       4
+     ??DataTable25       4
+     ??DataTable26       4
+     ??DataTable27       4
+
+ 
+ 2 081 bytes in section .bss
+   572 bytes in section .text
+ 
+   572 bytes of CODE memory
+ 2 081 bytes of DATA memory
+
+Errors: none
+Warnings: none

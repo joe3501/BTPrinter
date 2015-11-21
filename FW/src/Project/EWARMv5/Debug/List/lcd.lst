@@ -1,0 +1,1037 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:13 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\Drivers\lcd.c                               #
+#    Command line =  E:\T6\FW\src\Drivers\lcd.c -lcN                          #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\lcd.lst          #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\lcd.o             #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\Drivers\lcd.c
+      1          /**
+      2           * @file lcd.c
+      3           * @brief LCD驱动模块 
+      4           * @version 1.0
+      5           * @author joe
+      6           * @date 2013年10月23日
+      7           * @note
+      8           *   OLED的驱动芯片是SSD1306
+      9           * 
+     10           */
+     11          
+     12          #include "stm32f10x_lib.h"
+     13          #include "lcd.h"
+     14          
+     15          //#define WINDOW_SUPORT
+     16          ///硬件相关的子函数
+     17          /**
+     18          *@def 定义了LCD模块的硬件资源的配置及IO操作的宏定义
+     19          */
+     20          #define LCD_RD  						GPIO_Pin_8				///PD.8
+     21          #define LCD_WR   						GPIO_Pin_9				///PD.9
+     22          #define LCD_RS  						GPIO_Pin_4				///PA.4
+     23          #define LCD_RST  						GPIO_Pin_0				///PB.0
+     24          #define LCD_CS  						GPIO_Pin_1				///PB.1
+     25          //#define LCD_BACKLIGHT 					GPIO_Pin_4				///PE.4
+     26          
+     27          #define Set_LCD_RST			(*((volatile unsigned long *) 0x40010C10) = LCD_RST)
+     28          #define Clr_LCD_RST			(*((volatile unsigned long *) 0x40010C14) = LCD_RST)
+     29          
+     30          #define Set_LCD_CS			(*((volatile unsigned long *) 0x40010C10) = LCD_CS)
+     31          #define Clr_LCD_CS			(*((volatile unsigned long *) 0x40010C14) = LCD_CS)
+     32          
+     33          #define Set_LCD_WR			(*((volatile unsigned long *) 0x40011410) = LCD_WR)
+     34          #define Clr_LCD_WR			(*((volatile unsigned long *) 0x40011414) = LCD_WR)
+     35          
+     36          #define Set_LCD_RD			(*((volatile unsigned long *) 0x40011410) = LCD_RD)
+     37          #define Clr_LCD_RD			(*((volatile unsigned long *) 0x40011414) = LCD_RD)
+     38          
+     39          #define Set_LCD_RS			(*((volatile unsigned long *) 0x40010810) = LCD_RS)
+     40          #define Clr_LCD_RS			(*((volatile unsigned long *) 0x40010814) = LCD_RS)
+     41          
+     42          //#define Lcd_Light_ON		GPIO_SetBits(GPIOE, LCD_BACKLIGHT)
+     43          //#define Lcd_Light_OFF		GPIO_ResetBits(GPIOE, LCD_BACKLIGHT)
+     44          
+     45          //128*64 bit
+     46          unsigned char Lcd_RAM[8][128];		//显示缓存，每个Bit对应一个点，单色显示，1：表示改点显示黑色， 0：表示该点显示白色。
+     47          static unsigned char Lcd_RAM_x;
+     48          static unsigned char Lcd_RAM_y;
+     49          
+     50          
+     51          static void Lcd_WriteCommand(unsigned char cmd);
+     52          static void Lcd_WriteData(unsigned char data);
+     53          static void Lcd_Delay(unsigned short nCount);
+     54          static void Lcd_Init_Port(void);
+     55          static void Lcd_Reset(void);
+     56          static void Lcd_Delayms(vu16 nCount);
+     57          
+     58          /**
+     59          ***************************************************************************
+     60          *@brief	获取lcd支持的接口
+     61          *@param[in] 
+     62          *@return LCD_SUPPORT_WIN : 支持window输出
+     63          *@warning
+     64          *@see	
+     65          *@note 
+     66          ***************************************************************************
+     67          */
+     68          unsigned int Lcd_CheckSupport(void)
+     69          {
+     70          	unsigned int					value = 0;
+     71          #ifdef WINDOW_SUPORT
+     72          	value							|= LCD_SUPPORT_WIN;
+     73          #endif
+     74          
+     75          	return value;
+     76          }
+     77          
+     78          /**
+     79          * @brief   延时
+     80          * @author joe
+     81          * @param[in] vu16 nCount   延时值
+     82          * @return none
+     83          * @note  
+     84          *      调用方法：Lcd_Delay(100);
+     85          */
+     86          static void Lcd_Delayms(vu16 nCount)
+     87          {
+     88          	u32  i;
+     89          	for (i = 0; i < nCount*6000; i++) {
+     90          		;
+     91          	}
+     92          }
+     93          
+     94          /**
+     95           * @brief 初始化驱动LCD模块的硬件资源
+     96           * @author joe
+     97           * @param[in] none
+     98           * @param[out] none
+     99           * @return none
+    100           * @note 
+    101           *	**************************************************
+    102           */
+    103          static void Lcd_Init_Port(void)
+    104          {
+    105          	GPIO_InitTypeDef GPIO_InitStructure;
+    106          
+    107          	/* EnableGPIOA, GPIOB, GPIOD,GPIOE*/
+    108          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOD | RCC_APB2Periph_GPIOE, ENABLE);
+    109                  
+    110          	//LCD_D0 -- LCD_D7 (PE.7 -- PE.14)
+    111          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 |
+    112          		GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14;
+    113          	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    114          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    115          	GPIO_Init(GPIOE, &GPIO_InitStructure);
+    116          
+    117          	//LCD_RD(PD.8),LCD_WR(PD.9)
+    118          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9;
+    119          	GPIO_Init(GPIOD, &GPIO_InitStructure);
+    120          	Set_LCD_RD;
+    121          
+    122          	//LCD_RST(PB.0),LCD_CS(PB.1)
+    123          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
+    124          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    125          
+    126          	//LCD_RS(PA.4)
+    127          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+    128          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+    129          }
+    130          
+    131          /**
+    132           * @brief   延时
+    133           * @author joe
+    134           * @param[in] unsigned short nCount   延时值
+    135           * @return none
+    136           * @note  
+    137           *      调用方法：Lcd_Delay(100);
+    138          */
+    139          static void Lcd_Delay(unsigned short nCount)
+    140          {
+    141              unsigned int  i;
+    142              for (i = 0; i < nCount*10; i++)
+    143          	{
+    144                  ;
+    145              }
+    146          }
+    147          
+    148          
+    149          /**
+    150           * @brief     复位 ili9331 控制器
+    151           * @author joe
+    152           * @param[in] none
+    153           * @return none
+    154           * @note  
+    155           *      调用方法：Lcd_Reset()
+    156          */
+    157          static void Lcd_Reset(void)
+    158          {
+    159          	/***************************************
+    160          	**                                   **
+    161          	**  -------\______________/-------   **
+    162          	**         | <---Tres---> |          **
+    163          	**                                   **
+    164          	**  Tres: Min.10ms                    **
+    165          	***************************************/
+    166          
+    167          	Set_LCD_RST;;
+    168          	Lcd_Delayms(1);
+    169          	Clr_LCD_RST;
+    170          	Lcd_Delayms(20);
+    171          	Set_LCD_RST;
+    172          	Lcd_Delayms(1);
+    173          	Set_LCD_RD;
+    174          }
+    175          
+    176          
+    177          /**
+    178          * @brief     往LCD的80接口总线的数据线上写入数据
+    179          * @author joe
+    180          * @return none
+    181          * @note  
+    182          */
+    183          static inline void Lcd_WritePort(unsigned char data)
+    184          {	
+    185          		unsigned int				pd;
+    186          		pd = data;
+    187          		pd <<= 7;
+    188          		pd |= GPIOE->ODR & 0x807F;
+    189          		GPIOE->ODR = pd;
+    190          		//Lcd_Delay(10);
+    191          }
+    192          
+    193          
+    194          /**
+    195           * @brief     写命令数据
+    196           * @author joe
+    197           * @param[in] unsigned char cmd    寄存器地址
+    198           * @return none
+    199           * @note  调用此函数时要保证CS是被拉低的状态
+    200           *  ************************************************************************
+    201           *  **                                                                    **
+    202           *  ** nCS       ----\__________________________________________/-------  **
+    203           *  ** RS        ------\____________/-----------------------------------  **
+    204           *  ** nRD       -------------------------------------------------------  **
+    205           *  ** nWR       --------\_______/--------------------------------------  **
+    206           *  ** DB[0:7]  -----------[CMD]-----------------------------------------  **
+    207           *  **                                                                    **
+    208           *  ************************************************************************
+    209          */
+    210          static inline void Lcd_WriteCommand(unsigned char cmd)
+    211          {
+    212          	Clr_LCD_RS;
+    213          	Clr_LCD_WR;	
+    214          	//Set_LCD_RD;
+    215          	Lcd_WritePort(cmd);
+    216          	Set_LCD_WR;
+    217          	Set_LCD_RS; 
+    218          }
+    219          
+    220          
+    221          /**
+    222           * @brief     写LCD控制器的GDRAM写入显示数据
+    223           * @author joe
+    224           * @param[in] unsigned char data     显示数据 
+    225           * @return none
+    226           * @note  调用此函数时要保证CS是被拉低的状态
+    227           */
+    228          static inline void Lcd_WriteData(unsigned char data)
+    229          {	
+    230          	Set_LCD_RS;
+    231          	Clr_LCD_WR;	
+    232          	//Set_LCD_RD;
+    233          	Lcd_WritePort(data);
+    234          	Set_LCD_WR; 
+    235          }
+    236          
+    237          
+    238          /**
+    239           * @brief 初初始化 LCD 控制器(ili9331控制器)
+    240           * @author joe
+    241           * @param[in] none
+    242           * @param[out] none
+    243           * @return none
+    244           * @note 
+    245           *     调用方法：Lcd_Initializtion()
+    246          */
+    247          void Lcd_init(void)
+    248          {
+    249          	//unsigned int		i;
+    250          
+    251          	//初始化硬件接口
+    252          	Lcd_Init_Port();
+    253          
+    254          	//复位驱动IC
+    255          	Lcd_Delayms(50);
+    256          	Lcd_Reset();                                        // 复位
+    257          	Lcd_Delayms(50);
+    258          
+    259          	Clr_LCD_CS;
+    260          
+    261          	//设置驱动IC的初始化工作状态，Initial Code
+    262          	Lcd_WriteCommand(0xae);		//Trun off OLED panel
+    263          	Lcd_WriteCommand(0x00);		//Set Lower Column Start Address
+    264          	Lcd_WriteCommand(0x10);		//Set Higher Column Start Address	==>Column Start Address = 0
+    265          	Lcd_WriteCommand(0x40);		//Set Display Start line address
+    266          	Lcd_WriteCommand(0x81);		//Set contrast control register
+    267          	Lcd_WriteCommand(0xcf);
+    268          	Lcd_WriteCommand(0xa0);		
+    269          	Lcd_WriteCommand(0xa4);		//Disable entire display on
+    270          	Lcd_WriteCommand(0x20);		//Set Memory Addressing Mode
+    271          	Lcd_WriteCommand(00);		//Horizontal mode
+    272          	Lcd_WriteCommand(0xa6);		//Set normal display
+    273          	Lcd_WriteCommand(0xa8);		//Set multiplex ratio(1 to 64)
+    274          	Lcd_WriteCommand(0x3f);		//1/64 duty
+    275          	Lcd_WriteCommand(0xd3);		//set display offset
+    276          	Lcd_WriteCommand(0x00);		//not offset
+    277          	Lcd_WriteCommand(0xd5);		//set display clock divide ratio/oscillator frequency
+    278          	Lcd_WriteCommand(0x80);		//set divide ratio
+    279          	Lcd_WriteCommand(0xd9);		//set pre-charge priod
+    280          	Lcd_WriteCommand(0xf1);
+    281          	Lcd_WriteCommand(0xc0);		//Set normal display
+    282          	Lcd_WriteCommand(0xda);		//set com pins hardware configuration
+    283          	Lcd_WriteCommand(0x12);
+    284          	Lcd_WriteCommand(0xdb);		// set VCOMH
+    285          	Lcd_WriteCommand(0x40);
+    286          	Lcd_WriteCommand(0x8d);		//set Charge Pump Enable/Disable
+    287          	Lcd_WriteCommand(0x14);		// Enable
+    288          	Lcd_WriteCommand(0xaf);		//Turn on OLED panel
+    289          
+    290          	Set_LCD_CS;
+    291          
+    292          	Lcd_Delay(1000);
+    293          	Lcd_Clear(0xffff);
+    294          }
+    295          
+    296          
+    297          
+    298          void Lcd_Enter_SleepMode(void)
+    299          {
+    300          	Clr_LCD_CS;
+    301          	Lcd_WriteCommand(0xae);		//Trun off OLED panel
+    302          	Set_LCD_CS;
+    303          }
+    304          
+    305          void Lcd_Exit_SleepMode(void)
+    306          {
+    307          	Clr_LCD_CS;
+    308          	Lcd_WriteCommand(0xaf);		//Turn on OLED panel
+    309          	Set_LCD_CS;
+    310          }
+    311          
+    312          /**
+    313          * @brief     将屏幕填充成指定的颜色，如清屏，则填充 0xffff
+    314          * @author joe
+    315          * @param[in] unsigned short Color   填充的颜色值.
+    316          * @param[out]  none
+    317          * @return  none
+    318          * @note  
+    319          *     调用方法：Lcd_Clear(0xffff);
+    320          */
+    321          void Lcd_Clear(unsigned short Color)
+    322          {
+    323          	int i,j;
+    324          	unsigned char	data;
+    325          
+    326          	//当颜色值大于0x8000时，输出白色
+    327          	if (Color > 0x8000)
+    328          	{
+    329          		data = 0xff;
+    330          	}
+    331          	else
+    332          	{
+    333          		data = 0;
+    334          	}
+    335          
+    336          	memset(Lcd_RAM,data,128*8);
+    337          
+    338          	//设置为Horizontal Address Mode
+    339          	Clr_LCD_CS;
+    340                  Lcd_WriteCommand(0x21);		//Set column Addr
+    341          	Lcd_WriteCommand(0);
+    342          	Lcd_WriteCommand(0x7f);
+    343          
+    344          	Lcd_WriteCommand(0x22);		//Set page Addr
+    345          	Lcd_WriteCommand(0);
+    346          	Lcd_WriteCommand(0x07);
+    347                  
+    348          	Lcd_WriteCommand(0x20);	//Set Memory Addressing Mode
+    349          	Lcd_WriteCommand(00);	//Horizontal mode
+    350          	for(i=0;i<8;i++)
+    351          	{
+    352          		for(j=0;j<128;j++)
+    353          		{
+    354          			Lcd_WriteData(data);
+    355          		}
+    356          	}
+    357          	Set_LCD_CS;
+    358          }
+    359          
+    360          void displaycom()
+    361          {
+    362          	int i,j;
+    363          
+    364          	//设置为Horizontal Address Mode
+    365          	Clr_LCD_CS;
+    366          	Lcd_WriteCommand(0x20);	//Set Memory Addressing Mode
+    367          	Lcd_WriteCommand(00);	//Horizontal mode
+    368          	for(i=0;i<8;i++)
+    369          	{
+    370          		for(j=0;j<128;j++)
+    371          		{
+    372          			Lcd_WriteData(0xcc);
+    373          		}
+    374          	}
+    375          	Set_LCD_CS;
+    376          }
+    377          void displaycom1()
+    378          {
+    379          	int i,j;
+    380          
+    381          	//设置为Horizontal Address Mode
+    382          	Clr_LCD_CS;
+    383          	Lcd_WriteCommand(0x20);	//Set Memory Addressing Mode
+    384          	Lcd_WriteCommand(00);	//Horizontal mode
+    385          	for(i=0;i<8;i++)
+    386          	{
+    387          		for(j=0;j<128;j++)
+    388          		{
+    389          			Lcd_WriteData(0x66);
+    390          		}
+    391          	}
+    392          	Set_LCD_CS;
+    393          }
+    394          
+    395          void displayseg()
+    396          {
+    397          	int i,j;
+    398          
+    399          	//设置为Horizontal Address Mode
+    400          	Clr_LCD_CS;
+    401          	Lcd_WriteCommand(0x20);	//Set Memory Addressing Mode
+    402          	Lcd_WriteCommand(00);	//Horizontal mode
+    403          	for(i=0;i<8;i++)
+    404          	{
+    405          		for(j=0;j<64;j++)
+    406          		{
+    407          			Lcd_WriteData(0xff);
+    408          			Lcd_WriteData(0x00);
+    409          		}
+    410          	}
+    411          	Set_LCD_CS;
+    412          }
+    413          void displayseg1()
+    414          {
+    415          	int i,j;
+    416          
+    417          	//设置为Horizontal Address Mode
+    418          	Clr_LCD_CS;
+    419          	Lcd_WriteCommand(0x20);	//Set Memory Addressing Mode
+    420          	Lcd_WriteCommand(00);	//Horizontal mode
+    421          	for(i=0;i<8;i++)
+    422          	{
+    423          		for(j=0;j<64;j++)
+    424          		{
+    425          			Lcd_WriteData(0x00);
+    426          			Lcd_WriteData(0xff);
+    427          		}
+    428          	}
+    429          	Set_LCD_CS;
+    430          }
+    431          
+    432          void displaysnow()
+    433          {
+    434          	int i,j;
+    435          
+    436          	//设置为Horizontal Address Mode
+    437          	Clr_LCD_CS;
+    438          	Lcd_WriteCommand(0x20);	//Set Memory Addressing Mode
+    439          	Lcd_WriteCommand(00);	//Horizontal mode
+    440          	for(i=0;i<8;i++)
+    441          	{
+    442          		for(j=0;j<64;j++)
+    443          		{
+    444          			Lcd_WriteData(0xcc);
+    445          			Lcd_WriteData(0x66);
+    446          		}
+    447          	}
+    448          	Set_LCD_CS;
+    449          }
+    450          
+    451          void set_cursor(unsigned int x,unsigned int y)
+    452          {
+    453          	//设置当前SRAM地址
+    454          	//note x 应该是4的倍数，否则将被归一为4的倍数
+    455          	if ((x > 127)||(y > 63))
+    456          	{
+    457          		return;
+    458          	}
+    459          	Lcd_RAM_x = x;
+    460          	Lcd_RAM_y = y/8;
+    461          
+    462          	Lcd_WriteCommand(0x21);		//Set column Addr
+    463          	Lcd_WriteCommand(x);
+    464          	Lcd_WriteCommand(0x7f);
+    465          
+    466          	Lcd_WriteCommand(0x22);		//Set page Addr
+    467          	Lcd_WriteCommand(Lcd_RAM_y);
+    468          	Lcd_WriteCommand(0x07);
+    469          }
+    470          
+    471          void Lcd_test(void)
+    472          {
+    473          
+    474          #if 0
+    475          	while(1)
+    476          	{
+    477          		//display_image1();
+    478          
+    479          		Lcd_Clear(0);
+    480          
+    481          		Lcd_PutCharLine(0,0,0x40,0xffff);
+    482          		Lcd_PutCharLine(0,1,0x40,0xffff);
+    483          		Lcd_PutCharLine(0,2,0x40,0xffff);
+    484          		Lcd_PutCharLine(0,3,0x40,0xffff);
+    485          		Lcd_PutCharLine(0,4,0x40,0xffff);
+    486          		Lcd_PutCharLine(0,5,0x00,0xffff);
+    487          		Lcd_PutCharLine(0,6,0x40,0xffff);
+    488          		Lcd_PutCharLine(0,7,0x00,0xffff);
+    489          
+    490          
+    491          		Lcd_PutCharLine(4,0,0x40,0);
+    492          		Lcd_PutCharLine(4,1,0x40,0);
+    493          		Lcd_PutCharLine(4,2,0x40,0);
+    494          		Lcd_PutCharLine(4,3,0x40,0);
+    495          		Lcd_PutCharLine(4,4,0x40,0);
+    496          		Lcd_PutCharLine(4,5,0x00,0);
+    497          		Lcd_PutCharLine(4,6,0x40,0);
+    498          		Lcd_PutCharLine(4,7,0x00,0);
+    499          
+    500          		Lcd_PutCharLine(0,12,0xFF,0xffff);
+    501          		Lcd_PutCharLine(8,12,0xE0,0xffff);
+    502          		Lcd_PutCharLine(0,13,0x08,0xffff);
+    503          		Lcd_PutCharLine(8,13,0x00,0xffff);
+    504          		Lcd_PutCharLine(0,14,0x08,0xffff);
+    505          		Lcd_PutCharLine(8,14,0x00,0xffff);
+    506          		Lcd_PutCharLine(0,15,0x10,0xffff);
+    507          		Lcd_PutCharLine(8,15,0x00,0xffff);
+    508          		Lcd_PutCharLine(0,16,0x1F,0xffff);
+    509          		Lcd_PutCharLine(8,16,0x80,0xffff);
+    510          		Lcd_PutCharLine(0,17,0x00,0xffff);
+    511          		Lcd_PutCharLine(8,17,0x80,0xffff);
+    512          		Lcd_PutCharLine(0,18,0x00,0xffff);
+    513          		Lcd_PutCharLine(8,18,0x80,0xffff);
+    514          		Lcd_PutCharLine(0,19,0x00,0xffff);
+    515          		Lcd_PutCharLine(8,19,0x80,0xffff);
+    516          		Lcd_PutCharLine(0,20,0x00,0xffff);
+    517          		Lcd_PutCharLine(8,20,0x80,0xffff);
+    518          		Lcd_PutCharLine(0,21,0x0C,0xffff);
+    519          		Lcd_PutCharLine(8,21,0x80,0xffff);
+    520          		Lcd_PutCharLine(0,22,0x03,0xffff);
+    521          		Lcd_PutCharLine(8,22,0x00,0xffff);
+    522          		Lcd_PutCharLine(0,23,0x00,0xffff);
+    523          		Lcd_PutCharLine(8,23,0x00,0xffff);
+    524          
+    525          		Lcd_Delayms(2000);
+    526          		Lcd_Clear(0xff);
+    527          		Lcd_Delayms(2000);
+    528          		Lcd_Clear(0xffff);
+    529          
+    530          		displaycom();
+    531          		Lcd_Delayms(2000);
+    532          
+    533          		displaycom1();
+    534          		Lcd_Delayms(2000);
+    535          
+    536          		displayseg();
+    537          		Lcd_Delayms(2000);
+    538          
+    539          		displayseg1();
+    540          		Lcd_Delayms(2000);
+    541          
+    542          		displaysnow();
+    543          		Lcd_Delayms(2000);
+    544          	}
+    545          #endif
+    546          
+    547          	displaycom();
+    548          	Lcd_Delayms(2000);
+    549          
+    550          	displaycom1();
+    551          	Lcd_Delayms(2000);
+    552          
+    553          	displayseg();
+    554          	Lcd_Delayms(2000);
+    555          
+    556          	displayseg1();
+    557          	Lcd_Delayms(2000);
+    558          
+    559          	displaysnow();
+    560          	Lcd_Delayms(2000);
+    561          }
+    562          
+    563          
+    564          
+    565          /**
+    566          * @brief     在指定座标画点
+    567          * @author joe
+    568          * @param[in] unsigned short x         列座标
+    569          * @param[in] unsigned short y         行座标
+    570          * @param[in] unsigned char  color      颜色   1：黑色   0：白色
+    571          * @param[out]  none
+    572          * @return  none
+    573          * @note  
+    574          *     调用方法：Lcd_SetPoint(10,10,1);
+    575          */
+    576          inline void Lcd_SetPoint(unsigned int x,unsigned int y,unsigned short color,unsigned int refresh_flag)
+    577          {
+    578          	unsigned char offset;
+    579          	unsigned char data;
+    580          
+    581          	set_cursor(x,y);
+    582          	offset = y%8;		//要操作的点位于该字节的第几个bit
+    583          	if(color)
+    584          	{
+    585          		Lcd_RAM[Lcd_RAM_y][Lcd_RAM_x] |= (0x01 << offset);
+    586          	}
+    587          	else
+    588          	{
+    589          		Lcd_RAM[Lcd_RAM_y][Lcd_RAM_x] &= ~(0x01 << offset);
+    590          	}
+    591          
+    592          	if (refresh_flag)
+    593          	{
+    594          		data = Lcd_RAM[Lcd_RAM_y][Lcd_RAM_x];
+    595          
+    596          		Lcd_WriteData(data);
+    597          	}
+    598          }
+    599          
+    600          //只是改变显存里面的值
+    601          void Lcd_SetRAMPoint(unsigned int x,unsigned int y,unsigned short color)
+    602          {
+    603          	unsigned int offset;
+    604          	//if (x > 127 || y > 63)
+    605          	//{
+    606          	//	return;
+    607          	//}
+    608          
+    609          	Lcd_RAM_x = x;
+    610          	Lcd_RAM_y = y/8;
+    611          	offset = y%8;		//要操作的点位于该字节的第几个bit
+    612          	if(color)
+    613          	{
+    614          		Lcd_RAM[Lcd_RAM_y][Lcd_RAM_x] |= (0x01 << offset);
+    615          	}
+    616          	else
+    617          	{
+    618          		Lcd_RAM[Lcd_RAM_y][Lcd_RAM_x] &= ~(0x01 << offset);
+    619          	}
+    620          }
+    621          
+    622          unsigned int Lcd_GetRAMPoint(unsigned int x,unsigned int y)
+    623          {
+    624          	unsigned int offset;
+    625          
+    626          	//if (x > 127 || y > 63)
+    627          	//{
+    628          	//	return 0;
+    629          	//}
+    630          
+    631          	Lcd_RAM_x = x;
+    632          	Lcd_RAM_y = y/8;
+    633          	offset = y%8;		//要操作的点位于该字节的第几个bit
+    634          	if(Lcd_RAM[Lcd_RAM_y][Lcd_RAM_x] & (0x01 << offset))
+    635          	{
+    636          		return 1;
+    637          	}
+    638          	
+    639          	return 0;
+    640          }
+    641          
+    642          //将显存的内容刷新到LCD的某一显示区域
+    643          void Lcd_refresh(unsigned int x, unsigned int y,unsigned int w, unsigned int h)
+    644          {
+    645          	unsigned int i,j,temph = 0;
+    646          	unsigned char *pdata;
+    647          
+    648          	//设置起始坐标及刷新数据区域
+    649          	if ((x > 127)||(y > 63)||(w == 0)||(h == 0)||(w>128)||(h>64))
+    650          	{
+    651          		return;
+    652          	}
+    653          	Lcd_RAM_x = x;
+    654          	Lcd_RAM_y = y/8;
+    655          
+    656          	y %= 8;
+    657          	if(y)
+    658          	{
+    659          		temph++;
+    660          		h -= (8 - y);
+    661          	}
+    662          	h = (h-1)/8;
+    663          	h += 1 + temph;
+    664          
+    665          	Clr_LCD_CS;
+    666          	Lcd_WriteCommand(0x21);		//Set column Addr
+    667          	Lcd_WriteCommand(x);
+    668          	Lcd_WriteCommand(0x7f);
+    669          
+    670          	Lcd_WriteCommand(0x22);		//Set page Addr
+    671          	Lcd_WriteCommand(Lcd_RAM_y);
+    672          	Lcd_WriteCommand(0x07);
+    673          
+    674          	
+    675          	Lcd_WriteCommand(0x20);	//Set Memory Addressing Mode
+    676          	Lcd_WriteCommand(00);	//Horizontal mode
+    677          	pdata = &Lcd_RAM[Lcd_RAM_y][Lcd_RAM_x];
+    678          	for(i=0;i<h;i++)
+    679          	{
+    680          		for(j=0;j<w;j++)
+    681          		{
+    682          			Lcd_WriteData(*pdata);
+    683          			pdata++;
+    684          		}
+    685          	}
+    686          	Set_LCD_CS;
+    687          
+    688          }
+    689          
+    690          /**
+    691          * @brief 往lcd输出一小行字模
+    692          */
+    693          void Lcd_PutCharLineBK(unsigned int x, unsigned int y, unsigned char d, unsigned short charColor, unsigned short bkColor,unsigned int refresh_flag)
+    694          {
+    695          #if 0
+    696          
+    697          #endif
+    698          }
+    699          
+    700          /**
+    701          * @brief 输出小于8点的字模
+    702          * @param[in] int len 此值小于等于8
+    703          */
+    704          void Lcd_PutCharLineExtBK(unsigned int x, unsigned int y, unsigned char d, unsigned short charColor ,unsigned short bkColor, unsigned int len,unsigned int refresh_flag)
+    705          {
+    706          #if 0
+    707          
+    708          #endif
+    709          }
+    710          
+    711          /**
+    712          * @brief 往lcd输出一小行字模
+    713          */
+    714          void Lcd_PutCharLine(unsigned int x, unsigned int y, unsigned char d, unsigned short charColor,unsigned int refresh_flag) 
+    715          {
+    716          	int				i;
+    717          
+    718          	Clr_LCD_CS;
+    719          	if (charColor)
+    720          	{
+    721          		for(i=0; i<8; i++)
+    722          		{
+    723          			if(d & 0x80)
+    724          				Lcd_SetPoint(x++, y, 1,refresh_flag);		// 字符颜色
+    725          			else
+    726          				Lcd_SetPoint(x++, y, 0,refresh_flag);
+    727          			d <<= 1;
+    728          		}
+    729          	}
+    730          	else
+    731          	{
+    732          		for(i=0; i<8; i++)
+    733          		{
+    734          			if(d & 0x80)
+    735          				Lcd_SetPoint(x++, y, 0,refresh_flag);		// 字符颜色
+    736          			else
+    737          				Lcd_SetPoint(x++, y, 1,refresh_flag);
+    738          			d <<= 1;
+    739          		}
+    740          	}
+    741          	Set_LCD_CS;
+    742          
+    743          }
+    744          
+    745          /**
+    746          * @brief 输出小于8点的字模
+    747          * @param[in] int len 此值小于等于8
+    748          */
+    749          void Lcd_PutCharLineExt(unsigned int x, unsigned int y, unsigned char d, unsigned short charColor,unsigned int len,unsigned int refresh_flag) 
+    750          {
+    751          #if 0
+    752          	int				i;
+    753          	unsigned char	data = 0;
+    754          	unsigned char   h_byte;
+    755          
+    756          	set_cursor(x,y);
+    757          
+    758          	h_byte = (d >> 4)&0x0f;
+    759          
+    760          	if (charColor > 0x8000)
+    761          	{
+    762          		for(i=0; i<4; i++)
+    763          		{
+    764          			if(h_byte & 0x01)
+    765          			{
+    766          				data |= 0x03;
+    767          			}
+    768          			h_byte >>= 1;
+    769          			if(i < 3)
+    770          			{
+    771          				data <<= 2;  
+    772          			}
+    773          		}
+    774          		write_data(data);
+    775          	}
+    776          	else
+    777          	{
+    778          		for(i=0; i<4; i++)
+    779          		{
+    780          			if((h_byte & 0x01) == 0)
+    781          			{
+    782          				data |= 0x03;
+    783          			}
+    784          			h_byte >>= 1;
+    785          			if(i < 3)
+    786          			{
+    787          				data <<= 2;  
+    788          			}
+    789          		}
+    790          		write_data(data);
+    791          	}
+    792          #endif
+    793          
+    794          	Clr_LCD_CS;
+    795          	if (charColor)
+    796          	{
+    797          		while(len--)
+    798          		{
+    799          			if(d & 0x80)
+    800          			{
+    801          				Lcd_SetPoint(x++, y, 1,refresh_flag);		// 黑色的点
+    802          			}
+    803          			else
+    804          			{
+    805          				Lcd_SetPoint(x++, y, 0,refresh_flag);		// 白色的点	
+    806          			}
+    807          			d <<= 1;
+    808          		}
+    809          	}
+    810          	else
+    811          	{
+    812          		while(len--)
+    813          		{
+    814          			if(d & 0x80)
+    815          			{
+    816          				Lcd_SetPoint(x++, y, 0,refresh_flag);		// 白色的点
+    817          			}
+    818          			else
+    819          			{
+    820          				Lcd_SetPoint(x++, y, 1,refresh_flag);		// 黑色的点	
+    821          			}
+    822          			d <<= 1;
+    823          		}
+    824          	}
+    825          	Set_LCD_CS;
+    826          }
+    827          
+    828          
+    829          
+    830          /**
+    831          * @brief 画水平线
+    832          * @note x:被归一为4的倍数	w:被归一为4的倍数
+    833          */
+    834          void Lcd_DrawLineH(unsigned int x, unsigned int y, unsigned int w,unsigned short color,unsigned int refresh_flag)
+    835          {
+    836          	unsigned int width;
+    837          	int i;
+    838          	width = 128 - x;
+    839          	if (width < w)
+    840          	{
+    841          		w = width;
+    842          	}
+    843          
+    844          	Clr_LCD_CS;
+    845          	for (i = 0; i < w;i++)
+    846          	{
+    847          		Lcd_SetPoint(x+i,y,color,refresh_flag);
+    848          	}
+    849          	Set_LCD_CS;
+    850          }
+    851          
+    852          /**
+    853          * @brief 画垂直线
+    854          */
+    855          void Lcd_DrawLineV(unsigned int x, unsigned int y, unsigned int h,unsigned short color,unsigned int refresh_flag)
+    856          {
+    857          	unsigned int height;
+    858          	int i;
+    859          	height = 128 - y;
+    860          	if (height < h)
+    861          	{
+    862          		h = height;
+    863          	}
+    864          
+    865          	Clr_LCD_CS;
+    866          	for(i = 0; i < h;i++)
+    867          	{
+    868          		Lcd_SetPoint(x,y+i,color,refresh_flag);
+    869          	}
+    870          	Set_LCD_CS;
+    871          }
+    872          
+    873          /**
+    874          * @brief     在指定座标范围显示一副图片
+    875          * @author joe
+    876          * @param[in] unsigned short StartX         列起始坐标
+    877          * @param[in] unsigned short StartY         行起始坐标
+    878          * @param[in] unsigned short EndX   列    结束坐标
+    879          * @param[in] unsigned short EndY         行结束座标
+    880          * @param[in] unsigned short* pic         图片头指针
+    881          * @param[out]  none
+    882          * @return  none
+    883          * @note  
+    884          *     调用方法：Lcd_DrawPicture(0,0,100,100,(unsigned short*)demo);
+    885          */
+    886          void Lcd_DrawPicture(unsigned int StartX,unsigned int StartY,unsigned int EndX,unsigned int EndY,unsigned short *pic,unsigned int refresh_flag)
+    887          {
+    888          #if 0
+    889          	int								i;
+    890          
+    891          	Lcd_SetWindows(StartX,StartY,EndX,EndY);
+    892          	Lcd_SetCursor(StartX,StartY);
+    893          
+    894          	//Clr_LCD_CS;
+    895          	i = EndX * EndY;
+    896          
+    897          	Lcd_WriteIndex(0x0022);
+    898          	//	for (i=0; i<(EndX*EndY); i++)
+    899          	while(i--)
+    900          	{
+    901          		Lcd_WriteData(*pic++);
+    902          		//Clr_LCD_WR;
+    903          		//Lcd_Delay(1);
+    904          		//Set_LCD_WR;
+    905          	}
+    906          
+    907          	//Set_LCD_CS;
+    908          #endif
+    909          }
+
+   Maximum stack usage in bytes:
+
+     Function             .cstack
+     --------             -------
+     Lcd_CheckSupport          0
+     Lcd_Clear                16
+     Lcd_Delay                 0
+     Lcd_Delayms               8
+     Lcd_DrawLineH            32
+     Lcd_DrawLineV            32
+     Lcd_DrawPicture           0
+     Lcd_Enter_SleepMode       8
+     Lcd_Exit_SleepMode        8
+     Lcd_GetRAMPoint           8
+     Lcd_Init_Port             8
+     Lcd_PutCharLine          24
+     Lcd_PutCharLineBK         0
+     Lcd_PutCharLineExt       24
+     Lcd_PutCharLineExtBK      0
+     Lcd_Reset                 8
+     Lcd_SetPoint             24
+     Lcd_SetRAMPoint          16
+     Lcd_WriteCommand          8
+     Lcd_WriteData             8
+     Lcd_WritePort             0
+     Lcd_init                  8
+     Lcd_refresh              24
+     Lcd_test                  8
+     displaycom               16
+     displaycom1              16
+     displayseg               16
+     displayseg1              16
+     displaysnow              16
+     set_cursor                8
+
+
+   Section sizes:
+
+     Function/Label       Bytes
+     --------------       -----
+     Lcd_RAM              1024
+     Lcd_RAM_x               1
+     Lcd_RAM_y               1
+     Lcd_CheckSupport        4
+     Lcd_Delayms            30
+     Lcd_Init_Port         108
+     Lcd_Delay              18
+     Lcd_Reset              54
+     Lcd_WritePort          28
+     Lcd_WriteCommand       44
+     Lcd_WriteData          32
+     Lcd_init              218
+     Lcd_Enter_SleepMode    26
+     Lcd_Exit_SleepMode     26
+     Lcd_Clear             128
+     displaycom             58
+     displaycom1            58
+     displayseg             64
+     displayseg1            64
+     displaysnow            64
+     set_cursor             66
+     Lcd_test               64
+     Lcd_SetPoint          164
+     Lcd_SetRAMPoint       124
+     Lcd_GetRAMPoint        64
+     Lcd_refresh           200
+     Lcd_PutCharLineBK       2
+     Lcd_PutCharLineExtBK    2
+     Lcd_PutCharLine       134
+     Lcd_PutCharLineExt    134
+     Lcd_DrawLineH          66
+     Lcd_DrawLineV          66
+     Lcd_DrawPicture         2
+     ??DataTable8            4
+     ??DataTable9            4
+     ??DataTable10           4
+     ??DataTable56           4
+     ??DataTable57           4
+     ??DataTable58           4
+     ??DataTable66           4
+     ??DataTable67           4
+
+ 
+ 1 026 bytes in section .bss
+ 2 144 bytes in section .text
+ 
+ 1 980 bytes of CODE memory (+ 164 bytes shared)
+ 1 026 bytes of DATA memory
+
+Errors: none
+Warnings: 1

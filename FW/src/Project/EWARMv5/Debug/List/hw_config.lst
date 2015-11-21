@@ -1,0 +1,135 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:06 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\hw_config.c                 #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\hw_config.c" -D DEBUG_VER  #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\hw_confi #
+#                    g.lst                                                    #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\hw_config #
+#                    .o                                                       #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\hw_config.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : hw_config.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.2.1
+      5          * Date               : 09/22/2008
+      6          * Description        : Hardware Configuration & Setup
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "stm32f10x_lib.h"
+     18          #include "hw_config.h"
+     19          #include "usb_lib.h"
+     20          #include "usb_desc.h"
+     21          #include "usb_pwr.h"
+     22          #include "usb_prop.h"
+     23          
+     24          /* Private typedef -----------------------------------------------------------*/
+     25          /* Private define ------------------------------------------------------------*/
+     26          /* Private macro -------------------------------------------------------------*/
+     27          /* Private variables ---------------------------------------------------------*/
+     28          //ErrorStatus HSEStartUpStatus;
+     29          //EXTI_InitTypeDef EXTI_InitStructure;
+     30          
+     31          /* Extern variables ----------------------------------------------------------*/
+     32          //extern LINE_CODING linecoding;
+     33          /* Private function prototypes -----------------------------------------------*/
+     34          /* Private functions ---------------------------------------------------------*/
+     35          
+     36          /*******************************************************************************
+     37          * Function Name  : Enter_LowPowerMode.
+     38          * Description    : Power-off system clocks and power while entering suspend mode.
+     39          * Input          : None.
+     40          * Output         : None.
+     41          * Return         : None.
+     42          *******************************************************************************/
+     43          void Enter_LowPowerMode(void)
+     44          {
+     45            /* Set the device state to suspend */
+     46            bDeviceState = SUSPENDED;
+     47          }
+     48          
+     49          /*******************************************************************************
+     50          * Function Name  : Leave_LowPowerMode.
+     51          * Description    : Restores system clocks and power while exiting suspend mode.
+     52          * Input          : None.
+     53          * Output         : None.
+     54          * Return         : None.
+     55          *******************************************************************************/
+     56          void Leave_LowPowerMode(void)
+     57          {
+     58            DEVICE_INFO *pInfo = &Device_Info;
+     59          
+     60            /* Set the device state to the correct state */
+     61            if (pInfo->Current_Configuration != 0)
+     62            {
+     63              /* Device configured */
+     64              bDeviceState = CONFIGURED;
+     65            }
+     66            else
+     67            {
+     68              bDeviceState = ATTACHED;
+     69            }
+     70          }
+     71          
+     72          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function           .cstack
+     --------           -------
+     Enter_LowPowerMode      0
+     Leave_LowPowerMode      0
+
+
+   Section sizes:
+
+     Function/Label     Bytes
+     --------------     -----
+     Enter_LowPowerMode    8
+     Leave_LowPowerMode   28
+     ??DataTable2          4
+
+ 
+ 40 bytes in section .text
+ 
+ 40 bytes of CODE memory
+
+Errors: none
+Warnings: none

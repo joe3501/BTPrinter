@@ -1,0 +1,723 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     13/Oct/2015  16:03:29 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\App\record_m.c                           #
+#    Command line =  E:\H520B\FW\src\App\record_m.c -D DEBUG_VER -lcN         #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o           #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\record_m.lst  #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\record_m.o     #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\App\record_m.c
+      1          /**
+      2           * @file record.c
+      3           * @brief H520B项目脱机记录管理模块
+      4           * @version 1.0
+      5           * @author joe
+      6           * @date 2015年09月28日
+      7           * @note 利用通用的记录管理模块实现的
+      8           * @copy
+      9           *
+     10           * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     11           * 本公司以外的项目。本司保留一切追究权利。
+     12           *
+     13           * <h1><center>&copy; COPYRIGHT 2015 heroje</center></h1>
+     14           */
+     15          
+     16          #include "record_m.h"
+     17          #include "record_mod.h"
+     18          #include <string.h>
+     19          #include "assert.h"
+     20          #include "hw_platform.h"
+     21          
+     22          #define RECORD_MAX_SIZE		(MAX_BARCODE_LEN+1)		//最长的记录大小
+     23          
+     24          #define DELETE_FLAG			0xCF	//记录被删除的标记
+     25          unsigned char			rec_module_buffer[RECORD_MAX_SIZE];	//记录模块的公用buffer	
+     26          
+     27          static unsigned int		rec_cnt;
+     28          
+     29          static unsigned int     current_logical_index;
+     30          unsigned int             current_node_offset;
+     31          unsigned int g_rec_offset;
+     32          
+     33          
+     34          /**
+     35          * @brief  某一个记录区在初始化时需要输入的参数
+     36          * @note 如果该记录区的记录需要被修改，那么需要分配record2，否则只需要分配record1即可
+     37          */
+     38          typedef struct  
+     39          {
+     40          	unsigned char	record_index;				//实际使用的记录区索引
+     41          	unsigned int	record_size;				//记录的大小
+     42          	unsigned int	record_cnt;					//记录的最大条数
+     43          } TRec_Init_Param;
+     44          
+     45          //extern  TGOODS_SPEC_NAME_COLLECTION		spec_name;
+     46          //extern  TGOODS_SPEC_NAME_COLLECTION		*pSpec_Name_Collection;
+     47          /**
+     48           * @brief 系统的所有记录模块的初始化
+     49           * @return 0: OK   else: 错误代码
+     50           * @note: 返回值不能很好的定位到具体的错误发生的位置，后续有需要再修改
+     51           */
+     52          int record_module_init(void)
+     53          {
+     54          	int ret;
+     55          	unsigned char flag;
+     56          
+     57          	unsigned int		i;
+     58          	//unsigned char		*pRec;
+     59          
+     60          
+     61          	ret = record_init(1,sizeof(TBATCH_NODE),BATCH_LIST_MAX_CNT);	
+     62          	if (ret)
+     63          	{
+     64          			if (-3 == ret || -6 == ret || -4 == ret)	//记录区还没有Format
+     65          			{
+     66          				ret = record_format(1,sizeof(TBATCH_NODE),BATCH_LIST_MAX_CNT);
+     67          				if (ret)
+     68          				{
+     69          					//format失败，记录区错误或者没有足够的空间了
+     70          					return ret;
+     71          				}
+     72          			}
+     73          			else
+     74          			{
+     75          				//记录的存储区域有不可恢复的错误
+     76          				return ret;
+     77          			}
+     78          	}	
+     79          
+     80          	rec_cnt = 0;
+     81          	for (i = 0;i < record_count_ext(1);i++)
+     82          	{
+     83          		ret = record_read(0x81,i,&flag,1);
+     84          		if (ret)
+     85          		{
+     86          			return ret;
+     87          		}
+     88          
+     89          		if (flag == 0xff)
+     90          		{
+     91          			//该记录有效
+     92          			rec_cnt++;
+     93          		}
+     94          	}
+     95          
+     96          	if ((rec_cnt == 0)&&(record_count_ext(1) != 0))
+     97          	{
+     98          		record_delall(1);
+     99          	}
+    100          
+    101          	current_logical_index = 0;
+    102          
+    103          	return 0;
+    104          }
+    105          
+    106          /**
+    107           * @brief 读指定记录，该记录必须存在，此函数中不作判断
+    108           * @param[in] unsigned char rectype	 记录的类型
+    109           * @param[in] int index 记录的索引  物理索引，该索引对应的记录可能是已经被删除的记录,  1 -- cnt
+    110           * @return 返回记录的地址
+    111           */
+    112          unsigned char *record_module_read(unsigned int index)
+    113          {
+    114          	unsigned char	*pBuf;
+    115          	//unsigned int	checkvalue;
+    116          	int		ret;
+    117          	int		re_read_cnt = 3;		//如果一次读取失败，那么重读3次
+    118          
+    119          
+    120          	pBuf = rec_module_buffer;
+    121          
+    122          	while(re_read_cnt--)
+    123          	{
+    124          		ret = record_read(1,record_count_ext(1)-index,pBuf,0);
+    125          		if(ret)
+    126          		{
+    127          			continue;
+    128          		}
+    129          
+    130          		return pBuf;
+    131          	}
+    132          
+    133          	return (unsigned char*)0;
+    134          }
+    135          
+    136          //从start指定的偏移开始搜索第一个被删除的记录
+    137          //return -1:		没有搜索到被删除记录，
+    138          //		else：  返回被删除的索引
+    139          static int get_delete_node(unsigned int start)
+    140          {
+    141          	unsigned char flag;
+    142          	int	i;
+    143          
+    144          	for (i = start; i <= record_count_ext(1);i++)
+    145          	{
+    146          		if (record_read(0x81,record_count_ext(1)-i,&flag,1))
+    147          		{
+    148          			return -1;
+    149          		}
+    150          
+    151          		if (flag != 0xff)
+    152          		{
+    153          			return i;
+    154          		}
+    155          	}
+    156          
+    157          	return -1;
+    158          }
+    159          
+    160          //搜索记录区的第一个有效记录
+    161          static int get_first_valid_node(void)
+    162          {
+    163          	unsigned char flag;
+    164          	int	i;
+    165          
+    166          	for (i = 1; i <= record_count_ext(1);i++)
+    167          	{
+    168          		if (record_read(0x81,record_count_ext(1)-i,&flag,1))
+    169          		{
+    170          			return -1;
+    171          		}
+    172          
+    173          		if (flag == 0xff)
+    174          		{
+    175          			return i;
+    176          		}
+    177          	}
+    178          
+    179          	return 0;
+    180          }
+    181          
+    182          
+    183          /**
+    184           * @brief 增加一条记录
+    185           * @param[in] unsigned char *precord 记录指针
+    186           * @return 0:成功
+    187           *        -1:记录数已达上限
+    188           * @note 
+    189           */
+    190          int record_add(unsigned char *precord)
+    191          {
+    192          	int			ret;
+    193          	int			valid_offset = -1;
+    194          
+    195          	if(record_count_ext(1) >= BATCH_LIST_MAX_CNT)
+    196          	{
+    197          
+    198          		if (rec_cnt >= BATCH_LIST_MAX_CNT)
+    199          		{
+    200          			return -1;
+    201          		}
+    202          		else
+    203          		{
+    204          			//找到一个已经被删除的位置
+    205          			valid_offset = get_delete_node(1);
+    206          			if (valid_offset == -1)
+    207          			{
+    208          				return -1;
+    209          			}
+    210          		}
+    211          	}
+    212          
+    213          
+    214          	precord[0] = 0xff;		//保证记录的第一个字节(标志字节)是0xff;
+    215          	if (valid_offset != -1)
+    216          	{
+    217          		//表示新记录需要替换原来被删除的记录
+    218          		g_rec_offset = valid_offset;
+    219          		ret = record_replace(1, record_count_ext(1)-valid_offset,precord);
+    220          	}
+    221          	else
+    222          	{
+    223          		g_rec_offset = record_count_ext(1)+1;
+    224          		ret = record_write(1,precord,0);
+    225          	}
+    226          	
+    227          	if(ret)
+    228          	{
+    229          		return ret;
+    230          	}
+    231          
+    232          	rec_cnt++;
+    233          	current_node_offset = g_rec_offset;
+    234          	return 0;
+    235          }
+    236          
+    237          
+    238          
+    239          /**
+    240          * @brief 往指定记录索引处写一条记录
+    241          * @param[in] unsigned char rectype 记录类型
+    242          * @param[in] int					记录索引（物理索引）
+    243          * @return 0:成功
+    244          *        -1:失败
+    245          * @note 
+    246          */
+    247          int record_module_replace(int index,unsigned char *precord)
+    248          {
+    249          	precord[0] = 0xff;
+    250          	return record_replace(1,record_count_ext(1)-index,precord);
+    251          }
+    252          
+    253          /**
+    254           * @brief 得到记录总条数
+    255           * @return 0...LOGIC_RECORD_BLOCK_SIZE
+    256           */
+    257          int record_module_count(void)
+    258          {
+    259          	return rec_cnt;
+    260          }
+    261          
+    262          /**
+    263           * @brief 清除所有记录
+    264           * @return none
+    265           */
+    266          int record_clear(void)
+    267          {
+    268          	record_delall(1);
+    269          	rec_cnt = 0;  
+    270              return 0;
+    271          }
+    272          
+    273          /**
+    274          * @brief 根据某一个关键字查询记录
+    275          * @param[in] unsigned char *in_tag			要匹配的关键字字符串
+    276          * @param[in] int *index						返回逻辑索引
+    277          * @return 搜索结果	0:没有搜索到该交易记录  else:搜索到的记录的地址
+    278          * @note  实现的时候必须进行字符串比较,从最新的记录开始搜索
+    279          */
+    280          unsigned char *rec_searchby_tag(unsigned char *in_tag, int *index)
+    281          {
+    282          	unsigned char					*pBuf;
+    283          	unsigned int					i,led_state;
+    284          	int								count,ret;
+    285          	unsigned char					flag;
+    286          
+    287          	i = 0;
+    288          	led_state = 1;
+    289          
+    290          	count = record_count_ext(1);
+    291          	if (count <= 0)
+    292          	{
+    293          		return (unsigned char*)0;
+    294          	}
+    295          
+    296          	//搜索还只能一个个读，一个个比较，不知道当记录太多的时候会不会太慢了？？？
+    297          	//顺寻查找方法，需要评估搜索最后一个记录所消耗的时间是否能够忍受，如果不行，那只能通过一些空间换取时间的方法来优化
+    298          	//搜索算法了。
+    299          	do
+    300          	{
+    301          		ret = record_read(0x81,i,&flag,1);
+    302          		if (ret)
+    303          		{
+    304          			return (unsigned char*)0;
+    305          		}
+    306          
+    307          		if (flag == 0xff)
+    308          		{
+    309          			pBuf = record_module_read(count-i);
+    310          
+    311          			ret = strcmp((const char*)in_tag,(const char*)((TBATCH_NODE*)pBuf)->barcode);
+    312          
+    313          			if (ret == 0) 
+    314          			{
+    315          				*index = i;
+    316          				hw_platform_led_ctrl(LED_GREEN,0);
+    317          				hw_platform_beep_ctrl(300,3000);
+    318          				return pBuf;
+    319          			}
+    320          		}
+    321          		
+    322          		i ++;
+    323          		if (i%10 == 0)
+    324          		{
+    325          			hw_platform_led_ctrl(LED_GREEN,led_state);
+    326          			led_state = ~led_state;
+    327          		}
+    328          		
+    329          	}while(i<count);
+    330          
+    331          	hw_platform_led_ctrl(LED_GREEN,0);
+    332          	return (unsigned char*)0;		//没有搜索到与关键字匹配的记录
+    333          }
+    334          
+    335          
+    336          //记录的逻辑偏移对应的物理偏移
+    337          int rec_LA_to_PA(unsigned int logical_index)
+    338          {
+    339          	int ret,i,cnt = 0;
+    340          	unsigned char flag;
+    341          	unsigned int  num;
+    342          
+    343          	if ((logical_index ==0)||(logical_index > rec_cnt))
+    344          	{
+    345          		return 0;
+    346          	}
+    347          
+    348          	if (logical_index == 1)
+    349          	{
+    350          		current_logical_index = 1;
+    351          		current_node_offset = get_first_valid_node();
+    352          		if(logical_index == 1)
+    353          		{
+    354          			return current_node_offset;
+    355          		}
+    356          	}
+    357          
+    358          	if (logical_index == current_logical_index)
+    359          	{
+    360          		return current_node_offset;
+    361          	}
+    362          	else if (logical_index > current_logical_index)
+    363          	{
+    364          		num = logical_index - current_logical_index;
+    365          		for (i = current_node_offset+1; i<=record_count_ext(1);i++)
+    366          		{
+    367          			ret = record_read(0x81,record_count_ext(1)-i,&flag,1);
+    368          			if (ret)
+    369          			{
+    370          				return -1;
+    371          			}
+    372          
+    373          			if (flag == 0xff)
+    374          			{
+    375          				cnt++;
+    376          
+    377          				if (cnt == num)
+    378          				{
+    379          					current_logical_index = logical_index;
+    380          					current_node_offset = i;		
+    381          					return i;
+    382          				}
+    383          			}
+    384          		}
+    385          	}
+    386          	else
+    387          	{
+    388          		num = current_logical_index - logical_index;
+    389          		for (i = current_node_offset-1; i > 0;i--)
+    390          		{
+    391          			ret = record_read(0x81,record_count_ext(1)-i,&flag,1);
+    392          			if (ret)
+    393          			{
+    394          				return -1;
+    395          			}
+    396          
+    397          			if (flag == 0xff)
+    398          			{
+    399          				cnt++;
+    400          
+    401          				if (cnt == num)
+    402          				{
+    403          					current_logical_index = logical_index;
+    404          					current_node_offset = i;		
+    405          					return i;
+    406          				}
+    407          			}
+    408          		}
+    409          
+    410          	}
+    411          	
+    412          
+    413          	return 0;
+    414          }
+    415          
+    416          //记录的物理偏移对应的逻辑偏移
+    417          int rec_PA_to_LA(unsigned int physical_index)
+    418          {
+    419          	int ret,i;//,cnt = 0;
+    420          	unsigned char flag;
+    421          //	unsigned int num;
+    422          
+    423          
+    424          	if ((physical_index == 0)||(physical_index > record_count_ext(1)))
+    425          	{
+    426          		return 0;
+    427          	}
+    428          
+    429          	if (physical_index == current_node_offset)
+    430          	{
+    431          		return current_logical_index;
+    432          	}
+    433          	else if (physical_index > current_node_offset)
+    434          	{
+    435          		for (i = current_node_offset+1; i <= physical_index;i++)
+    436          		{
+    437          			ret = record_read(0x81,record_count_ext(1)-i,&flag,1);
+    438          			if (ret)
+    439          			{
+    440          				return 0;
+    441          			}
+    442          
+    443          			if (flag == 0xff)
+    444          			{
+    445          				current_logical_index++;
+    446          			}
+    447          		}
+    448          	}
+    449          	else
+    450          	{
+    451          		for (i = current_node_offset-1; i >= physical_index;i--)
+    452          		{
+    453          			ret = record_read(0x81,record_count_ext(1)-i,&flag,1);
+    454          			if (ret)
+    455          			{
+    456          				return 0;
+    457          			}
+    458          
+    459          			if (flag == 0xff)
+    460          			{
+    461          				current_logical_index--;
+    462          			}
+    463          		}
+    464          	}
+    465          	current_node_offset = physical_index;	
+    466          	return current_logical_index;
+    467          }
+    468          
+    469          
+    470          //清除一个记录
+    471          //index  物理偏移
+    472          int delete_one_node(unsigned int index)
+    473          {
+    474          	int ret;
+    475          //	unsigned char rec_index;
+    476          //	int k;
+    477          
+    478          	ret = record_modify(1,index,0xcf);
+    479          	if (ret)
+    480          	{
+    481          		return ret;
+    482          	}
+    483          
+    484          	rec_cnt--;
+    485          	return 0;
+    486          }
+    487          
+    488          
+    489          /**
+    490          * @brief 逻辑读取记录
+    491          * @param[in] unsigned int mode  0:第一个有效节点   1;前一个有效节点   2:后一个有效节点  3:指定节点偏移
+    492          * @param[in] unsigned int offset  只有在mode = 3时才有用，物理偏移
+    493          */
+    494          unsigned char* get_node(unsigned int mode,unsigned int offset)
+    495          {
+    496          	unsigned int index;
+    497          	//unsigned char flag;
+    498          
+    499          	if (mode == 0)
+    500          	{
+    501          		index = rec_LA_to_PA(1);
+    502          		if (index == 0)
+    503          		{
+    504          			return (unsigned char *)0;
+    505          		}
+    506          
+    507          		return record_module_read(index);
+    508          	}
+    509          	else if (mode == 1)
+    510          	{
+    511          		index = rec_LA_to_PA(current_logical_index-1);
+    512          		if (index == 0)
+    513          		{
+    514          			return (unsigned char *)0;
+    515          		}
+    516          
+    517          		return record_module_read(index);
+    518          	}
+    519          	else if (mode == 2)
+    520          	{
+    521          		index = rec_LA_to_PA(current_logical_index+1);
+    522          		if (index == 0)
+    523          		{
+    524          			return (unsigned char *)0;
+    525          		}
+    526          
+    527          		return record_module_read(index);
+    528          	}
+    529          	else if (mode == 3)
+    530          	{
+    531          		index = rec_PA_to_LA(offset);
+    532          		if (index == 0)
+    533          		{
+    534          			return (unsigned char *)0;
+    535          		}
+    536          
+    537          		return record_module_read(offset);
+    538          	}
+    539          
+    540          	return (unsigned char *)0;
+    541          }
+    542          
+    543          int recover_record_by_logfile(void)
+    544          {
+    545          	return 0;
+    546          }
+    547          
+    548          
+    549          unsigned char* record_logical_read(unsigned int logical_index)
+    550          {
+    551          	int	index;
+    552          
+    553          	index = rec_LA_to_PA(logical_index);
+    554          	if (index == 0)
+    555          	{
+    556          		return (unsigned char*)0;
+    557          	}
+    558          
+    559          	return record_module_read(index);
+    560          }
+    561          
+    562          void record_m_test(void)
+    563          {
+    564          	int i,ret;
+    565          	unsigned char *pRec;
+    566          	TBATCH_NODE		node;
+    567          #if 0      
+    568                  ret = record_clear();
+    569                  assert(ret == 0);
+    570                  
+    571          	//test record_add() interface
+    572          	for (i = 0; i < BATCH_LIST_MAX_CNT;i++)
+    573          	{
+    574          		sprintf(node.barcode,"test%d",i);
+    575          		hw_platform_trip_io();
+    576          		ret = record_add((unsigned char*)&node);
+    577          		assert(ret == 0);
+    578          	}
+    579          	
+    580          
+    581          	//test record_module_read() interface
+    582          	for (i = 0; i < BATCH_LIST_MAX_CNT;i++)
+    583          	{
+    584          		hw_platform_trip_io();
+    585          		pRec = record_module_read(i+1);
+    586          		assert(pRec != 0);
+    587          		sprintf(node.barcode,"test%d",i);
+    588          
+    589          		ret = strcmp(((TBATCH_NODE*)pRec)->barcode,node.barcode);
+    590          		assert(ret == 0);
+    591          	}
+    592          
+    593          	//test rec_searchby_tag()  speed performance			//45000条记录时，搜索最旧的一条记录耗时13.45s
+    594          	//此搜索算法的搜索时间是线性的，如果不满足客户需求，需要改进此搜索算法
+    595          	hw_platform_trip_io();
+    596          	sprintf(node.barcode,"test%d",0);
+    597          	pRec = rec_searchby_tag(node.barcode,&i);
+    598          	assert(pRec != 0);
+    599          	hw_platform_trip_io();
+    600          
+    601          #endif
+    602          
+    603          	for (i = 0; i < BATCH_LIST_MAX_CNT;i++)
+    604          	{
+    605          		ret = delete_one_node(i+1);
+    606          		assert(ret == 0);
+    607          		i++;
+    608          	}
+    609          
+    610          	for (i = 0; i < record_module_count();i++)
+    611          	{
+    612          		pRec = get_node((i==0)?0:2,0);
+    613          		assert(pRec != 0);
+    614          		sprintf(node.barcode,"test%d",2*i+1);
+    615          
+    616          		ret = strcmp(((TBATCH_NODE*)pRec)->barcode,node.barcode);
+    617          		assert(ret == 0);
+    618          	}
+    619          	
+    620          }
+
+   Maximum stack usage in bytes:
+
+     Function                  .cstack
+     --------                  -------
+     delete_one_node                8
+     get_delete_node               16
+     get_first_valid_node          16
+     get_node                       8
+     rec_LA_to_PA                  24
+     rec_PA_to_LA                  16
+     rec_searchby_tag              32
+     record_add                    16
+     record_clear                   8
+     record_logical_read            8
+     record_m_test                 96
+     record_module_count            0
+     record_module_init            16
+     record_module_read            16
+     record_module_replace         16
+     recover_record_by_logfile      0
+
+
+   Section sizes:
+
+     Function/Label                              Bytes
+     --------------                              -----
+     rec_module_buffer                             84
+     rec_cnt                                        4
+     current_logical_index                          4
+     current_node_offset                            4
+     g_rec_offset                                   4
+     record_module_init                           164
+     record_module_read                            52
+     get_delete_node                               66
+     get_first_valid_node                          64
+     record_add                                   148
+     record_module_replace                         28
+     record_module_count                            6
+     record_clear                                  18
+     rec_searchby_tag                             148
+     rec_LA_to_PA                                 232
+     rec_PA_to_LA                                 172
+     delete_one_node                               30
+     get_node                                     114
+     recover_record_by_logfile                      4
+     record_logical_read                           20
+     record_m_test                                164
+     ??DataTable35                                  4
+     ??DataTable38                                  4
+     ??DataTable40                                  4
+     ?<Constant "ret == 0">                        12
+     ?<Constant "E:\\H520B\\FW\\src\\App\\r...">   32
+     ?<Constant "pRec != 0">                       12
+     ?<Constant "test%d">                           8
+
+ 
+   100 bytes in section .bss
+    64 bytes in section .rodata
+ 1 442 bytes in section .text
+ 
+ 1 442 bytes of CODE  memory
+    64 bytes of CONST memory
+   100 bytes of DATA  memory
+
+Errors: none
+Warnings: 3

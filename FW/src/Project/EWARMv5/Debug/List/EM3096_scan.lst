@@ -1,0 +1,966 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  16:06:40 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\Drivers\EM3096_scan.c                       #
+#    Command line =  E:\T6\FW\src\Drivers\EM3096_scan.c -lcN                  #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\EM3096_scan.lst  #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\EM3096_scan.o     #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\Drivers\EM3096_scan.c
+      1          /**
+      2          * @file  EM3096_scan.c
+      3          * @brief EM3096 Scan Engine 条码扫描仪的驱动模块
+      4          * @version 1.0
+      5          * @author joe.zhou
+      6          * @date 2015年05月18日
+      7          * @note
+      8          */
+      9          #include "scanner.h"
+     10          
+     11          #if(SCANNER == SCANNER_EM3096)
+     12          
+     13          #include <string.h>
+     14          #include "stm32f10x_lib.h"
+     15          #include "ucos_ii.h"
+     16          #include "EM3096_scan.h"
+     17          #include "TimeBase.h"
+     18          #include "keypad.h"
+     19          #include "PCUsart.h"
+     20          #include "uart_drv.h"
+     21          
+     22          //#define EM3096_DEBUG
+     23          
+     24          const unsigned char prefix1[2]={0x7E,0x00};
+     25          const unsigned char prefix2[2]={0x02,0x00};
+     26          
+     27          #define TYPES	'3'
+     28          #define ACK  '?'
+     29          #define REPLY	'!'
+     30          
+     31          #define		RES_CHECKFAILURE			1
+     32          #define		RES_UNKOWN_MSG				2
+     33          #define		RESPONSE_SUCCESS			3
+     34          #define		RESPONSE_ACK				4
+     35          #define		RESPONSE_NAK				5
+     36          
+     37          //解析参数查询结果的回调函数
+     38          typedef void (*InquireResultParse)(unsigned char *pResult,unsigned int len);
+     39          
+     40          
+     41          //条码类型代号与类型名称的对应结构体
+     42          typedef struct  
+     43          {
+     44          	unsigned char type;
+     45          	unsigned char *name;
+     46          }TCodeTypeName;
+     47          
+     48          #define CMD_TYPE_INQUIRE		1
+     49          #define CMD_TYPE_ACK			2
+     50          #define CMD_TYPE_SET			3
+     51          #define CMD_TYPE_GETBARCODE		4
+     52          
+     53          static unsigned char	g_cmd_type;		//表明当前发送的命令类型
+     54          
+     55          
+     56          TEM3096Command	g_resCmd;		//scan decoder -> host
+     57          unsigned char	*g_pReqCmd;		//host -> scan decoder
+     58          
+     59          static	unsigned char scaner_version[21];		//扫描头版本
+     60          static	unsigned int	wait_time_out;			//get_barcode命令的等待超时设置
+     61          static  unsigned int    scanner_baudrate;
+     62          
+     63          #if 0
+     64          TCodeTypeName code_type_name_tbl[] = {
+     65          	{0x01, "Code 39"}, {0x02, "Codabar"}, {0x03, "Code 128"},
+     66          	{0x04, "Discrete 2"}, {0x05, "IATA 2"}, {0x06, "Interleaved 2 of 5"},
+     67          	{0x07, "Code 93"}, {0x08, "UPC A"}, {0x48, "UPC A 2S"},
+     68          	{0x88, "UPC A 5S"}, {0x09, "UPC E0"}, {0x49, "UPC E0 2S"},
+     69          	{0x89, "UPC E0 5S"}, {0x0A, "EAN 8"}, {0x0B, "EAN 13"},
+     70          	{0x4B, "EAN 13 2S"}, {0x8B, "EAN 13 5S"}, {0x0E, "MSI"},
+     71          	{0x0F, "EAN 128"}, {0x10, "UPC E1"}, {0x50, "UPC E1 2S"},
+     72          	{0x90, "UPC E1 5S"}, {0x15, "Tp Code 39"}, {0x23, "RSS-Limit"},
+     73          	{0x24, "RSS-14"}, {0x25, "RSS-Expanded"},{0x13,"UK"},{0x11,"China Post"},
+     74          	{0x0c,"Code 11"},{0x0d,"Matrix 2 0f 5"}, {0, 0}
+     75          };
+     76          #endif
+     77          
+     78          TCodeTypeName code_type_name_tbl[] = {
+     79          	{'i', "Code 93"}, {'j', "Code 128"}, {'d', "EAN-8/13"},
+     80          	{'c', "UPC-E/A"}, {'e', "Interleaved 2/5"}, {'v', "Matrix 2/5"},
+     81          	{'b', "Code 39"}, {'a', "CodaBar"}, {'H', "Code 11"},
+     82          	{'R', "GS1"}, {'B', "ISBN"}, {'I', "Industrial 2/5"},
+     83          	{'f', "Standard 2/5"}, {'n', "Plessey"}, {'m', "MSI"},
+     84          	{'r', "PDF417"}, {'s', "QR Code"}, {'z', "Aztec"},
+     85          	{'u', "Data Matrix"}, {'x', "Maxicode"}, {'h', "Chinese Sensible"},
+     86          	{0, 0}
+     87          };
+     88          
+     89          static unsigned char calc_checksum(unsigned char *pData, unsigned char data_len);
+     90          static int write_cmd_to_scanner(const unsigned char *pData, unsigned int length);
+     91          static int pack_inquire_command(unsigned char *pCmddata, unsigned int cmd_len);
+     92          
+     93          
+     94          /**
+     95          * @brief 根据类型代号获取类型名称
+     96          * @param[in] unsigned char type 类型代号
+     97          * @return unsigned char * name 类型名称
+     98          */
+     99          static unsigned char *type2name(unsigned char type)
+    100          {
+    101          	unsigned int i = 0;
+    102          
+    103          	if(type == 0)
+    104          		return 0;
+    105          
+    106          	while (code_type_name_tbl[i].type != 0) 
+    107          	{
+    108          		if (type == code_type_name_tbl[i].type) 
+    109          		{
+    110          			return code_type_name_tbl[i].name;
+    111          		}
+    112          		i++;
+    113          	}
+    114          	return 0;
+    115          }
+    116          /*
+    117           * @brief: 初始化模块端口
+    118          */
+    119          static void EM3096_GPIO_config(unsigned int baudrate)
+    120          {
+    121          	GPIO_InitTypeDef				GPIO_InitStructure;
+    122          	USART_InitTypeDef				USART_InitStructure;
+    123          
+    124          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
+    125          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
+    126          
+    127          	//Power
+    128          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_8;
+    129                  GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    130          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+    131          	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    132          	GPIO_SetBits(GPIOC, GPIO_Pin_8);
+    133          
+    134          	// 使用UART3, PB10,PB11
+    135          	/* Configure USART3 Tx (PB.10) as alternate function push-pull */
+    136          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+    137          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    138          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    139          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    140          
+    141          	/* Configure USART3 Rx (PB.11) as input floating				*/
+    142          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_11;
+    143          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    144          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    145          
+    146          	USART_InitStructure.USART_BaudRate		= baudrate;					
+    147          	USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+    148          	USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+    149          	USART_InitStructure.USART_Parity		= USART_Parity_No;
+    150          	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    151          	USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
+    152          
+    153          	USART_Init(USART3, &USART_InitStructure);
+    154          	USART_Cmd(USART3, ENABLE);
+    155          }
+    156          
+    157          static void EM3096_NVIC_config(void)
+    158          {
+    159          	NVIC_InitTypeDef NVIC_InitStructure;
+    160          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+    161          
+    162          	NVIC_InitStructure.NVIC_IRQChannel				=USART3_IRQChannel;
+    163          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority	= 0;
+    164          	NVIC_InitStructure.NVIC_IRQChannelCmd			= ENABLE;
+    165          	NVIC_Init(&NVIC_InitStructure);
+    166          
+    167          	USART_ClearITPendingBit(USART3, USART_IT_RXNE); 
+    168          	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
+    169          }
+    170          
+    171          static void reset_resVar(void)
+    172          {
+    173          	g_resCmd.CmdPos = 0;
+    174          	g_resCmd.DataLength = 0;
+    175          	g_resCmd.status	 = 0;
+    176          }
+    177          
+    178          /**
+    179          * @brief  发数据给条形码扫描仪
+    180          * @param[in] unsigned char *pData 要发送的数据
+    181          * @param[in] int length 要发送数据的长度
+    182          */
+    183          static void send_data_to_scanner(const unsigned char *pData, unsigned int length)
+    184          {
+    185          	while(length--)
+    186          	{
+    187          		USART_SendData(USART3, *pData++);
+    188          		while(USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET)
+    189          		{
+    190          		}
+    191          	}
+    192          	while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET){};
+    193          }
+    194          /*
+    195          * @brief: 唤醒模块
+    196          */
+    197          int EM3096_wakeup(void)
+    198          {
+    199          	unsigned char cmd_type_save;
+    200          	unsigned char cmd[2] = {ACK,0};
+    201          
+    202          	cmd_type_save = g_cmd_type;
+    203          	g_cmd_type = CMD_TYPE_ACK;
+    204          	send_data_to_scanner(cmd, 1);
+    205          
+    206          	reset_resVar();
+    207          	StartDelay(110);			/* 延时500mS		*/
+    208          	while (DelayIsEnd() != 0)
+    209          	{
+    210          		if (g_resCmd.status == RESPONSE_SUCCESS)
+    211          		{
+    212          			g_cmd_type = cmd_type_save;
+    213          			return 0;
+    214          		}
+    215          		else if((g_resCmd.status == RES_UNKOWN_MSG) ||(g_resCmd.status == RESPONSE_NAK)||(g_resCmd.status == RES_CHECKFAILURE) )
+    216          		{
+    217          			g_cmd_type = cmd_type_save;
+    218          			return -1;
+    219          		}
+    220          	}
+    221          	//if (retry_times == 0)
+    222          	//{
+    223          	//	return -2;
+    224          	//}
+    225          	//goto	loop;
+    226          	g_cmd_type = cmd_type_save;
+    227          	return -2;
+    228          }
+    229          
+    230          /**
+    231          * @brief  发命令给条形码扫描仪
+    232          * @param[in] unsigned char *pData 要发送的数据
+    233          * @param[in] unsigned int length 要发送数据的长度
+    234          * @param[out]	0: 成功
+    235          *				-1: 失败
+    236          *				-2：超时
+    237          */
+    238          static int write_cmd_to_scanner(const unsigned char *pData, unsigned int length)
+    239          {
+    240          	unsigned char	retry_times		= 2;
+    241          
+    242          	//if(EM3096_wakeup())
+    243          	//{
+    244          	//	return -2;
+    245          	//}
+    246          loop:
+    247          	retry_times--;
+    248          	send_data_to_scanner(pData, length);
+    249          
+    250          	//wait host ack
+    251          	reset_resVar();
+    252          	StartDelay(110);			/* 延时500mS		*/
+    253          	while (DelayIsEnd() != 0)
+    254          	{
+    255          		if (g_resCmd.status == RESPONSE_SUCCESS)
+    256          		{
+    257          			return 0;
+    258          		}
+    259          		else if((g_resCmd.status == RES_UNKOWN_MSG) ||(g_resCmd.status == RESPONSE_NAK)||(g_resCmd.status == RES_CHECKFAILURE) )
+    260          		{
+    261          			return -1;
+    262          		}
+    263          	}
+    264          	if (retry_times == 0)
+    265          	{
+    266                          //scanner_reset_param();
+    267          		return -2;
+    268          	}
+    269          	goto	loop;
+    270          }
+    271          
+    272          
+    273          /**
+    274          * @brief 处理host收到scanner的数据
+    275          * @param[in] unsigned char c 读入的字符
+    276          * @return 0:success put in buffer
+    277          *        -1:fail
+    278          */
+    279          int scanner_RxISRHandler(unsigned char c)
+    280          {
+    281          	unsigned char checksum = 0;
+    282          
+    283          	g_resCmd.CmdBuffer[g_resCmd.CmdPos++] = c;
+    284          
+    285          #ifdef EM3096_DEBUG
+    286          
+    287          	if (g_resCmd.CmdPos == 20)
+    288          	{
+    289          		g_resCmd.CmdPos = 0;
+    290          		g_resCmd.status	= RESPONSE_SUCCESS;
+    291          	}
+    292          #else
+    293          	/*-------------------------------------------------------*/
+    294          	/*以下代码检查数据包格式是否正确                      */
+    295          	/*-------------------------------------------------------*/
+    296          	if (g_resCmd.CmdPos == 1)
+    297          	{
+    298          		if (g_cmd_type == CMD_TYPE_ACK)
+    299          		{
+    300          			g_resCmd.DataLength = 0;
+    301          			if (g_resCmd.CmdBuffer[0] == REPLY)
+    302          			{
+    303          				g_resCmd.status	= RESPONSE_SUCCESS;
+    304          			}
+    305          			else
+    306          			{
+    307          				g_resCmd.status	= RES_UNKOWN_MSG;
+    308          			}
+    309          		}
+    310          		else if (g_cmd_type == CMD_TYPE_SET)
+    311          		{
+    312          			g_resCmd.DataLength = 0;
+    313          			if (g_resCmd.CmdBuffer[0] == 0x06)
+    314          			{
+    315          				g_resCmd.status	= RESPONSE_SUCCESS;
+    316                                          return 0;
+    317          			}
+    318          			else
+    319          			{
+    320          				g_resCmd.status	= RESPONSE_NAK;
+    321                                          return 0;
+    322          			}
+    323          		}
+    324          		else if (g_cmd_type == CMD_TYPE_GETBARCODE)
+    325          		{
+    326          			g_resCmd.DataLength = 65534;
+    327          		}
+    328          		else
+    329          		{
+    330          			g_resCmd.DataLength = 7;		//至少返回7个字节
+    331          		}
+    332          	}
+    333          
+    334          	if (g_cmd_type == CMD_TYPE_INQUIRE)
+    335          	{
+    336          		if (g_resCmd.CmdPos == 2)
+    337          		{
+    338          			if ((g_resCmd.CmdBuffer[0] != 0x02)||(g_resCmd.CmdBuffer[1] != 0x00))
+    339          			{
+    340          				g_resCmd.DataLength = 1;
+    341          				g_resCmd.status	= RES_UNKOWN_MSG;
+    342          				return -1;
+    343          			}
+    344          		}
+    345          
+    346          		if (g_resCmd.CmdPos == 4)
+    347          		{
+    348          			g_resCmd.DataLength = (g_resCmd.CmdBuffer[2] << 8) | g_resCmd.CmdBuffer[3];
+    349          			g_resCmd.DataLength += 4;
+    350          		}
+    351          
+    352          		if (g_resCmd.CmdPos == 5)
+    353          		{
+    354          			if (g_resCmd.CmdBuffer[4] != 0x34)
+    355          			{
+    356          				g_resCmd.DataLength = 4;
+    357          				g_resCmd.status	= RES_UNKOWN_MSG;
+    358          				return -1;
+    359          			}
+    360          		}
+    361          
+    362          		if (g_resCmd.CmdPos == g_resCmd.DataLength+1)	//接收完成
+    363          		{
+    364          			checksum = calc_checksum(g_resCmd.CmdBuffer+2, g_resCmd.DataLength-2);
+    365          			if (checksum != g_resCmd.CmdBuffer[g_resCmd.DataLength])
+    366          			{
+    367          				g_resCmd.CmdPos = 0;
+    368          				g_resCmd.status = RES_CHECKFAILURE;
+    369          				return -1;
+    370          			}
+    371          			else
+    372          			{
+    373          				g_resCmd.DataLength -= 5;				//有效的数据长度
+    374          				g_resCmd.status	= RESPONSE_SUCCESS;
+    375                                          return 0;
+    376          			}
+    377          		}
+    378          
+    379          	}
+    380          	else if (g_cmd_type == CMD_TYPE_GETBARCODE)
+    381          	{
+    382          		if (c == 0x0a)
+    383          		{
+    384          			g_resCmd.DataLength  = g_resCmd.CmdPos-2;
+    385          			g_resCmd.status	= RESPONSE_SUCCESS;
+    386                                  return 0;
+    387          		}
+    388          	}
+    389          
+    390          	if (g_resCmd.CmdPos > g_resCmd.DataLength+1)
+    391          	{
+    392          		reset_resVar();
+    393          		g_resCmd.status = RES_UNKOWN_MSG;
+    394          		return -1;
+    395          	}
+    396          #endif
+    397          	return 0;
+    398          }
+    399          
+    400          static unsigned char calc_checksum(unsigned char *pData, unsigned char data_len)
+    401          {
+    402          	unsigned int i = 0;
+    403          	unsigned char checksum = 0xff;
+    404          
+    405          	for (i = 0; i < data_len; i++)
+    406          	{
+    407          		checksum	^= pData[i];
+    408          	}
+    409          
+    410          	return checksum;
+    411          }
+    412          
+    413          /**
+    414          * @brief  打包查询命令(host->scanner)
+    415          * @param[in] unsigned char *pCmddata	命令数据
+    416          * @param[in] unsigned short cmd_len		命令数据长度
+    417          * @note: 命令格式
+    418          *	---------------------------------------------------------------
+    419          *  | prefix1 | lens(2字节) | Types | Data1| Checksum |
+    420          *	---------------------------------------------------------------
+    421          */
+    422          static int pack_inquire_command(unsigned char *pCmddata, unsigned int cmd_len)
+    423          {
+    424          	unsigned short cur_pos	= 0;
+    425          	unsigned char checksum = 0;
+    426                  
+    427          	if (cmd_len > (G_SEND_BUF_LENGTH-6))
+    428          	{
+    429          		return 0;
+    430          	}
+    431              //memset(g_pReqCmd,0,50);
+    432          
+    433          	g_pReqCmd[cur_pos]	= prefix1[0];		//prefix1
+    434          	cur_pos++;
+    435          	g_pReqCmd[cur_pos]	= prefix1[1];		//prefix1
+    436          	cur_pos++;
+    437          	g_pReqCmd[cur_pos] = (unsigned char)(cmd_len>>8);			//lens
+    438          	cur_pos++;
+    439          	g_pReqCmd[cur_pos] = (unsigned char)(cmd_len&0xff);			//lens
+    440          	cur_pos++;
+    441          	g_pReqCmd[cur_pos] = TYPES;			//types
+    442          	cur_pos++;
+    443          
+    444          	if (cmd_len > 0 && pCmddata != 0)
+    445          	{
+    446          		memcpy(g_pReqCmd+cur_pos, pCmddata, cmd_len);		//Data
+    447          		cur_pos		+=	cmd_len;
+    448          	}
+    449          	g_pReqCmd[cur_pos] = calc_checksum(g_pReqCmd+2, cur_pos-2);
+    450          	cur_pos++;
+    451          
+    452          	return (int)cur_pos;
+    453          }
+    454          
+    455          /**
+    456          * @brief  打包查询命令(host->scanner)
+    457          * @param[in] unsigned char *pCmddata	命令序列（固定7个字节长度的命令序列）
+    458          * @param[in] unsigned char *value		数据
+    459          * @param[in] unsigned int 	value_len	数据长度
+    460          * @note: 命令格式
+    461          *	-------------------------------------------------------------------
+    462          *  | "nls"/"NLS" | 命令序列（7字节） | =（option） | set_value(option) |
+    463          *	-------------------------------------------------------------------
+    464          */
+    465          static int pack_set_param_command(unsigned char *pCmddata, unsigned char *pValue, unsigned int value_len)
+    466          {
+    467          	if (value_len > (G_SEND_BUF_LENGTH - 11))
+    468          	{
+    469          		return 0;
+    470          	}
+    471          	memcpy(g_pReqCmd,"NLS",3);
+    472          	memcpy(g_pReqCmd+3,pCmddata,7);
+    473          
+    474          	if ((value_len != 0)&&(pValue != 0))
+    475          	{
+    476          		g_pReqCmd[10] = '=';
+    477          		memcpy(g_pReqCmd+11,pValue,value_len);
+    478          		g_pReqCmd[value_len+11] = 0;
+    479          		return (value_len+11);
+    480          	}
+    481          	else
+    482          	{
+    483          		g_pReqCmd[10] = 0;
+    484          		return 10;
+    485          	}
+    486          }
+    487          
+    488          
+    489          /**
+    490          * @brief  EM3096的连接查询
+    491          */
+    492          int EM3096_ack(void)
+    493          {
+    494          	unsigned char	cmd[2];
+    495          	cmd[0] = ACK;
+    496          	g_cmd_type = CMD_TYPE_ACK;
+    497          	return write_cmd_to_scanner(cmd,1);
+    498          }
+    499          
+    500          
+    501          /**
+    502          * @brief  EM3096的参数查询接口
+    503          * @param[in] unsigned char *pInquireCmd	查询的命令序列
+    504          * @param[in] unsigned int	cmd_len		命令长度
+    505          * @param[in] InquireResultParse 	pResultParse	处理查询结果的回调函数,不需要处理参数，传入空指针即可
+    506          */
+    507          int EM3096_inquire_param(unsigned char *pInquireCmd,unsigned int cmd_len,InquireResultParse pResultParse)
+    508          {
+    509          	int len;
+    510          	g_cmd_type = CMD_TYPE_INQUIRE;
+    511          	len = pack_inquire_command(pInquireCmd,cmd_len);
+    512          	if (len)
+    513          	{
+    514          		if (write_cmd_to_scanner(g_pReqCmd,len))
+    515          		{
+    516          			return -1;
+    517          		}
+    518          
+    519          		if (pResultParse)
+    520          		{
+    521          			pResultParse(g_resCmd.CmdBuffer+5,g_resCmd.DataLength);		//分析并处理返回查询到的参数值
+    522          		}
+    523          	}
+    524          	else
+    525          	{
+    526          		return -1;
+    527          	}
+    528          
+    529          	return 0;
+    530          }
+    531          
+    532          /**
+    533          * @brief  EM3096的参数设置接口
+    534          * @param[in] unsigned char *pSetCmd	设置的命令序列
+    535          * @param[in] unsigned char *pValue	设置的参数值
+    536          * @param[in] unsigned int value_len	参数长度
+    537          */
+    538          int EM3096_set_param(unsigned char *pSetCmd,unsigned char *pValue,unsigned int value_len)
+    539          {
+    540          	int len;
+    541          	g_cmd_type = CMD_TYPE_SET;
+    542          	len = pack_set_param_command(pSetCmd,pValue,value_len);
+    543          	if (len)
+    544          	{
+    545          		if (write_cmd_to_scanner(g_pReqCmd,len))
+    546          		{
+    547          			return -1;
+    548          		}
+    549          	}
+    550          	else
+    551          	{
+    552          		return -1;
+    553          	}
+    554          
+    555          	return 0;
+    556          }
+    557          
+    558          /**
+    559          * @brief  EM3096的识读触发控制
+    560          * @param[in] unsigned char trig_type	触发模式
+    561          * @param[in] unsigned char ctrl			开 or 关
+    562          */
+    563          int EM3096_trig_ctrl(unsigned char trig_type,unsigned char ctrl)
+    564          {
+    565          	unsigned char		cmd[2];
+    566          
+    567          	g_cmd_type = CMD_TYPE_SET;
+    568          	if (ctrl == STOP)
+    569          	{
+    570          		memcpy(cmd,"\x1b\x30",2);
+    571          	}
+    572          	else
+    573          	{
+    574          		if (TRIG_MODE_SINGLE == trig_type)
+    575          		{
+    576          			memcpy(cmd,"\x1b\x31",2);
+    577          		}
+    578          		else if (TRIG_MODE_AUTO == trig_type)
+    579          		{
+    580          			memcpy(cmd,"\x1b\x32",2);
+    581          		}
+    582          		else if (TRIG_MODE_SEQUENCE == trig_type)
+    583          		{
+    584          			memcpy(cmd,"\x1b\x33",2);
+    585          		}
+    586          		else
+    587          		{
+    588          			return -1;
+    589          		}
+    590          	}
+    591          
+    592          	if (write_cmd_to_scanner(cmd,2))
+    593          	{
+    594          		return -1;
+    595          	}
+    596          	return 0;
+    597          
+    598          }
+    599          
+    600          //=================================以上提供了最底层的通用接口===================================================
+    601          
+    602          
+    603          //=================================下面封装一些通用的应用层的接口出来=======================================
+    604          
+    605          /*
+    606          * @breif: 扫描头波特率自适应
+    607          */
+    608          static int EM3096_baudrate_set(void)
+    609          {
+    610          	int   ret;
+    611          	ret = EM3096_ack();
+    612          	if(ret == -2)
+    613          	{
+    614          		//响应超时，可以尝试切换主机的波特率，再次尝试一次
+    615          		EM3096_GPIO_config(115200);
+    616          
+    617          		ret = EM3096_ack();
+    618          		if(ret)
+    619          		{
+    620          			return ret;
+    621          		}
+    622          		else
+    623          		{
+    624          			scanner_baudrate = 115200;
+    625          		}
+    626          	}
+    627          	else
+    628          	{
+    629          		scanner_baudrate = 9600;
+    630          	}
+    631          
+    632          	if(scanner_baudrate == 115200)
+    633          	{
+    634          		if(EM3096_set_param("0100030",(unsigned char*)0,0))   //将扫描头的波特率设置为9600 
+    635          		{
+    636          			return -1;
+    637          		}
+    638          		EM3096_GPIO_config(9600);
+    639          	}
+    640          
+    641          	return 0;
+    642          }
+    643          
+    644          //设置扫描头的解码器开关
+    645          void scanner_set_decoder_switch(unsigned short switch_map)
+    646          {
+    647          	EM3096_set_param(((switch_map&(0x0001<<0))?"0401020":"0401010"),(unsigned char*)0,0);		//EAN-8
+    648          	EM3096_set_param(((switch_map&(0x0001<<0))?"0402020":"0402010"),(unsigned char*)0,0);		//EAN-13
+    649          	EM3096_set_param(((switch_map&(0x0001<<0))?"0412020":"0412010"),(unsigned char*)0,0);		//UCC/EAN-128
+    650          	
+    651          	EM3096_set_param(((switch_map&(0x0001<<1))?"0404020":"0404010"),(unsigned char*)0,0);		//UPC-A
+    652          	EM3096_set_param(((switch_map&(0x0001<<1))?"0403020":"0403010"),(unsigned char*)0,0);		//UPC-E
+    653          
+    654          	EM3096_set_param(((switch_map&(0x0001<<2))?"0408020":"0408010"),(unsigned char*)0,0);		//code39
+    655          
+    656          	EM3096_set_param(((switch_map&(0x0001<<3))?"0410020":"0410010"),(unsigned char*)0,0);		//code93
+    657          
+    658          	EM3096_set_param(((switch_map&(0x0001<<4))?"0415020":"0415010"),(unsigned char*)0,0);		//code11
+    659          
+    660          	EM3096_set_param(((switch_map&(0x0001<<5))?"0400020":"0400010"),(unsigned char*)0,0);		//code128
+    661          
+    662          	EM3096_set_param(((switch_map&(0x0001<<6))?"0405020":"0405010"),(unsigned char*)0,0);		//interleave 2/5
+    663          
+    664          	EM3096_set_param(((switch_map&(0x0001<<7))?"0406020":"0406010"),(unsigned char*)0,0);		//matrix 2/5
+    665          
+    666          	EM3096_set_param(((switch_map&(0x0001<<8))?"0417020":"0417010"),(unsigned char*)0,0);		//industrial 2/5
+    667          
+    668          	EM3096_set_param(((switch_map&(0x0001<<9))?"0420020":"0420010"),(unsigned char*)0,0);		//MSI
+    669          
+    670          	EM3096_set_param(((switch_map&(0x0001<<10))?"0413020":"0413010"),(unsigned char*)0,0);		//GS1
+    671          	
+    672          	EM3096_set_param(((switch_map&(0x0001<<11))?"0409020":"0409010"),(unsigned char*)0,0);		//codabar
+    673          }
+    674          
+    675          /*
+    676          * @brief: 模块初始化
+    677          */
+    678          void scanner_mode_init(unsigned short switch_map)
+    679          {
+    680          	unsigned int	tmp;
+    681          
+    682          	EM3096_GPIO_config(9600);
+    683          	EM3096_NVIC_config();
+    684          	
+    685          	g_pReqCmd	= g_send_buff;
+    686          	g_resCmd.CmdBuffer	= g_receive_buff;
+    687          
+    688          	reset_resVar();
+    689          
+    690          	//初始化串口配置
+    691          	Comm_SetReceiveProc(COMM3, (CommIsrInByte)scanner_RxISRHandler);						//设置串口回调函数
+    692          
+    693          #ifndef EM3096_DEBUG
+    694          	scanner_reset_param();
+    695          	if(EM3096_baudrate_set())
+    696          	{
+    697          		return;
+    698          	}
+    699          
+    700          	//EM3096_set_param("0203000",(unsigned char*)0,0);		//关闭解码声音
+    701          	//EM3096_set_param("0311010",(unsigned char*)0,0);		//解码信息添加CodeID前缀
+    702          	//EM3096_set_param("0307010",(unsigned char*)0,0);		//解码信息添加CodeID前缀
+    703          	//EM3096_set_param("0309010",(unsigned char*)0,0);		//解码信息添加结束符后缀
+    704          	//EM3096_set_param("0310000","0x0D",4);					//解码信息设定结束符后缀为0x0d
+    705          #endif
+    706          }
+    707          
+    708          
+    709          /*
+    710          * @breif:  获取条形码
+    711          * @param[out]: unsigned char *code_type: 条形码类型		10个字节
+    712          * @param[out]: unsigned char *code_buf: 存储条形码的缓存, code Type + decode data
+    713          * @param[in]:  unsigned char inbuf_size: 传进来用来存放decode_data的buf大小
+    714          * @param[out]  unsigned char *code_len:	 实际获取的条形码的长度，如果实际获取的长度比传进来的buf大，那么只返回传进来的buf大小的数据
+    715          */
+    716          int scanner_get_barcode(unsigned char *code_buf, unsigned int inbuf_size,unsigned char *code_type,unsigned int *code_len)
+    717          {
+    718          	unsigned char *code_name;
+    719          	int		i = 0;
+    720          	int ret;
+    721          	//start decode
+    722          	ret = EM3096_trig_ctrl(TRIG_MODE_SINGLE,START);
+    723          	if (ret == 0)
+    724          	{
+    725          		//get code data
+    726          		reset_resVar();
+    727          		g_cmd_type = CMD_TYPE_GETBARCODE;
+    728          		for(i = 0; i < 30; i++)   //新扫描头的超时只有3S左右
+    729          		{
+    730          			if (g_resCmd.status == RESPONSE_SUCCESS) //成功收到响应
+    731          			{
+    732          #ifdef EM3096_DEBUG
+    733          				*code_len = 20;
+    734          				memcpy(code_buf,g_resCmd.CmdBuffer,20);362134355361
+    735          
+    736          				return 0;
+    737          #else
+    738          
+    739          				//if (g_resCmd.CmdBuffer[1] == DECODE_DATA)
+    740          				{
+    741          					*code_len	= g_resCmd.DataLength;
+    742          					memcpy(code_buf, &g_resCmd.CmdBuffer[0], ((*code_len > inbuf_size)?inbuf_size:*code_len));
+    743          					//code_name	= type2name(g_resCmd.CmdBuffer[0]);
+    744          					//if ((code_name != 0)&&(code_type != 0))
+    745          					{
+    746          						strcpy(code_type, "");
+    747          					}
+    748          					//Beep(400);
+    749          					EM3096_trig_ctrl(TRIG_MODE_SINGLE,STOP);
+    750          					return 0;
+    751          				}
+    752          #endif	                        
+    753          
+    754          			}//成功收到响应
+    755          			else if ((g_resCmd.status == RES_UNKOWN_MSG)||(g_resCmd.status == RES_CHECKFAILURE)||(g_resCmd.status == RESPONSE_NAK))
+    756          			{
+    757          				EM3096_trig_ctrl(TRIG_MODE_SINGLE,STOP);
+    758          				return -1;
+    759          			}
+    760          
+    761          			OSTimeDlyHMSM(0, 0, 0, 100);
+    762          		}//延时
+    763          
+    764          		//scan_start = 0;
+    765          		EM3096_trig_ctrl(TRIG_MODE_SINGLE,STOP);
+    766          		return -1;
+    767          	}
+    768          }
+    769          
+    770          
+    771          /*
+    772          * @brief: reset the decoders parameter settings to the factory default values
+    773          */
+    774          void scanner_reset_param(void)
+    775          {
+    776          	EM3096_set_param("0001000",(unsigned char*)0,0);		//恢复出厂设置
+    777          }
+    778          
+    779          /*
+    780          * @brief: 获取 扫描头软件版本号
+    781          * @note unsigned char *softVer 20字节的缓冲区
+    782          */
+    783          int scanner_get_softVersion(unsigned char *softVer, unsigned char *plen)
+    784          {
+    785          	//@todo....
+    786          	strcpy(softVer,"EM3096 V1.00");
+    787          	*plen = 12;
+    788          	return 0;
+    789          }
+    790          
+    791          
+    792          #endif
+
+   Maximum stack usage in bytes:
+
+     Function                   .cstack
+     --------                   -------
+     EM3096_GPIO_config             32
+     EM3096_NVIC_config              8
+     EM3096_ack                      8
+     EM3096_baudrate_set             8
+     EM3096_inquire_param            8
+     EM3096_set_param                8
+     EM3096_trig_ctrl                8
+     EM3096_wakeup                  16
+     calc_checksum                   8
+     memcpy                          8
+     pack_inquire_command           16
+     pack_set_param_command         16
+     reset_resVar                    0
+     scanner_RxISRHandler            8
+     scanner_get_barcode            24
+     scanner_get_softVersion         8
+     scanner_mode_init               8
+     scanner_reset_param             8
+     scanner_set_decoder_switch      8
+     send_data_to_scanner           16
+     write_cmd_to_scanner           16
+
+
+   Section sizes:
+
+     Function/Label                 Bytes
+     --------------                 -----
+     memcpy                           14
+     prefix1                           2
+     prefix2                           2
+     g_cmd_type                        1
+     g_resCmd                         12
+     g_pReqCmd                         4
+     scanner_baudrate                  4
+     code_type_name_tbl              176
+     EM3096_GPIO_config              172
+     EM3096_NVIC_config               58
+     reset_resVar                     26
+     send_data_to_scanner             54
+     EM3096_wakeup                   132
+     write_cmd_to_scanner            102
+     scanner_RxISRHandler            532
+     calc_checksum                    32
+     pack_inquire_command            160
+     pack_set_param_command          120
+     EM3096_ack                       26
+     EM3096_inquire_param             74
+     EM3096_set_param                 48
+     EM3096_trig_ctrl                124
+     EM3096_baudrate_set             100
+     scanner_set_decoder_switch      448
+     scanner_mode_init                64
+     scanner_get_barcode             176
+     scanner_reset_param              20
+     scanner_get_softVersion          24
+     ??DataTable9                      4
+     ??DataTable97                     4
+     ??DataTable99                     4
+     ??DataTable105                    4
+     ?<Constant "Code 93">             8
+     ?<Constant "Code 128">           12
+     ?<Constant "EAN-8/13">           12
+     ?<Constant "UPC-E/A">             8
+     ?<Constant "Interleaved 2/5">    16
+     ?<Constant "Matrix 2/5">         12
+     ?<Constant "Code 39">             8
+     ?<Constant "CodaBar">             8
+     ?<Constant "Code 11">             8
+     ?<Constant "GS1">                 4
+     ?<Constant "ISBN">                8
+     ?<Constant "Industrial 2/5">     16
+     ?<Constant "Standard 2/5">       16
+     ?<Constant "Plessey">             8
+     ?<Constant "MSI">                 4
+     ?<Constant "PDF417">              8
+     ?<Constant "QR Code">             8
+     ?<Constant "Aztec">               8
+     ?<Constant "Data Matrix">        12
+     ?<Constant "Maxicode">           12
+     ?<Constant "Chinese Sensible">   20
+     ?<Constant {63, 0}>               2
+     ?<Constant "NLS">                 4
+     ?<Constant "\0330">               4
+     ?<Constant "\0331">               4
+     ?<Constant "\0332">               4
+     ?<Constant "\0333">               4
+     ?<Constant "0100030">             8
+     ?<Constant "0401020">             8
+     ?<Constant "0401010">             8
+     ?<Constant "0402020">             8
+     ?<Constant "0402010">             8
+     ?<Constant "0412020">             8
+     ?<Constant "0412010">             8
+     ?<Constant "0404020">             8
+     ?<Constant "0404010">             8
+     ?<Constant "0403020">             8
+     ?<Constant "0403010">             8
+     ?<Constant "0408020">             8
+     ?<Constant "0408010">             8
+     ?<Constant "0410020">             8
+     ?<Constant "0410010">             8
+     ?<Constant "0415020">             8
+     ?<Constant "0415010">             8
+     ?<Constant "0400020">             8
+     ?<Constant "0400010">             8
+     ?<Constant "0405020">             8
+     ?<Constant "0405010">             8
+     ?<Constant "0406020">             8
+     ?<Constant "0406010">             8
+     ?<Constant "0417020">             8
+     ?<Constant "0417010">             8
+     ?<Constant "0420020">             8
+     ?<Constant "0420010">             8
+     ?<Constant "0413020">             8
+     ?<Constant "0413010">             8
+     ?<Constant "0409020">             8
+     ?<Constant "0409010">             8
+     ?<Constant "">                    1
+     ?<Constant "0001000">             8
+     ?<Constant "EM3096 V1.00">       16
+
+ 
+    21 bytes in section .bss
+   176 bytes in section .data
+   515 bytes in section .rodata
+ 2 522 bytes in section .text
+ 
+ 2 508 bytes of CODE  memory (+ 14 bytes shared)
+   515 bytes of CONST memory
+   197 bytes of DATA  memory
+
+Errors: none
+Warnings: 30

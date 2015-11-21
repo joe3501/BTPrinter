@@ -1,0 +1,406 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  18:18:42 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\DotFill.c                       #
+#    Command line =  "E:\BT Printer\FW\src\App\DotFill.c" -D DEBUG_VER -lcN   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\DotFill. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\DotFill.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\DotFill.c
+      1          #include "hw_platform.h"
+      2          #include <string.h>
+      3          #include "basic_fun.h"
+      4          #include "Font.h"
+      5          
+      6          
+      7          uint16_t max_start_col=0;
+      8          //======================================================================================================
+      9          extern void DotBufFillToPrn(uint8_t *buf, uint16_t max_col, uint16_t max_rowbyte, uint16_t min_row, uint16_t max_row, uint8_t ratio_width, uint8_t ratio_height)
+     10          {
+     11           //  DotBufFillToPrn(&esc_sts[current_channel].dot[0][0], esc_sts[current_channel].start_dot, ARRAY_SIZE(esc_sts[current_channel].dot[0]), esc_sts[current_channel].dot_minrow, ARRAY_SIZE(esc_sts[current_channel].dot[0]), 1, 1);
+     12          	uint16_t row, col, start_col, bit;
+     13          	uint8_t bits, mask;
+     14          	uint8_t dot[LineDot/8];
+     15          	uint8_t ratio;
+     16          
+     17          	if (max_col*ratio_width > LineDot) return;	// 参数错误
+     18          
+     19          	// 对齐方式调整
+     20          	switch (esc_sts[current_channel].align)
+     21          	{
+     22          	case 0:		// left align,左对齐
+     23          	default:
+     24          		start_col = 0;
+     25          		break;
+     26          	case 1:		// middle align，居中对齐
+     27          		start_col = (LineDot - max_col*ratio_width) >> 1;
+     28          		break;
+     29          	case 2:		// right align，右对齐
+     30          		start_col = LineDot - max_col*ratio_width;
+     31          		break;
+     32          	}
+     33          	// 上下倒置调整
+     34          #if defined(TM_T88II) || defined(SW40)
+     35          	if (esc_sts[current_channel].upside_down)
+     36          #else
+     37          	if (0)
+     38          #endif
+     39          	{       //倒置
+     40          		for (row=max_row-1; row >= min_row; row--)
+     41          		{
+     42          			bits = 0;
+     43          			do
+     44          			{
+     45          				mask = (1 << bits);
+     46          				memset(dot, 0, sizeof(dot));
+     47          				for (col=0; col<max_col; col++)
+     48          				{
+     49          					if (buf[col*max_rowbyte+row] & mask)
+     50          					{
+     51          						bit = (LineDot - 1) - (start_col + col*ratio_width);
+     52          						for (ratio=0; ratio<ratio_width; ratio++, bit--)
+     53          						{
+     54          							dot[bit >> 3] |= 1<<(7-(bit & 0x07));
+     55          						}
+     56          					}
+     57          				}
+     58          				for (ratio=0; ratio<ratio_height; ratio++)
+     59          				{
+     60                             if (clr_all_dot==1)
+     61                                 break;
+     62          					TPPrintLine(dot);
+     63          				}
+     64          
+     65                          if (clr_all_dot==1)
+     66                               break;
+     67          			}
+     68          			while ((++bits)<8);
+     69          		}
+     70          	}
+     71          	else      //正向打印
+     72          	{
+     73          
+     74          		for (row=min_row; row<max_row; row++)        //将竖行转变为横行
+     75          		{
+     76          			bits = 7;
+     77          			do
+     78          			{
+     79          				mask = (1 << bits);
+     80          				memset(dot, 0, sizeof(dot));
+     81          				for (col=0; col<max_col; col++)
+     82          				{
+     83          					if (buf[col*max_rowbyte+row] & mask)
+     84          					{
+     85          						bit = start_col + col*ratio_width;       //起始纵向位置+纵行数*宽放大倍数
+     86          						for (ratio=0; ratio<ratio_width; ratio++, bit++)    //实现横向放大
+     87          						{
+     88          							dot[bit >> 3] |= 1<<(7-(bit & 0x07));
+     89          						}
+     90          					}
+     91          				}
+     92          				for (ratio=0; ratio<ratio_height; ratio++)          //实现纵向放大
+     93          				{
+     94                            if (clr_all_dot==1)
+     95                                break;
+     96          					TPPrintLine(dot);
+     97          				}
+     98                          if (clr_all_dot==1)
+     99                               break;
+    100          			}
+    101          			while (bits--);
+    102          		}
+    103          	}
+    104          }
+    105          //======================================================================================================
+    106          extern void BufFillToPrn(uint16_t n)
+    107          {
+    108          	uint16_t row;
+    109          
+    110              if (clr_all_dot == 1)
+    111              {
+    112                  clr_all_dot = 0;
+    113              }
+    114          
+    115          	if (esc_sts[current_channel].start_dot)
+    116          	{
+    117          		DotBufFillToPrn(&esc_sts[current_channel].dot[0][0], max_start_col, ARRAY_SIZE(esc_sts[current_channel].dot[0]), esc_sts[current_channel].dot_minrow, ARRAY_SIZE(esc_sts[current_channel].dot[0]), 1, 1);
+    118          	}
+    119          	// 行间距调整
+    120          	row = (ARRAY_SIZE(esc_sts[current_channel].dot[0]) - esc_sts[current_channel].dot_minrow) << 3;
+    121          	if (row < esc_sts[current_channel].linespace)//如果高度小于行间距，则打印出剩余的空白行
+    122          	{
+    123          		n += esc_sts[current_channel].linespace-row;
+    124          	}
+    125          	if (n)
+    126          	{
+    127          		TPFeedLine(n);
+    128          	}
+    129          }
+    130          
+    131          extern void BufFillToPrn_0(uint16_t n)
+    132          {
+    133          
+    134              if (clr_all_dot == 1)
+    135              {
+    136                  clr_all_dot = 0;
+    137              }
+    138          
+    139          	if (esc_sts[current_channel].start_dot)
+    140          	{
+    141          		DotBufFillToPrn(&esc_sts[current_channel].dot[0][0], max_start_col, ARRAY_SIZE(esc_sts[current_channel].dot[0]), esc_sts[current_channel].dot_minrow, ARRAY_SIZE(esc_sts[current_channel].dot[0]), 1, 1);
+    142          	}
+    143          
+    144          	if (n)
+    145          	{
+    146          		TPFeedLine(n);
+    147          	}
+    148          
+    149          }
+    150          //======================================================================================================
+    151          extern void PrintCurrentBuffer(uint16_t n)
+    152          {
+    153          	// 先将原先的内容打印出来
+    154          	BufFillToPrn(n);
+    155          	// 然后清空缓冲区
+    156          	esc_sts[current_channel].bitmap_flag = 0;
+    157          	memset(esc_sts[current_channel].dot, 0, sizeof(esc_sts[current_channel].dot));
+    158          	esc_sts[current_channel].start_dot = 0;
+    159              max_start_col =0;
+    160          	esc_sts[current_channel].dot_minrow = ARRAY_SIZE(esc_sts[current_channel].dot[0]);
+    161          }
+    162          
+    163          extern void PrintCurrentBuffer_0(uint16_t n)
+    164          {
+    165          	// 先将原先的内容打印出来
+    166          	BufFillToPrn_0(n);
+    167          	// 然后清空缓冲区
+    168          	esc_sts[current_channel].bitmap_flag = 0;
+    169          	memset(esc_sts[current_channel].dot, 0, sizeof(esc_sts[current_channel].dot));
+    170          	esc_sts[current_channel].start_dot = 0;
+    171              max_start_col =0;
+    172          	esc_sts[current_channel].dot_minrow = ARRAY_SIZE(esc_sts[current_channel].dot[0]);
+    173          }
+    174          //======================================================================================================
+    175          extern void DotFillToBuf(uint8_t *buf, uint16_t col, uint8_t row, uint8_t underline)
+    176          {
+    177          	uint16_t x, width, maxwidth;
+    178          	uint8_t nrow, ncol;
+    179          	uint16_t start_dot;
+    180          	uint8_t start_row;
+    181          
+    182              uint8_t dot[FONT_CN_A_HEIGHT*2/8]; 	// 放大2倍////////////////////////////dot[24*2/8]=dot[6]
+    183          
+    184          	esc_sts[current_channel].bitmap_flag = 1;
+    185          	row >>= 3;		// 高度由位转换为字节,传入的是位。
+    186          
+    187          	nrow = row * ((esc_sts[current_channel].larger & 0x0f)+1);                    //放大后的高度，larger前4位放高放大倍数，后4位放宽放大倍数
+    188          	if (nrow > ARRAY_SIZE(esc_sts[current_channel].dot[0]))                     //放大后的高度>最大高度(数组高度)
+    189          	{
+    190          		return;
+    191          	}
+    192          	start_row = ARRAY_SIZE(esc_sts[current_channel].dot[0])-nrow;            //
+    193          	// 当前的缓冲区没有空间再容纳新的打印字符
+    194          	ncol = col*(((esc_sts[current_channel].larger >> 4)& 0x0f) + 1);                         //esc_sts[current_channel].larger >> 4 取出宽放大倍数,放大后的宽度
+    195          	maxwidth = esc_sts[current_channel].leftspace + esc_sts[current_channel].print_width;
+    196          	if (maxwidth > LineDot)
+    197          	{
+    198          		maxwidth = LineDot - esc_sts[current_channel].leftspace;
+    199          	}
+    200          	if (esc_sts[current_channel].start_dot && ((esc_sts[current_channel].start_dot + ncol) > (esc_sts[current_channel].leftspace + maxwidth)))////当前空间不足，打印出该行
+    201          	{
+    202          		PrintCurrentBuffer(0);
+    203          	}
+    204          	if (esc_sts[current_channel].start_dot == 0)
+    205          	{
+    206          		if ((ncol > maxwidth) && (ncol > (LineDot - esc_sts[current_channel].leftspace)))
+    207          		{                                             //当宽度不够拿出位置来放左边距的话
+    208          			esc_sts[current_channel].start_dot = LineDot - ncol;
+    209          		}
+    210          		else//否则从左间距开始打印
+    211          		{
+    212          			esc_sts[current_channel].start_dot = esc_sts[current_channel].leftspace;
+    213          		}
+    214          	}
+    215          
+    216          	start_dot = esc_sts[current_channel].start_dot;//记录要加下划线的起始位置
+    217          
+    218          	for (x=0; x<col; x++)                 //横向放大
+    219          	{
+    220          		FontEnlarge(dot,buf, row);//纵向放大，变高
+    221          		buf+= row;                        //指针跳三个字节大小，即跑到了下一个纵行
+    222          		width = 0;
+    223          		do
+    224          		{
+    225          			if (esc_sts[current_channel].start_dot < ARRAY_SIZE(esc_sts[current_channel].dot))
+    226          			{
+    227          				memcpy(&esc_sts[current_channel].dot[esc_sts[current_channel].start_dot][start_row], dot, nrow);
+    228          				esc_sts[current_channel].start_dot++;
+    229          			}
+    230          			else
+    231          			{
+    232          				break;
+    233          			}
+    234          		}
+    235          		while (width++ < (esc_sts[current_channel].larger >> 4));//esc_sts[current_channel].larger后四位存储放大高度
+    236          	}
+    237          	if (underline) FontUnderline(start_dot, esc_sts[current_channel].start_dot);
+    238          
+    239          	if (start_row < esc_sts[current_channel].dot_minrow)
+    240          	{
+    241          		esc_sts[current_channel].dot_minrow = start_row;
+    242          	}
+    243          
+    244          	// 如果当前的缓冲区可以容纳字间距，则加上字间距，如果不能，则打印该行
+    245          	if ((esc_sts[current_channel].start_dot + esc_sts[current_channel].charspace) > (esc_sts[current_channel].leftspace + maxwidth))
+    246          	{
+    247          
+    248          		PrintCurrentBuffer(0);
+    249          	}
+    250          	else
+    251          	{
+    252          
+    253          		// 字符间距调整
+    254          		esc_sts[current_channel].start_dot += esc_sts[current_channel].charspace;
+    255          
+    256          	}
+    257          	if (esc_sts[current_channel].revert)//间距反白
+    258              {
+    259                  for (x=(start_dot+ncol); x<esc_sts[current_channel].start_dot; x++)       //col 为width
+    260                  {
+    261                      memset(&esc_sts[current_channel].dot[x][start_row], 0xff, nrow);
+    262                  }
+    263              }
+    264          
+    265          	if (underline) FontUnderline(start_dot, esc_sts[current_channel].start_dot);
+    266          
+    267              if(esc_sts[current_channel].start_dot > max_start_col)
+    268          	{
+    269          		max_start_col = esc_sts[current_channel].start_dot;
+    270          	}
+    271          }
+    272          //======================================================================================================
+    273          extern void  PictureDotFillToBuf(uint8_t *buf, uint16_t col, uint16_t row)
+    274          {
+    275              uint16_t x,start_row;
+    276          
+    277          
+    278              row >>=3;
+    279              if(row > ARRAY_SIZE(esc_sts[current_channel].dot[0]))
+    280          	{
+    281          		row = ARRAY_SIZE(esc_sts[current_channel].dot[0]);
+    282          	}
+    283          
+    284          	start_row = ARRAY_SIZE(esc_sts[current_channel].dot[0])-row;
+    285          
+    286              if(start_row < esc_sts[current_channel].dot_minrow)
+    287          	{
+    288          		esc_sts[current_channel].dot_minrow = start_row;
+    289          	}
+    290          	if (esc_sts[current_channel].start_dot == 0)
+    291          	{
+    292          		esc_sts[current_channel].start_dot = esc_sts[current_channel].leftspace;
+    293          	}
+    294              for(x=0; x<col; x++)
+    295          	{
+    296          		buf += row;
+    297          		if(esc_sts[current_channel].start_dot < ARRAY_SIZE(esc_sts[current_channel].dot))
+    298          		{
+    299          			memcpy(&esc_sts[current_channel].dot[esc_sts[current_channel].start_dot][start_row], buf, row);
+    300          			esc_sts[current_channel].start_dot++;
+    301          		}
+    302          		else
+    303          		{
+    304          			break;
+    305          		}
+    306          
+    307          	}
+    308          
+    309              if(esc_sts[current_channel].start_dot)
+    310          	{
+    311          		DotBufFillToPrn(&esc_sts[current_channel].dot[0][0], esc_sts[current_channel].start_dot, ARRAY_SIZE(esc_sts[current_channel].dot[0]), esc_sts[current_channel].dot_minrow, ARRAY_SIZE(esc_sts[current_channel].dot[0]), 1, 1);
+    312            //       printf("DOT\n");
+    313          
+    314          	}
+    315          	// 然后清空缓冲区
+    316          	memset(esc_sts[current_channel].dot, 0, sizeof(esc_sts[current_channel].dot));
+    317          	esc_sts[current_channel].start_dot = 0;
+    318          	esc_sts[current_channel].dot_minrow = ARRAY_SIZE(esc_sts[current_channel].dot[0]);
+    319          
+    320          
+    321          }
+    322          ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    323          
+    324          
+
+   Maximum stack usage in bytes:
+
+     Function             .cstack
+     --------             -------
+     BufFillToPrn             32
+     BufFillToPrn_0           32
+     DotBufFillToPrn          96
+     DotFillToBuf             64
+     PictureDotFillToBuf      48
+     PrintCurrentBuffer        8
+     PrintCurrentBuffer_0      8
+     memcpy                    8
+     memset                    8
+
+
+   Section sizes:
+
+     Function/Label       Bytes
+     --------------       -----
+     memcpy                 14
+     memset                 20
+     max_start_col           2
+     DotBufFillToPrn       538
+     BufFillToPrn          208
+     BufFillToPrn_0        128
+     PrintCurrentBuffer    122
+     PrintCurrentBuffer_0  122
+     DotFillToBuf         1044
+     PictureDotFillToBuf   426
+     ??DataTable24           4
+     ??DataTable123          4
+     ??DataTable156          4
+     ??DataTable157          4
+
+ 
+     2 bytes in section .bss
+ 2 638 bytes in section .text
+ 
+ 2 604 bytes of CODE memory (+ 34 bytes shared)
+     2 bytes of DATA memory
+
+Errors: none
+Warnings: none

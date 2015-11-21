@@ -1,0 +1,466 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  18:18:45 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\res_spi.c                       #
+#    Command line =  "E:\BT Printer\FW\src\App\res_spi.c" -D DEBUG_VER -lcN   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\res_spi. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\res_spi.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\res_spi.c
+      1          
+      2          
+      3          /**
+      4          * @file res_spi.c
+      5          * @brief 刷卡机资源管理模块,用于管理字库，图片，存储参数等功能
+      6          *        本模块将字库等资源存储在SPI FLASH中
+      7          * @version V0.0.2
+      8          * @author joe
+      9          * @date 2010年2月5日
+     10          * @note
+     11          *     修改：
+     12          *			由于项目需求需要支持GBK字库，而且增加了一个12*12的GB2312字库，SPI FLASH容量不够，所以将12*12的
+     13          *			的GB2312字库放到MCU FLASH内部去了。
+     14          *
+     15          * @version V0.0.1
+     16          * @author zhongyh
+     17          * @date 2009年9月4日
+     18          * @note
+     19          *     每种不同的资源，在一个独立的BPT中，利用BPT_DataType来区分
+     20          *
+     21          * 
+     22          */
+     23          
+     24          #include <stdio.h>
+     25          #include <stdlib.h>
+     26          #include <string.h>
+     27          #include "stm32f10x_lib.h"
+     28          #include "res_spi.h"
+     29          #include "ff.h"
+     30          #include "spi_flash.h"
+     31          #include "Esc_p.h"
+     32          #include "font8x16.h"
+     33          #include "assert.h"
+     34          
+     35          /**
+     36          *	@brief	资源文件信息结构体
+     37          */
+     38          typedef struct  
+     39          {
+     40          	unsigned char					magic[4];
+     41          	unsigned int					xor;
+     42          	unsigned int					xor_data;
+     43          	unsigned int					length;
+     44          	unsigned char					OEMName[16];
+     45          	unsigned char					Version[16];
+     46          	unsigned char					Date[16];
+     47          }TPackHeader;
+     48          
+     49          /**
+     50          *	@brief	每一份资源的信息结构体
+     51          */
+     52          #pragma pack(1)
+     53          typedef struct {
+     54          	unsigned char				RIT_OEMName[16];    		// 0  
+     55          	unsigned char				RIT_ManName[16];    		// 10 
+     56          	unsigned char				RIT_ModuleName[16];			// 20 
+     57          	unsigned short				RIT_ProdID;					// 30 产品ID
+     58          	unsigned short				RIT_CodeVersion;    		// 32 引导代码版本
+     59          	unsigned short				RIT_Date;            		// 34 更新时间
+     60          	unsigned char				RIT_SN[10];            		// 36 序列号
+     61          	unsigned int				RIT_TotSect;        		// 40 引导分区占的扇区数
+     62          	unsigned int				RIT_CodeSec;        		// 44 引导代码占的扇区数
+     63          	unsigned char				RIT_VerifyType;        		// 48 引导代码校验方式
+     64          	unsigned char				RIT_Endian;        			// 49 CPU Core
+     65          	unsigned short				RIT_DataType;         		// 4A 此份数据的类型（如果不是引导代码，则指引导数据类型）
+     66          	unsigned int				RIT_StartAddr;        		// 4C 启动代码在ram中存放的起始地址
+     67          	unsigned int				RIT_RunAddr;        		// 50 运行代码时PC跳转的地址
+     68          	unsigned char   			RIT_DataID;					// 54 此份资源的ID号
+     69          	unsigned char				RIT_Reserved0;				// 55
+     70          	unsigned char				RIT_Align;					// 56 此份资源的最小对齐单位，为2^n字节
+     71          	unsigned char				RIT_Reserved1;				// 57
+     72          	unsigned char				RIT_StrVer[13];				// 58  资源的版本号，格式为20100610_0001
+     73          	unsigned char				RIT_Reserved[0x18B];		// 65 
+     74          	unsigned int				RIT_DataCRC32;				// 1F0 数据区的CRC32，即从下一个扇区起，到RIT_CodeSec止的所有数据的CRC32值或CRC，此项根据xml文件中的配置来生成。
+     75          	unsigned int				RIT_Next;            		// 1F4 下一份RIT在磁盘中的绝对地址
+     76          	unsigned int				RIT_CheckSum;        		// 1F8 此份资源表RIT的CRC32校验值。， 
+     77          	unsigned int				RIT_TrailSig;       		// 1FC 结束标志(0x00,0x00,0x55,0xAB)
+     78          }TResInfoTable;
+     79          
+     80          #pragma pack()
+     81          
+     82          #define MAX_FNT_CNT				FNT_CHN_24_24
+     83          
+     84          /**
+     85          *	@brief  刷卡机项目中用到的字体信息表
+     86          */
+     87          TFontInfo FontList[MAX_FNT_CNT+1] = {
+     88          	{	0, 8,  16, 16, 0	},							// ascii 8x16
+     89          	{	0, 12, 24, 36, 0	},							// ascii 12x24
+     90          	{	0, 16, 16, 32, 0	},							// GBK 16x16
+     91          	{	0, 24, 24, 72, 0	},							// GBK 24x24
+     92          };
+     93          
+     94          
+     95          unsigned int					dwPictureLBA;
+     96          static unsigned char			res_buffer[512];
+     97          
+     98          static FIL						resource_file;		//资源文件专享一个文件句柄
+     99          FATFS							fs;
+    100          #define res_file				"/resdata.bin"
+    101          
+    102          /**
+    103          * @def 每一份资源类型在BPT中，BPT_DataType对应的值
+    104          */
+    105          #define RESTYPE_CODE		0x80					// 系统升级代码
+    106          #define RESTYPE_FNT			0x10					// 字库资源号
+    107          #define RESTYPE_PIC			0x11					// 图片资源号
+    108          
+    109          /**
+    110          * @brief 从指定地址开始载入BPT，并检查是否相同
+    111          */
+    112          static int res_loadres(unsigned int dwLBA, unsigned char *pType, unsigned char *pID)
+    113          {
+    114          
+    115          	TResInfoTable			*pResTable;
+    116          	unsigned int			rd;
+    117          	
+    118          	if (f_lseek(&resource_file,dwLBA*512) != FR_OK)
+    119          	{
+    120          		return -1;
+    121          	}
+    122          
+    123          	if (f_read(&resource_file,res_buffer,512,&rd) != FR_OK)
+    124          	{
+    125          		return -1;
+    126          	}
+    127          
+    128          	
+    129          	pResTable	= (TResInfoTable*)res_buffer;
+    130          	
+    131          	if( res_buffer[510] != 0x55 ||
+    132          		res_buffer[511] != 0xAB)
+    133          	{
+    134          		return -1;
+    135          	}
+    136          	
+    137          	*pType					= pResTable->RIT_DataType;
+    138          	*pID					= pResTable->RIT_DataID;
+    139          
+    140          	return 0;
+    141          }
+    142          /**
+    143          * @brief 安装中文字库
+    144          */
+    145          int setup_font(unsigned int dwLBA, unsigned char id)
+    146          {
+    147          	if( id == FNT_CHN_24_24 || id == FNT_CHN_16_16)
+    148          	{
+    149          		FontList[id].address = dwLBA;
+    150          	}
+    151          	return 0;
+    152          }
+    153          
+    154          /**
+    155          * @brief 找到了图片资源，根据ID，得到地址
+    156          */
+    157          void setup_picture(unsigned int dwLBA)
+    158          {
+    159          	dwPictureLBA					= dwLBA;
+    160          }
+    161          
+    162          /**
+    163          * @brief 资源模块初始化
+    164          * @return 0:成功初始化
+    165          *        -1:初始化SD卡失败
+    166          *        -2:SPI Flash中找不到资源
+    167          */
+    168          int res_init(void)
+    169          {
+    170          
+    171          	unsigned int					dwLBA;
+    172          	unsigned char					res_type, res_id;
+    173          	unsigned int					rd;
+    174          	FRESULT	ret;
+    175          
+    176          	FontList[FNT_ASC_8_16].address	= (unsigned int)fontb_en;
+    177          	FontList[FNT_ASC_12_24].address	= (unsigned int)fonta_en;
+    178          	FontList[FNT_CHN_16_16].address	= 0;
+    179          	FontList[FNT_CHN_24_24].address	= 0;
+    180          	dwPictureLBA					= 0;
+    181          
+    182          
+    183          	//挂载文件系统
+    184          	f_mount(0, &fs);										// 装载文件系统
+    185          
+    186          	//load_logo_res();
+    187          re_open:	
+    188          	ret = f_open(&resource_file, res_file, FA_OPEN_EXISTING | FA_READ );
+    189          	if(ret  != FR_OK )
+    190          	{
+    191          		if (ret == FR_NO_FILESYSTEM)
+    192          		{
+    193          			ret = f_mkfs(0,1,512);
+    194          			if (ret != FR_OK)
+    195          			{
+    196          				return -1;
+    197          			}
+    198          			else
+    199          			{
+    200          				goto re_open;
+    201          			}
+    202          		}
+    203          		else
+    204          		{
+    205          			return -1;
+    206          		}
+    207          	}
+    208          
+    209          	f_lseek(&resource_file,0);
+    210          
+    211          	// ==========================================================================================================
+    212          	// 1. 校验资源文件
+    213          	if( f_read(&resource_file, res_buffer, 512, &rd) != FR_OK )
+    214          	{
+    215          		f_close(&resource_file);
+    216          		return -2;
+    217          	}
+    218          
+    219          
+    220          	// 校验文件头
+    221          	if( res_buffer[0] != 'J' || res_buffer[1] != 'B' || res_buffer[2] != 'L' || res_buffer[3] != '3' )
+    222          	{
+    223          		f_close(&resource_file);
+    224          		return -2;
+    225          	}
+    226          	
+    227          	// 装入资源
+    228          	dwLBA							= 0;
+    229          	do
+    230          	{
+    231          		// 装入一个表
+    232          		dwLBA += 1;
+    233          		if( res_loadres(dwLBA, &res_type, &res_id) != 0)
+    234          		{
+    235          			f_close(&resource_file);
+    236          			return -2;
+    237          		}
+    238          		
+    239          		// 判断资源类型
+    240          		if(RESTYPE_FNT == res_type)
+    241          		{
+    242          			setup_font(dwLBA+1, res_id);		// 安装字体
+    243          		}
+    244          		else if(RESTYPE_PIC == res_type)
+    245          		{
+    246          			setup_picture(dwLBA + 1);
+    247          		}
+    248          		else
+    249          		{
+    250          			//return -2;
+    251          		}
+    252          		
+    253          		// 取下一份资源地址
+    254          		dwLBA						= *(unsigned int*)&res_buffer[0x1F4];
+    255          	}while(dwLBA != 0xFFFFFFFF);
+    256          
+    257              return 0;
+    258          }
+    259          
+    260          /**
+    261          * @brief 从SPI FLASH中读取一个扇区的资源，并放在res_buffer中
+    262          * @param[in] unsigned int dwLBA要读取的资源地址
+    263          * @return unsigned char *数据存放在地址
+    264          */
+    265          unsigned char *read_resdata(unsigned int dwLBA)
+    266          {
+    267          	unsigned int	rd;
+    268          	unsigned int	retry_cnt = 2; 
+    269          
+    270          	if (resource_file.flag & FA__ERROR)
+    271          	{
+    272          		resource_file.flag &= ~FA__ERROR;
+    273          	}
+    274          
+    275          	while(retry_cnt)
+    276          	{
+    277          		if (f_lseek(&resource_file,dwLBA*512) != FR_OK)
+    278          		{
+    279          			retry_cnt--;
+    280          			f_mount(0,&fs);
+    281          			//f_mount(0,&fs);
+    282          			if(f_open(&resource_file,res_file,FA_OPEN_EXISTING | FA_READ) != FR_OK)
+    283          			{
+    284          				return (unsigned char *) 0; 
+    285          			}
+    286          			else
+    287          			{
+    288          				continue;
+    289          			}
+    290          		}
+    291          
+    292          		if (f_read(&resource_file,res_buffer,512,&rd) != FR_OK)
+    293          		{
+    294          			retry_cnt--;
+    295          			f_mount(0,&fs);
+    296          			//f_mount(0,&fs);
+    297          			if(f_open(&resource_file,res_file,FA_OPEN_EXISTING | FA_READ) != FR_OK)
+    298          			{
+    299          				return (unsigned char *) 0; 
+    300          			}
+    301          			else
+    302          			{
+    303          				continue;
+    304          			}
+    305          		}
+    306          
+    307          		return res_buffer;
+    308          	}
+    309          
+    310          	return (unsigned char *) 0;
+    311          }
+    312          
+    313          
+    314          /**
+    315          * @brief 从资源文件中获取一个字符的字模数据
+    316          * @param[in] unsigned char font_type		字体类型	
+    317          * @param[in] unsigned char *c				字符编码	
+    318          * @param[in] unsigned char *pBuf			返回字模数据的缓冲区	
+    319          * @param[in] unsigned int size				字模数据的大小	
+    320          */
+    321          void font_data_read(unsigned char font_type,unsigned char *c,unsigned char *pBuf,unsigned int size)
+    322          {
+    323          	//int						i;
+    324          	TFontInfo				*pInfo;
+    325          	int						offset,len1,len2;
+    326          	unsigned char			*pData;
+    327          	//unsigned char			*pOrg;
+    328          
+    329          	//if ((font_type != FNT_CHN_16_16)&&(font_type != FNT_CHN_24_24))
+    330          	//{
+    331          	//	return;
+    332          	//}
+    333          	assert(font_type == FNT_CHN_16_16 || font_type == FNT_CHN_24_24);
+    334          
+    335          	//if(gFontSize == 12)
+    336          	{
+    337          
+    338          		/*
+    339          		GBK码对字库中偏移量的计算公式为：
+    340          
+    341          		GBKindex = ((unsigned char)GBKword[0]-129)*190 +
+    342          
+    343          		((unsigned char)GBKword[1]-64) - (unsigned char)GBKword[1]/128;
+    344          
+    345          		*/
+    346          		//offset				= ((c[0] - 0xA1) & 0x7F) * 94 + ((c[1]-0xA1)&0x7F);		//GB2312字符集偏移计算公式
+    347          
+    348          		offset				= (c[0] - 129) * 190 + (c[1]-64) - (c[1]/128);				//GBK字符集偏移计算公式
+    349          		pInfo				= &FontList[font_type];
+    350          
+    351          
+    352          		if(pInfo->address == 0)
+    353          			return;
+    354          
+    355          		offset				*= pInfo->size;
+    356          		pData				= read_resdata(pInfo->address + (offset/512));	// 计算所在的扇区
+    357          		pData				+= offset & 0x1FF;								// 计算扇区内的偏移
+    358          
+    359          		if (((offset&0x1ff)+size) > 512)
+    360          		{
+    361          			len1 = 512-(offset&0x1ff);
+    362          			memcpy(pBuf,pData,len1);
+    363          			len2 = size - len1;
+    364          			pData = read_resdata(pInfo->address + (offset/512) + 1);
+    365          			memcpy(pBuf+len1,pData,len2);
+    366          		}
+    367          		else
+    368          		{
+    369          			memcpy(pBuf,pData,size);
+    370          		}
+    371          	}//12
+    372          
+    373          }
+
+   Maximum stack usage in bytes:
+
+     Function       .cstack
+     --------       -------
+     font_data_read     24
+     memcpy              8
+     read_resdata       16
+     res_init           16
+     res_loadres        16
+     setup_font          0
+     setup_picture       0
+
+
+   Section sizes:
+
+     Function/Label                             Bytes
+     --------------                             -----
+     memcpy                                       14
+     fonta_en                                   3456
+     fontb_en                                   1536
+     fontc_en                                     28
+     FontList                                     32
+     dwPictureLBA                                  4
+     res_buffer                                  512
+     resource_file                               548
+     fs                                          560
+     res_loadres                                 100
+     setup_font                                   26
+     setup_picture                                 6
+     res_init                                    268
+     read_resdata                                136
+     font_data_read                              200
+     ??DataTable11                                 4
+     ??DataTable35                                 4
+     ??DataTable36                                 4
+     ??DataTable37                                 4
+     ??DataTable38                                 4
+     ??DataTable39                                 4
+     ?<Constant "/resdata.bin">                   16
+     ?<Constant "font_type == FNT_CHN_...">       60
+     ?<Constant "E:\\BT Printer\\FW\\src\\...">   36
+
+ 
+ 1 624 bytes in section .bss
+    32 bytes in section .data
+ 5 132 bytes in section .rodata
+   774 bytes in section .text
+ 
+   760 bytes of CODE  memory (+ 14 bytes shared)
+ 5 132 bytes of CONST memory
+ 1 656 bytes of DATA  memory
+
+Errors: none
+Warnings: none

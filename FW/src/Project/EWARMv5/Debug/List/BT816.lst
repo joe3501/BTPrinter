@@ -1,0 +1,1296 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     21/Nov/2015  11:49:51 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\Drivers\BT816.c                     #
+#    Command line =  "E:\BT Printer\FW\src\Drivers\BT816.c" -D DEBUG_VER      #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\BT816.ls #
+#                    t                                                        #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\BT816.o   #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\Drivers\BT816.c
+      1          /**
+      2          * @file BT816.c
+      3          * @brief FSC BT816蓝牙模块的驱动
+      4          * @version V0.0.1
+      5          * @author joe.zhou
+      6          * @date 2015年10月10日
+      7          * @note   根据模块的响应特点，串口驱动采用 DMA发送和接受 + 串口空闲中断判断响应数据接收完的机制。
+      8          * @copy
+      9          *
+     10          * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     11          * 本公司以外的项目。本司保留一切追究权利。
+     12          *
+     13          * <h1><center>&copy; COPYRIGHT 2015 heroje</center></h1>
+     14          *
+     15          */
+     16          #include "hw_platform.h"
+     17          #if(BT_MODULE == USE_BT816)
+     18          #include "BT816.h"
+     19          #include "stm32f10x_lib.h"
+     20          #include "string.h"
+     21          #include <assert.h>
+     22          #include "basic_fun.h"
+     23          #include "ringbuffer.h"
+     24          #include "TimeBase.h"
+     25          
+     26          //#define	BT816_DEBUG
+     27          
+     28          
+     29          #define BT816_RES_INIT				0x00
+     30          
+     31          
+     32          //应答类型的响应数据状态
+     33          #define BT816_RES_SUCCESS				0x01
+     34          #define BT816_RES_INVALID_STATE			0x02
+     35          #define BT816_RES_INVALID_SYNTAX		0x03
+     36          #define BT816_RES_BUSY					0x04
+     37          
+     38          #define BT816_RES_PAYLOAD				0x05
+     39          
+     40          #define BT816_RES_UNKOWN				0x06
+     41          
+     42          //command format:AT+(Command)[=parameter]<CR><LF>
+     43          //response format1:<CR><LF>+(Response)#(code)<CR><LF>
+     44          //		   format1:<CR><LF>+(Response)[=payload]<CR><LF>
+     45          
+     46          /**
+     47          * @brief BT816S01响应定义  BT816S01->host
+     48          */
+     49          typedef struct {
+     50          	unsigned short			DataPos;
+     51          	unsigned short			DataLength;
+     52          	unsigned char			status;
+     53          	unsigned char			*DataBuffer;
+     54          }TBT816Res;
+     55          
+     56          TBT816Res		BT816_res;
+     57          
+     58          #define SLEEP		1
+     59          #define WAKEUP		2
+     60          
+     61          static unsigned char	BT816_send_buff[32];
+     62          static unsigned char	BT816_power_state;
+     63          unsigned char	BT816_recbuffer[BT816_RES_BUFFER_LEN];
+     64          
+     65          #ifdef SPP_MODE
+     66          unsigned char	spp_rec_buffer[SPP_BUFFER_LEN];
+     67          struct ringbuffer	spp_ringbuf;
+     68          #endif
+     69          
+     70          
+     71          /*
+     72           * @brief: 初始化模块端口
+     73           * @note 使用串口2
+     74          */
+     75          /*
+     76           * @brief: 初始化模块端口
+     77           * @note 使用串口2
+     78          */
+     79          static void BT816_GPIO_config(unsigned int baudrate)
+     80          {
+     81          	GPIO_InitTypeDef				GPIO_InitStructure;
+     82          	USART_InitTypeDef				USART_InitStructure;
+     83          	DMA_InitTypeDef					DMA_InitStructure;
+     84          
+     85          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
+     86          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
+     87          
+     88          	//B-Reset  PD.1		B-Sleep	PD.0
+     89          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_0 | GPIO_Pin_1;
+     90              GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+     91          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+     92          	GPIO_Init(GPIOD, &GPIO_InitStructure);
+     93          	GPIO_SetBits(GPIOD, GPIO_Pin_1);
+     94          	GPIO_SetBits(GPIOD, GPIO_Pin_0);
+     95          
+     96          	//B-State  PD.3
+     97          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_3;
+     98          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+     99          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPD;
+    100          	GPIO_Init(GPIOD, &GPIO_InitStructure);
+    101          
+    102          	// 使用UART4, PC11,PC10
+    103          	/* Configure UART4 Tx (PC.10) as alternate function push-pull */
+    104          	//GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+    105          	//GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    106          	//GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+    107          	//GPIO_Init(GPIOC, &GPIO_InitStructure);
+    108          
+    109          	////trip for debug
+    110          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+    111          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+    112          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+    113          	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    114          	GPIO_SetBits(GPIOC, GPIO_Pin_10);
+    115          	GPIO_ResetBits(GPIOC, GPIO_Pin_10);
+    116          
+    117          
+    118          	/* Configure UART4 Rx (PC.11) as input floating				*/
+    119          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_11;
+    120          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+    121          	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    122          
+    123          	USART_InitStructure.USART_BaudRate		= baudrate;					
+    124          	USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+    125          	USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+    126          	USART_InitStructure.USART_Parity		= USART_Parity_No;
+    127          	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    128          	USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
+    129          
+    130          	USART_Init(UART4, &USART_InitStructure);
+    131          
+    132          
+    133          	/* DMA clock enable */
+    134          	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA2, ENABLE);
+    135          
+    136          	/* fill init structure */
+    137          	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    138          	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+    139          	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+    140          	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+    141          	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+    142          	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+    143          	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+    144          
+    145          	/* DMA2 Channel5 (triggered by UART4 Tx event) Config */
+    146          	DMA_DeInit(DMA2_Channel5);
+    147          	DMA_InitStructure.DMA_PeripheralBaseAddr =(u32)(&UART4->DR);
+    148          	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+    149          	/* As we will set them before DMA actually enabled, the DMA_MemoryBaseAddr
+    150          	 * and DMA_BufferSize are meaningless. So just set them to proper values
+    151          	 * which could make DMA_Init happy.
+    152          	 */
+    153          	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0;
+    154          	DMA_InitStructure.DMA_BufferSize = 1;
+    155          	DMA_Init(DMA2_Channel5, &DMA_InitStructure);
+    156          
+    157          
+    158          	//DMA2通道3配置  
+    159          	DMA_DeInit(DMA2_Channel3);  
+    160          	//外设地址  
+    161          	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&UART4->DR);  
+    162          	//内存地址  
+    163          	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)BT816_recbuffer;  
+    164          	//dma传输方向单向  
+    165          	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;  
+    166          	//设置DMA在传输时缓冲区的长度  
+    167          	DMA_InitStructure.DMA_BufferSize = BT816_RES_BUFFER_LEN;  
+    168          	//设置DMA的外设递增模式，一个外设  
+    169          	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  
+    170          	//设置DMA的内存递增模式  
+    171          	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  
+    172          	//外设数据字长  
+    173          	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  
+    174          	//内存数据字长  
+    175          	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;  
+    176          	//设置DMA的传输模式  
+    177          	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  
+    178          	//设置DMA的优先级别  
+    179          	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
+    180          	//设置DMA的2个memory中的变量互相访问  
+    181          	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  
+    182          	DMA_Init(DMA2_Channel3,&DMA_InitStructure);  
+    183          
+    184          	//使能通道6 
+    185          	DMA_Cmd(DMA2_Channel3,ENABLE);  
+    186          
+    187          	//采用DMA方式接收  
+    188          	USART_DMACmd(UART4,USART_DMAReq_Rx,ENABLE); 
+    189          
+    190          	/* Enable UART4 DMA Tx request */
+    191          	USART_DMACmd(UART4, USART_DMAReq_Tx , ENABLE);
+    192          
+    193          	USART_Cmd(UART4, ENABLE);
+    194          }
+    195          
+    196          /*
+    197           * @brief: 串口中断的初始化
+    198          */
+    199          static void BT816_NVIC_config(void)
+    200          {
+    201          	NVIC_InitTypeDef				NVIC_InitStructure;
+    202          	//中断配置  
+    203          	USART_ITConfig(UART4,USART_IT_TC,DISABLE);  
+    204          	USART_ITConfig(UART4,USART_IT_RXNE,DISABLE);  
+    205          	USART_ITConfig(UART4,USART_IT_IDLE,ENABLE);    
+    206          
+    207          	//配置UART4中断  
+    208          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+    209          	NVIC_InitStructure.NVIC_IRQChannel = UART4_IRQChannel;               //通道设置为串口2中断    
+    210          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
+    211          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+    212          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
+    213          	NVIC_Init(&NVIC_InitStructure);  
+    214          
+    215          	/* Enable the DMA2 Channel5 Interrupt */
+    216          	NVIC_InitStructure.NVIC_IRQChannel = DMA2_Channel4_5_IRQChannel;
+    217          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    218          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+    219          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    220          	NVIC_Init(&NVIC_InitStructure);
+    221          
+    222          	DMA_ITConfig(DMA2_Channel5, DMA_IT_TC | DMA_IT_TE, ENABLE);
+    223          	DMA_ClearFlag(DMA2_FLAG_TC5);
+    224          }
+    225          
+    226          
+    227          /**
+    228          * @brief  发数据给蓝牙模块
+    229          * @param[in] unsigned char *pData 要发送的数据
+    230          * @param[in] int length 要发送数据的长度
+    231          */
+    232          static void send_data_to_BT816S01(const unsigned char *pData, unsigned int length)
+    233          {
+    234          	//while(length--)
+    235          	//{
+    236          	//	USART_SendData(USART2, *pData++);
+    237          	//	while(USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET)
+    238          	//	{
+    239          	//	}
+    240          	//}
+    241          	//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET){};
+    242          
+    243          	/* disable DMA */
+    244          	DMA_Cmd(DMA2_Channel5, DISABLE);
+    245          
+    246          	/* set buffer address */
+    247          	memcpy(BT816_send_buff,pData,length);
+    248          
+    249          	DMA2_Channel5->CMAR = (u32)&BT816_send_buff[0];
+    250          	/* set size */
+    251          	DMA2_Channel5->CNDTR = length;
+    252          
+    253          	USART_DMACmd(UART4, USART_DMAReq_Tx , ENABLE);
+    254          	/* enable DMA */
+    255          	DMA_Cmd(DMA2_Channel5, ENABLE);
+    256          
+    257          	while(DMA2_Channel5->CNDTR);
+    258          	while(USART_GetFlagStatus(UART4, USART_FLAG_TC) == RESET){};
+    259          }
+    260          
+    261          
+    262          /*
+    263           * @brief 清空接收蓝牙模块响应数据的buffer
+    264          */
+    265          static void BT816_reset_resVar(void)
+    266          {
+    267          	BT816_res.DataPos = 0;
+    268          	BT816_res.DataLength = 0;
+    269          	BT816_res.status	 = BT816_RES_INIT;
+    270          }
+    271          
+    272          
+    273          /**
+    274          * @brief 处理host收到BT816的数据
+    275          * @param[in] unsigned char c 读入的字符
+    276          * @return 0:success put in buffer
+    277          *        -1:fail
+    278          */
+    279          int BT816_RxISRHandler(unsigned char *res, unsigned int res_len)
+    280          {	
+    281          	int i,len;
+    282          	if (res_len > 5)
+    283          	{
+    284          		BT816_res.DataLength = res_len;
+    285          		if ((res[0] == 0x0d)&&(res[1] == 0x0a)&&(res[2] == '+')			\
+    286          			&&(res[res_len-2] == 0x0d)&&(res[res_len-1] == 0x0a))
+    287          		{
+    288          #ifdef SPP_MODE
+    289          			if (res_len > 11)
+    290          			{
+    291          				if(memcmp(&res[3],"SPPREC=",7) == 0)
+    292          				{
+    293          					len = 0;
+    294          					for (i = 10; i < res_len-2;i++)
+    295          					{
+    296          						if (res[i] == ',')
+    297          						{
+    298          							break;
+    299          						}
+    300          						len*=10;
+    301          						len += res[i]-0x30;
+    302          					}
+    303          
+    304          					if (len)
+    305          					{
+    306          						ringbuffer_put(&spp_ringbuf,&res[i+1],len);
+    307          					}
+    308          
+    309          					return 0;
+    310          				}
+    311          			}
+    312          
+    313          #endif
+    314          
+    315          			if (BT816_res.status == BT816_RES_INIT)
+    316          			{
+    317          				for (i = 3; i < res_len-2;i++)
+    318          				{
+    319          					if (res[i] == '#')
+    320          					{
+    321          						if (res[i+1] == '0')
+    322          						{
+    323          							BT816_res.status = BT816_RES_SUCCESS;
+    324          						}
+    325          						else if (res[i+1] == '1')
+    326          						{
+    327          							BT816_res.status = BT816_RES_INVALID_STATE;
+    328          						}
+    329          						else if (res[i+1] == '2')
+    330          						{
+    331          							BT816_res.status = BT816_RES_INVALID_SYNTAX;
+    332          						}
+    333          						else
+    334          						{
+    335          							BT816_res.status = BT816_RES_BUSY;
+    336          						}
+    337          						break;
+    338          					}
+    339          
+    340          					if (res[i] == '=')
+    341          					{
+    342          						BT816_res.status = BT816_RES_PAYLOAD;
+    343          						break;
+    344          					}
+    345          				}
+    346          			}
+    347          		}
+    348          		else
+    349          		{
+    350          			BT816_res.status = BT816_RES_UNKOWN;
+    351          		}
+    352          	}
+    353                  
+    354                  return 0;
+    355          }
+    356          
+    357          #define EXPECT_RES_FORMAT1_TYPE		1
+    358          #define EXPECT_RES_FORMAT2_TYPE		2
+    359          
+    360          /**
+    361          * @brief  发命令给蓝牙模块BT816S01,并等待响应结果
+    362          * @param[in] unsigned char *pData 要发送的数据
+    363          * @param[in] unsigned int	length 要发送数据的长度
+    364          * @param[in] unsigned char  type   期待响应数据的命令类型	
+    365          *							EXPECT_RES_FORMAT1_TYPE: response format1		
+    366          *							EXPECT_RES_FORMAT2_TYPE:response format2
+    367          * @return		0: 成功
+    368          *				-1: 失败
+    369          *				-2: 未知响应，可能是响应解析函数有BUG，需要调试
+    370          *				-3：响应超时
+    371          * @note	等待一个响应帧的命令
+    372          */
+    373          static int BT816_write_cmd(const unsigned char *pData, unsigned int length,unsigned char type)
+    374          {
+    375          	unsigned int	wait_cnt;
+    376          	send_data_to_BT816S01(pData, length);
+    377          	BT816_reset_resVar();
+    378          	wait_cnt = 200;
+    379          	while (wait_cnt)
+    380          	{
+    381          		if (((BT816_res.status == BT816_RES_SUCCESS)&&(type == EXPECT_RES_FORMAT1_TYPE)) || ((BT816_res.status == BT816_RES_PAYLOAD)&&(type == EXPECT_RES_FORMAT2_TYPE)))
+    382          		{
+    383          			return 0;
+    384          		}
+    385          		else if (BT816_res.status == BT816_RES_INVALID_STATE || BT816_res.status == BT816_RES_INVALID_SYNTAX || BT816_res.status == BT816_RES_BUSY)
+    386          		{
+    387          			return -1;
+    388          		}
+    389          		else if (BT816_res.status == BT816_RES_UNKOWN)
+    390          		{
+    391          			return -2;
+    392          		}
+    393          
+    394          		//OSTimeDlyHMSM(0,0,0,20);
+    395          		delay_ms(20);
+    396                          wait_cnt--;
+    397          	}
+    398          
+    399          	return -3;
+    400          }
+    401          
+    402          
+    403          //const unsigned char	*query_version_cmd="AT+VER=?";
+    404          //const unsigned char	*set_device_name_cmd="AT+DNAME=%s";
+    405          static unsigned char	token[10],token_value[15];
+    406          /*
+    407           * @brief 蓝牙模块BT816S01的复位
+    408          */
+    409          int BT816_Reset(void)
+    410          {
+    411          	unsigned int	wait_cnt,i,j;
+    412          	unsigned char	stat;
+    413          	int ret;
+    414          	//拉低复位信号100ms
+    415          	GPIO_ResetBits(GPIOD, GPIO_Pin_1);
+    416          	//OSTimeDlyHMSM(0,0,0,100);
+    417          	delay_ms(100);
+    418              GPIO_SetBits(GPIOD, GPIO_Pin_1);
+    419          
+    420          	BT816_reset_resVar();
+    421          	wait_cnt = 20;
+    422          	ret = 0;
+    423          	while (wait_cnt)
+    424          	{
+    425          		if (BT816_res.status == BT816_RES_PAYLOAD)
+    426          		{
+    427          			USART_Cmd(UART4, DISABLE);
+    428          			stat = 0;
+    429          			for (i = 0; i < BT816_res.DataLength;i++)
+    430          			{
+    431          				if (BT816_res.DataBuffer[i] == '+')
+    432          				{
+    433          					stat = 1;
+    434          					j = 0;
+    435          					continue;
+    436          				}
+    437          				else if (BT816_res.DataBuffer[i] == '=')
+    438          				{
+    439          					stat = 2;
+    440          					j = 0;
+    441          					continue;
+    442          				}
+    443          				else if (BT816_res.DataBuffer[i] == 0x0d)
+    444          				{
+    445          					if (stat == 2)
+    446          					{
+    447          						if (memcmp(token,"BDTP",4)==0)
+    448          						{
+    449          							if (token_value[0] != '0')
+    450          							{
+    451          								ret |= 0x01;
+    452          							}
+    453          						}
+    454          #ifdef DEBUG_VER
+    455          						else if (memcmp(token,"BDVER",5)==0)
+    456          						{
+    457          							token_value[j]=0;
+    458          							printf("BlueTooth Module Ver:%s\r\n",token_value);
+    459          						}
+    460          						else if (memcmp(token,"BDADDR",6)==0)
+    461          						{
+    462          							token_value[j]=0;
+    463          							printf("BlueTooth Module Addr:%s\r\n",token_value);
+    464          						}
+    465          #endif
+    466          						else if (memcmp(token,"BDMODE",6)==0)
+    467          						{
+    468          #ifdef HID_MODE
+    469          							if (token_value[0] != '2')
+    470          							{
+    471          								ret |= 0x02;
+    472          							}
+    473          #else
+    474          							if (token_value[0] != '1')
+    475          							{
+    476          								ret |= 0x02;
+    477          							}
+    478          #endif
+    479          						}
+    480          					}
+    481          					stat = 0;
+    482          					continue;
+    483          				}
+    484          
+    485          				if (stat == 1)
+    486          				{
+    487          					token[j] = BT816_res.DataBuffer[i];
+    488          					j++;
+    489          				}
+    490          				else if (stat == 2)
+    491          				{
+    492          					token_value[j] = BT816_res.DataBuffer[i];
+    493          					j++;
+    494          				}
+    495          			} 
+    496          			USART_Cmd(UART4, ENABLE);
+    497          			return ret;
+    498          		}
+    499          		//OSTimeDlyHMSM(0,0,0,100);
+    500                          wait_cnt--;
+    501                          delay_ms(100);
+    502          	}
+    503          	return -1;
+    504          }
+    505          
+    506          /*
+    507           * @brief 查询蓝牙模块BT816的版本号
+    508           * @param[out]  unsigned char *ver_buffer  返回查询到的版本号，如果为空表示查询失败
+    509          */
+    510          int BT816_query_version(unsigned char *ver_buffer)
+    511          {
+    512          	unsigned char	buffer[21];
+    513          	int		i,ret;
+    514          
+    515          	assert(ver_buffer != 0);
+    516          	ver_buffer[0] = 0;
+    517          	memcpy(buffer,"AT+BDVER=?\x0d\x0a",12);
+    518          	ret = BT816_write_cmd((const unsigned char*)buffer,12,EXPECT_RES_FORMAT2_TYPE);
+    519          	if (ret)
+    520          	{
+    521          		return ret;
+    522          	}
+    523          
+    524          	if (memcmp(&BT816_res.DataBuffer[3],"BDVER",5) == 0)
+    525          	{
+    526          		for (i = 0; i < ((BT816_res.DataLength-11) > 20)?20:(BT816_res.DataLength-11);i++)
+    527          		{
+    528          			if (BT816_res.DataBuffer[9+i] == 0x0d)
+    529          			{
+    530          				break;
+    531          			}
+    532          
+    533          			ver_buffer[i] = BT816_res.DataBuffer[9+i];
+    534          		}
+    535          		ver_buffer[i] = 0;
+    536          		return 0;
+    537          	}
+    538          
+    539          	return -1;
+    540          }
+    541          
+    542          
+    543          /*
+    544           * @brief 查询蓝牙模块的设备名称
+    545           * @param[out]  unsigned char *name  模块名称,字符串
+    546           * @return 0: 查询成功		else：查询失败
+    547           * @note 从手册暂时没有看到支持的名称的最大长度是多少，所以如果设置的名称太长可能会导致缓冲区溢出
+    548           *       在此接口中将设备名称限定为最长支持20个字节
+    549          */
+    550          int BT816_query_name(unsigned char *name)
+    551          {
+    552          	unsigned char	buffer[15];
+    553          	int		i,ret;
+    554          
+    555          	assert(name != 0);
+    556          	name[0] = 0;
+    557          	memcpy(buffer,"AT+BDNAME=?\x0d\x0a",13);
+    558          
+    559          	ret = BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT2_TYPE);
+    560          	if (ret)
+    561          	{
+    562          		return ret;
+    563          	}
+    564          
+    565          	if (memcmp(&BT816_res.DataBuffer[3],"BDNAME",6) == 0)
+    566          	{
+    567          		for (i = 0; i < ((BT816_res.DataLength-12) > 20)?20:(BT816_res.DataLength-12);i++)
+    568          		{
+    569          			if (BT816_res.DataBuffer[10+i] == 0x0d)
+    570          			{
+    571          				break;
+    572          			}
+    573          
+    574          			name[i] = BT816_res.DataBuffer[10+i];
+    575          		}
+    576          		name[i] = 0;
+    577          		return 0;
+    578          	}
+    579          
+    580          	return -1; 
+    581          }
+    582          
+    583          /*
+    584           * @brief 查询和设置蓝牙模块的设备名称
+    585           * @param[in]  unsigned char *name  设置的名称,字符串
+    586           * @return 0: 设置成功		else：设置失败
+    587           * @note 从手册暂时没有看到支持的名称的最大长度是多少，所以如果设置的名称太长可能会设置失败
+    588           *       在此接口中将设备名称限定为最长支持20个字节
+    589          */
+    590          int BT816_set_name(unsigned char *name)
+    591          {
+    592          	unsigned char	buffer[33];
+    593          	int		len;
+    594          
+    595          	assert(name != 0);
+    596          	memcpy(buffer,"AT+BDNAME=",10);
+    597          	len = strlen((char const*)name);
+    598          	if (len>20)
+    599          	{
+    600          		memcpy(buffer+10,name,20);
+    601          		buffer[30] = 0x0d;
+    602          		buffer[31] = 0x0a;
+    603          		len = 32;
+    604          	}
+    605          	else
+    606          	{
+    607          		memcpy(buffer+10,name,len);
+    608          		buffer[10+len] = 0x0d;
+    609          		buffer[11+len] = 0x0a;
+    610          		len += 12;
+    611          	}
+    612          
+    613          	return BT816_write_cmd((const unsigned char*)buffer,len,EXPECT_RES_FORMAT2_TYPE); 
+    614          }
+    615          
+    616          /*
+    617           * @brief 设置蓝牙模块的设备名称
+    618           * @param[in]  unsigned char *name  设置的名称,字符串
+    619           * @return 0: 设置成功		else：设置失败
+    620           * @note 从手册暂时没有看到支持的名称的最大长度是多少，所以如果设置的名称太长可能会设置失败
+    621           *       在此接口中将设备名称限定为最长支持20个字节
+    622          */
+    623          int BT816_set_baudrate(BT816_BAUDRATE baudrate)
+    624          {
+    625          	unsigned char	buffer[20];
+    626          	int		len;
+    627          
+    628          	memcpy(buffer,"AT+BDBAUD=",10);
+    629          	len = 17;
+    630          	switch(baudrate)
+    631          	{
+    632          	case BAUDRATE_9600:
+    633          		memcpy(buffer+10,"9600",4);
+    634          		buffer[14] = 0x0d;
+    635          		buffer[15] = 0x0a;
+    636          		len = 16;
+    637          		break;
+    638          	case BAUDRATE_19200:
+    639          		memcpy(buffer+10,"19200",5);
+    640          		buffer[15] = 0x0d;
+    641          		buffer[16] = 0x0a;
+    642          		break;
+    643          	case BAUDRATE_38400:
+    644          		memcpy(buffer+10,"38400",5);
+    645          		buffer[15] = 0x0d;
+    646          		buffer[16] = 0x0a;
+    647          		break;
+    648          	case BAUDRATE_43000:
+    649          		memcpy(buffer+10,"43000",5);
+    650          		buffer[15] = 0x0d;
+    651          		buffer[16] = 0x0a;
+    652          		break;
+    653          	case BAUDRATE_57600:
+    654          		memcpy(buffer+10,"57600",5);
+    655          		buffer[15] = 0x0d;
+    656          		buffer[16] = 0x0a;
+    657          		break;
+    658          	case BAUDRATE_115200:
+    659          		memcpy(buffer+10,"115200",6);
+    660          		buffer[16] = 0x0d;
+    661          		buffer[17] = 0x0a;
+    662          		len = 18;
+    663          		break;
+    664          	}
+    665          	return BT816_write_cmd((const unsigned char*)buffer,len,EXPECT_RES_FORMAT2_TYPE);
+    666          }
+    667          
+    668          /*
+    669           * @brief 使蓝牙模块进入配对模式
+    670           * @param[in]      
+    671           * @return 0: 设置成功		else：设置失败
+    672           * @note enter into pair mode will cause disconnection of current mode
+    673          */
+    674          int BT816_enter_pair_mode(void)
+    675          {
+    676          	unsigned char	buffer[15];
+    677          
+    678          	memcpy(buffer,"AT+BDMODE=2\x0d\x0a",13);
+    679          	return BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT2_TYPE);
+    680          }
+    681          
+    682          /*
+    683           * @brief 设置蓝牙模块的HID键值传输的模式
+    684           * @param[in]  unsigned char mode  蓝牙模块的HID键值传输模式     
+    685           * @return 0: 设置成功		else：设置失败
+    686          */
+    687          int BT816_set_hid_trans_mode(BT_HID_TRANS_MODE mode)
+    688          {
+    689          	unsigned char	buffer[15];
+    690          
+    691          	memcpy(buffer,"AT+BDTP=",8);
+    692          	if (mode == BT_HID_TRANS_MODE_AT)
+    693          	{
+    694          		buffer[8] = '0';
+    695          	}
+    696          	else
+    697          	{
+    698          		buffer[8] = '1';
+    699          	}
+    700          	buffer[9] = 0x0d;
+    701          	buffer[10] = 0x0a;
+    702          	//return  BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT2_TYPE);
+    703          	return  BT816_write_cmd((const unsigned char*)buffer,11,EXPECT_RES_FORMAT1_TYPE);
+    704          	//实测时发现此命令的响应为:+BDMODE#0,属于format1的响应
+    705          }
+    706          /*
+    707           * @brief 设置蓝牙模块的工作模式(profile = HID、SPP、BLE)
+    708           * @param[in]  unsigned char mode  蓝牙模块的工作模式     
+    709           * @return 0: 设置成功		else：设置失败
+    710          */
+    711          int BT816_set_profile(BT_PROFILE mode)
+    712          {
+    713          	unsigned char	buffer[15];
+    714          
+    715          	memcpy(buffer,"AT+BDMODE=",10);
+    716          	if (mode == BT_PROFILE_HID)
+    717          	{
+    718          		buffer[10] = '2';
+    719          	}
+    720          	else if (mode == BT_PROFILE_SPP)
+    721          	{
+    722          		buffer[10] = '1';
+    723          	}
+    724          	else
+    725          	{
+    726          		buffer[10] = '3';
+    727          	}
+    728          	buffer[11] = 0x0d;
+    729          	buffer[12] = 0x0a;
+    730          	//return  BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT2_TYPE);
+    731          	return  BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT1_TYPE);
+    732          	//实测时发现此命令的响应为:+BDMODE#0,属于format1的响应
+    733          }
+    734          
+    735          /*
+    736           * @brief 查询蓝牙模块HID当前的连接状态  	
+    737           * @return <0 ：发送失败	0: unkown 	1: connected    2： disconnect
+    738           * @note 
+    739          */
+    740          int BT816_hid_status(void)
+    741          {
+    742          #if 0
+    743          	unsigned char	buffer[15];
+    744          	int		i,ret;
+    745          
+    746          	memcpy(buffer,"AT+HIDSTAT=?\x0d\x0a",14);
+    747          
+    748          	ret = BT816_write_cmd((const unsigned char*)buffer,14,EXPECT_RES_FORMAT2_TYPE);
+    749          	if (ret)
+    750          	{
+    751          		return ret;
+    752          	}
+    753          
+    754          	if (memcmp(&BT816_res.DataBuffer[3],"HIDSTAT",7) == 0)
+    755          	{
+    756          		if (BT816_res.DataBuffer[11] == '3')
+    757          		{
+    758          			return BT_MODULE_STATUS_CONNECTED;
+    759          		}
+    760          		else
+    761          		{
+    762          			return BT_MODULE_STATUS_DISCONNECT;
+    763          		}
+    764          	}
+    765          
+    766          	return -2;
+    767          #endif
+    768          
+    769          	unsigned int i;
+    770          	if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_8))
+    771          	{
+    772          		for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
+    773          		if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_8))
+    774          		{
+    775          			return BT_MODULE_STATUS_CONNECTED;
+    776          		}
+    777          		else
+    778          		{
+    779          			return BT_MODULE_STATUS_DISCONNECT;
+    780          		}
+    781          	}
+    782          	else
+    783          		return BT_MODULE_STATUS_DISCONNECT;
+    784          
+    785          }
+    786          
+    787          /*
+    788           * @brief 蓝牙模块试图连接最近一次连接过的主机
+    789           * @return 0: 命令响应成功		else：命令响应失败
+    790           * @note 由于此命令可能耗时比较长，所以此接口不等待连接的结果返回即退出
+    791           *       如果需要知道是否连接成功，可以他通过查询状态的接口去获取
+    792          */
+    793          int BT816_hid_connect_last_host(void)
+    794          {
+    795          	unsigned char	buffer[15];
+    796          
+    797          	memcpy(buffer,"AT+HIDCONN\x0d\x0a",12);
+    798          	return BT816_write_cmd((const unsigned char*)buffer,12,EXPECT_RES_FORMAT1_TYPE);
+    799          }
+    800          
+    801          /*
+    802           * @brief 蓝牙模块试图断开与当前主机的连接
+    803           * @return 0: 命令响应成功		else：命令响应失败
+    804           * @note 由于此命令可能耗时比较长，所以此接口不等待断开的结果返回即退出
+    805           *       如果需要知道是否断开成功，可以他通过查询状态的接口去获取
+    806          */
+    807          int BT816_hid_disconnect(void)
+    808          {
+    809          	unsigned char	buffer[15];
+    810          
+    811          	memcpy(buffer,"AT+HIDDISC\x0d\x0a",12);
+    812          	return BT816_write_cmd((const unsigned char*)buffer,12,EXPECT_RES_FORMAT1_TYPE);
+    813          }
+    814          
+    815          /*
+    816           * @brief 设置蓝牙模块是否使能IOS soft keyboard
+    817           * @return 0: 设置成功		else：设置失败
+    818          */
+    819          int BT816_toggle_ioskeypad(void)
+    820          {
+    821          	unsigned char	buffer[15];
+    822          
+    823          	memcpy(buffer,"AT+HIDOSK\x0d\x0a",11);
+    824          	return BT816_write_cmd((const unsigned char*)buffer,11,EXPECT_RES_FORMAT2_TYPE);
+    825          }
+    826          
+    827          
+    828          #define ENTER_KEY             0x82
+    829          #define ESCAPE_KEY            0x83
+    830          #define BACKSPACE_KEY         0x84
+    831          #define TAB_KEY               0x85
+    832          #define SPACE_KEY             0x86
+    833          #define CAPS_LOCK_KEY         0x87
+    834          
+    835          /*
+    836           * @brief 通过蓝牙模块的HID模式发送ASCII字符串
+    837           * @param[in]  unsigned char *str		需要发送的ASCII字符缓冲
+    838           * @param[in]  unsigned int  len	    待发送字符数
+    839           * @return 0: 发送成功		else：发送失败
+    840           * @note   如果要发送的字符串太长，就会被拆包，其实理论上一次可以发送500字节，但是考虑到栈可能会溢出的风险，所以被拆包成40字节短包发送
+    841           *         理论上可能会影响字符串的发送速度
+    842          */
+    843          int BT816_hid_send(unsigned char *str,unsigned int len)
+    844          {
+    845          #if 1		//AT命令模式下发送键值
+    846          	unsigned char	buffer[60];
+    847          	unsigned char	str_len;
+    848          	unsigned char	*p;
+    849          	int ret;
+    850          
+    851          	p = str;
+    852          	while (len > 40)
+    853          	{
+    854          		memcpy(buffer,"AT+HIDSEND=",11);
+    855          		hex_to_str(40,10,0,buffer+11);
+    856          		buffer[13]=',';
+    857          		memcpy(buffer+14,p,40);
+    858          		buffer[54]=0x0d;
+    859          		buffer[55]=0x0a;
+    860          		ret = BT816_write_cmd((const unsigned char*)buffer,56,EXPECT_RES_FORMAT1_TYPE);
+    861          		if (ret)
+    862          		{
+    863          			return ret;
+    864          		}
+    865          		len -= 40;
+    866          		p += 40;
+    867          	}
+    868          
+    869          	memcpy(buffer,"AT+HIDSEND=",11);
+    870          	str_len = hex_to_str(len+2,10,0,buffer+11);
+    871          	buffer[11+str_len]=',';
+    872          	memcpy(buffer+12+str_len,p,len);
+    873          	buffer[12+str_len+len]=ENTER_KEY;
+    874          
+    875          	buffer[13+str_len+len]=0x0d;
+    876          	buffer[14+str_len+len]=0x0a;
+    877          	ret = BT816_write_cmd((const unsigned char*)buffer,15+str_len+len,EXPECT_RES_FORMAT1_TYPE);
+    878          	return ret;
+    879          #endif
+    880          
+    881          #if 0		//透传模式下发送键值
+    882          	send_data_to_BT816S01(str,len);
+    883          	send_data_to_BT816S01("\x0d\x0a",2);
+    884          	return 0;
+    885          #endif
+    886          }
+    887          
+    888          
+    889          /*
+    890           * @brief 设置蓝牙模块是否使能自动连接特性
+    891           * @param[in]	0: DIABLE		1:ENABLE
+    892           * @return 0: 设置成功		else：设置失败
+    893          */
+    894          int BT816_set_autocon(unsigned int	enable)
+    895          {
+    896          	unsigned char	buffer[15];
+    897          
+    898          	memcpy(buffer,"AT+HIDACEN=",11);
+    899          	if (enable)
+    900          	{
+    901          		buffer[11] = '1';
+    902          	}
+    903          	else
+    904          	{
+    905          		buffer[11] = '0';
+    906          	}
+    907          	buffer[12] = 0x0d;
+    908          	buffer[13] = 0x0a;
+    909          	return  BT816_write_cmd((const unsigned char*)buffer,14,EXPECT_RES_FORMAT1_TYPE);	//实测返回的是format1的response
+    910          }
+    911          
+    912          
+    913          /*
+    914           * @brief 设置蓝牙模块的HID传输延时
+    915           * @param[in]	unsigned int	delay		单位ms
+    916           * @return 0: 设置成功		else：设置失败
+    917          */
+    918          int BT816_hid_set_delay(unsigned int	delay)
+    919          {
+    920          	unsigned char	buffer[20];
+    921          	int	len;
+    922          
+    923          	memcpy(buffer,"AT+HIDSDLY=",11);
+    924          	len = hex_to_str(delay,10,0,buffer+11);
+    925          	buffer[11+len] = 0x0d;
+    926          	buffer[12+len] = 0x0a;
+    927          	return  BT816_write_cmd((const unsigned char*)buffer,13+len,EXPECT_RES_FORMAT2_TYPE);	//实测返回的是format1的response
+    928          }
+    929          
+    930          /*
+    931           * @brief 使蓝牙模块BT816进入睡眠模式
+    932          */
+    933          void BT816_enter_sleep(void)
+    934          {
+    935          	GPIO_ResetBits(GPIOB,GPIO_Pin_12);
+    936          	BT816_power_state = SLEEP;
+    937          }
+    938          
+    939          /*
+    940           * @brief 唤醒蓝牙模块BT816
+    941          */
+    942          void BT816_wakeup(void)
+    943          {
+    944          	if (BT816_power_state == SLEEP)
+    945          	{
+    946          		GPIO_SetBits(GPIOB,GPIO_Pin_12);
+    947          		BT816_power_state = WAKEUP;
+    948          		//OSTimeDlyHMSM(0,0,0,100);
+    949                          delay_ms(100);
+    950          	}
+    951          }
+    952          
+    953          /*
+    954           * @brief 查询蓝牙模块SPP当前的连接状态  	
+    955           * @return <0 ：发送失败	0: unkown 	1: connected    2： disconnect
+    956           * @note 
+    957          */
+    958          int BT816_spp_status(void)
+    959          {
+    960          #if 0
+    961          	unsigned char	buffer[15];
+    962          	int		i,ret;
+    963          
+    964          	memcpy(buffer,"AT+SPPSTAT=?\x0d\x0a",14);
+    965          
+    966          	ret = BT816_write_cmd((const unsigned char*)buffer,14,EXPECT_RES_FORMAT2_TYPE);
+    967          	if (ret)
+    968          	{
+    969          		return ret;
+    970          	}
+    971          
+    972          	if (memcmp(&BT816_res.DataBuffer[3],"SPPSTAT",7) == 0)
+    973          	{
+    974          		if (BT816_res.DataBuffer[11] == '3')
+    975          		{
+    976          			return BT_MODULE_STATUS_CONNECTED;
+    977          		}
+    978          		else
+    979          		{
+    980          			return BT_MODULE_STATUS_DISCONNECT;
+    981          		}
+    982          	}
+    983          
+    984          	return -2;
+    985          #endif
+    986          
+    987          	unsigned int i;
+    988          	if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_8))
+    989          	{
+    990          		for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
+    991          		if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_8))
+    992          		{
+    993          			return BT_MODULE_STATUS_CONNECTED;
+    994          		}
+    995          		else
+    996          		{
+    997          			return BT_MODULE_STATUS_DISCONNECT;
+    998          		}
+    999          	}
+   1000          	else
+   1001          		return BT_MODULE_STATUS_DISCONNECT;
+   1002          
+   1003          }
+   1004          
+   1005          /*
+   1006           * @brief 蓝牙模块BT816的初始化
+   1007          */
+   1008          int BT816_init(void)
+   1009          {
+   1010          	unsigned char	str[21];
+   1011          	int ret;
+   1012          
+   1013          	BT816_res.DataBuffer = BT816_recbuffer;
+   1014          	BT816_reset_resVar();
+   1015                  //初始化一个SPP的环形缓冲区
+   1016          	ringbuffer_init(&spp_ringbuf,spp_rec_buffer,SPP_BUFFER_LEN);
+   1017                  
+   1018          	BT816_GPIO_config(115200);		//default波特率
+   1019          	BT816_NVIC_config();
+   1020          	ret = BT816_Reset();
+   1021          	if(ret < 0)
+   1022          	{
+   1023          		ret = BT816_Reset();
+   1024          		if(ret < 0)
+   1025          		{
+   1026          			return -1;
+   1027          		}
+   1028          	}
+   1029          
+   1030          #ifdef HID_MODE
+   1031          	if ((ret&0x02) == 0x02)
+   1032          	{
+   1033          		if (BT816_set_profile(BT_PROFILE_HID))
+   1034          		{
+   1035          			return -2;
+   1036          		}
+   1037          	}
+   1038          
+   1039          	if ((ret & 0x01) == 1)
+   1040          	{
+   1041          		if (BT816_set_hid_trans_mode(BT_HID_TRANS_MODE_AT))
+   1042          		{ 
+   1043          			return -3;
+   1044          		}
+   1045          	}
+   1046          
+   1047          	
+   1048          	if (BT816_query_name(str))
+   1049          	{
+   1050          		return -4;
+   1051          	}
+   1052          
+   1053          	if (memcmp(str,"H520B",5) != 0)
+   1054          	{
+   1055          		if (BT816_set_name("H520B Device"))
+   1056          		{
+   1057          			return -5;
+   1058          		}
+   1059          	}
+   1060          	
+   1061          	if (BT816_set_autocon(1))
+   1062          	{
+   1063          		return -6;
+   1064          	}
+   1065          
+   1066          	if(BT816_hid_set_delay(8))
+   1067          	{
+   1068          		return -7;
+   1069          	}
+   1070          #else
+   1071          
+   1072          	if (BT816_query_name(str))
+   1073          	{
+   1074          		return -4;
+   1075          	}
+   1076          
+   1077          	if (memcmp(str,"HJ Pr",5) != 0)
+   1078          	{
+   1079          		if (BT816_set_name("HJ Printer"))
+   1080          		{
+   1081          			return -5;
+   1082          		}
+   1083          	}
+   1084          
+   1085          	//if (BT816_set_autocon(1))
+   1086          	//{
+   1087          	//	return -6;
+   1088          	//}
+   1089          
+   1090          	if ((ret&0x02) == 0x02)
+   1091          	{
+   1092          		if (BT816_set_profile(BT_PROFILE_SPP))
+   1093          		{
+   1094          			return -2;
+   1095          		}
+   1096          	}
+   1097          
+   1098          
+   1099          	if ((ret & 0x01) == 1)
+   1100          	{
+   1101          		if (BT816_set_hid_trans_mode(BT_HID_TRANS_MODE_AT))
+   1102          		{ 
+   1103          			return -3;
+   1104          		}
+   1105          	}
+   1106          
+   1107          	
+   1108          #endif
+   1109          
+   1110          	BT816_power_state = WAKEUP;
+   1111          	return 0;
+   1112          }
+   1113          
+   1114          
+   1115          /*
+   1116           * @brief 蓝牙模块HID模式发送测试
+   1117          */
+   1118          int BT816_hid_send_test(void)
+   1119          {
+   1120          	unsigned int i;
+   1121          	for (i = 0; i < 50;i++)
+   1122          	{
+   1123          		BT816_hid_send("12345678901234567890",20);
+   1124          		delay_ms(150);
+   1125          	}
+   1126                  
+   1127                  return  0;
+   1128          }
+   1129          #endif
+
+   Maximum stack usage in bytes:
+
+     Function                    .cstack
+     --------                    -------
+     BT816_GPIO_config               72
+     BT816_NVIC_config                8
+     BT816_Reset                     16
+     BT816_RxISRHandler              16
+     BT816_enter_pair_mode           24
+     BT816_enter_sleep                8
+     BT816_hid_connect_last_host     24
+     BT816_hid_disconnect            24
+     BT816_hid_send                  80
+     BT816_hid_send_test              8
+     BT816_hid_set_delay             32
+     BT816_hid_status                 8
+     BT816_init                      32
+     BT816_query_name                24
+     BT816_query_version             32
+     BT816_reset_resVar               0
+     BT816_set_autocon               24
+     BT816_set_baudrate              32
+     BT816_set_hid_trans_mode        24
+     BT816_set_name                  48
+     BT816_set_profile               24
+     BT816_spp_status                 8
+     BT816_toggle_ioskeypad          24
+     BT816_wakeup                     8
+     BT816_write_cmd                 16
+     memcpy                           8
+     send_data_to_BT816S01           16
+
+
+   Section sizes:
+
+     Function/Label                             Bytes
+     --------------                             -----
+     memcpy                                       14
+     BT816_res                                    12
+     BT816_send_buff                              32
+     BT816_power_state                             1
+     BT816_recbuffer                             256
+     spp_rec_buffer                             1024
+     spp_ringbuf                                  16
+     BT816_GPIO_config                           404
+     BT816_NVIC_config                           124
+     send_data_to_BT816S01                        88
+     BT816_reset_resVar                           26
+     BT816_RxISRHandler                          252
+     BT816_write_cmd                             122
+     token                                        12
+     token_value                                  16
+     BT816_Reset                                 344
+     BT816_query_version                         172
+     BT816_query_name                            172
+     BT816_set_name                              124
+     BT816_set_baudrate                          244
+     BT816_enter_pair_mode                        32
+     BT816_set_hid_trans_mode                     64
+     BT816_set_profile                            80
+     BT816_hid_status                             54
+     BT816_hid_connect_last_host                  32
+     BT816_hid_disconnect                         32
+     BT816_toggle_ioskeypad                       32
+     BT816_hid_send                              200
+     BT816_set_autocon                            64
+     BT816_hid_set_delay                          68
+     BT816_enter_sleep                            20
+     BT816_wakeup                                 34
+     BT816_spp_status                             54
+     BT816_init                                  180
+     BT816_hid_send_test                          36
+     ??DataTable17                                 4
+     ??DataTable38                                 4
+     ??DataTable48                                 4
+     ??DataTable50                                 4
+     ??DataTable63                                 4
+     ??DataTable64                                 4
+     ??DataTable73                                 4
+     ??DataTable74                                 4
+     ??DataTable75                                 4
+     ??DataTable76                                 4
+     ??DataTable77                                 4
+     ?<Constant "SPPREC=">                         8
+     ?<Constant "BlueTooth Module Ver:...">       28
+     ?<Constant "BlueTooth Module Addr...">       28
+     ?<Constant "BDMODE">                          8
+     ?<Constant "BDADDR">                          8
+     ?<Constant "BDVER">                           8
+     ?<Constant "BDTP">                            8
+     ?<Constant "ver_buffer != 0">                16
+     ?<Constant "E:\\BT Printer\\FW\\src\\...">   40
+     ?<Constant "AT+BDVER=?\r\n">                 16
+     ?<Constant "name != 0">                      12
+     ?<Constant "AT+BDNAME=?\r\n">                16
+     ?<Constant "BDNAME">                          8
+     ?<Constant "AT+BDNAME=">                     12
+     ?<Constant "AT+BDBAUD=">                     12
+     ?<Constant "9600">                            8
+     ?<Constant "19200">                           8
+     ?<Constant "38400">                           8
+     ?<Constant "43000">                           8
+     ?<Constant "57600">                           8
+     ?<Constant "115200">                          8
+     ?<Constant "AT+BDMODE=2\r\n">                16
+     ?<Constant "AT+BDTP=">                       12
+     ?<Constant "AT+BDMODE=">                     12
+     ?<Constant "AT+HIDCONN\r\n">                 16
+     ?<Constant "AT+HIDDISC\r\n">                 16
+     ?<Constant "AT+HIDOSK\r\n">                  12
+     ?<Constant "AT+HIDSEND=">                    12
+     ?<Constant "AT+HIDACEN=">                    12
+     ?<Constant "AT+HIDSDLY=">                    12
+     ?<Constant "HJ Printer">                     12
+     ?<Constant "HJ Pr">                           8
+     ?<Constant "12345678901234567890">           24
+
+ 
+ 1 369 bytes in section .bss
+   440 bytes in section .rodata
+ 3 112 bytes in section .text
+ 
+ 3 098 bytes of CODE  memory (+ 14 bytes shared)
+   440 bytes of CONST memory
+ 1 369 bytes of DATA  memory
+
+Errors: none
+Warnings: 1

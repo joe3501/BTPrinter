@@ -1,0 +1,597 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:11 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\App\tlv.c                                   #
+#    Command line =  E:\T6\FW\src\App\tlv.c -lcN                              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\tlv.lst          #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\tlv.o             #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\App\tlv.c
+      1          /**
+      2           * @file tlv.c
+      3           * @brief 盘点机与PC通讯之间数据链路层的实现
+      4           *
+      5           * @version V0.0.1
+      6           * @author joe
+      7           * @date 2011年05月11日
+      8           * @note
+      9           *    通过虚拟串口与PC之间通讯，通讯的数据帧格式：
+     10           *		STX(1Byte) | LEN(4Byte) | DATA（TLV数据结构）| ETX（1Byte） | CRC（4Byte）
+     11           *    LEN:高位在前，低位在后，比如0x01 0x10表示272byte
+     12           *		TLV 结构说明： TAG（1Byte） | LEN(1-4Byte) | VALUE(LEN Byte)  
+     13           *
+     14           * @copy
+     15           *
+     16           * 此代码为深圳江波龙电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     17           * 本公司以外的项目。本司保留一切追究权利。
+     18           *
+     19           * <h1><center>&copy; COPYRIGHT 2009 netcom</center></h1>
+     20           */
+     21          /* Private include -----------------------------------------------------------*/
+     22          #include "tlv.h"
+     23          #include <string.h>
+     24          #include "crc32.h"
+     25          /* Private typedef -----------------------------------------------------------*/
+     26          
+     27          /* Private define ------------------------------------------------------------*/
+     28          #define TAG_N							0
+     29          #define TAG_ANS							1
+     30          #define TAG_B							2
+     31          
+     32          
+     33          /* Private macro -------------------------------------------------------------*/
+     34          /* Private variables ---------------------------------------------------------*/
+     35          const TTagInfo	taginfo[] = {
+     36          	{TAG_HH_LSH,4,TAG_B},{TAG_ACK,	2,	TAG_N  },{TAG_APP_VERSION,	8,	TAG_N  },{TAG_PARAM_VERSION,	8,	TAG_N  },
+     37          	{TAG_REC_TYPE,	1,	TAG_B  },{TAG_DEVICE_ID,	12,TAG_B},{TAG_VERIFY_DATA,	16,TAG_B},{TAG_DJ_DIR,	4,TAG_N},{TAG_IF_FEATURE,	8,TAG_B},
+     38          	{TAG_HH_RESULT,	1,TAG_B},{TAG_HH_TYPE,	1,TAG_B},{TAG_FILE_TYPE,1,TAG_B},{TAG_FILE_OFFSET,4,TAG_B},{TAG_DATA_LENGTH,4,TAG_B},
+     39          	{TAG_FILE_LIST,0,TAG_B},{TAG_DOWNLOAD_COMPLETE_FLAG,1,TAG_B},{TAG_TRNAS_DATA,0,TAG_B},{TAG_OPERATE_CODE,	2,	TAG_N  },
+     40          };
+     41          
+     42          
+     43          /* Global variables ---------------------------------------------------------*/
+     44          /* Private function prototypes -----------------------------------------------*/
+     45          
+     46          /* Private functions ---------------------------------------------------------*/
+     47          
+     48          /**
+     49           * @brief 初始化tlv数据帧
+     50           * @param[in] TTLVPacket *tlvpacket    指向tlv数据帧的指针
+     51           * @param[in] BYTE * databuf  存放tlv数据帧的实际位置
+     52           * @return
+     53           * @note databuf指向的空间必须足够大，可以存放一帧tlv数据帧
+     54           */
+     55          void tlv_init(TTLVPacket *tlvpacket,unsigned char * databuf)
+     56          {
+     57          	memset((unsigned char*)tlvpacket, 0x00, sizeof(TTLVPacket));
+     58          	memset(databuf, 0, TLV_FRAME_SIZE);
+     59          
+     60          	tlvpacket->buffer			= databuf;
+     61          	tlvpacket->buffer[0]		= 0x02;		// 开始位
+     62          	tlvpacket->ptr				= 5;			// 保留4字节长度	
+     63          }
+     64          
+     65          /**
+     66           * @brief 组成完整的数据帧，填充数据帧剩余的结构，包括长度域、停止位，CRC
+     67           * @param[in] WORD	att_len
+     68           * @return
+     69           * @note  最后tlvpacket->ptr实际上就是这个tlv数据帧的长度   
+     70           */
+     71          void tlv_pack(TTLVPacket *tlvpacket)
+     72          {
+     73          	unsigned int				datalen;
+     74          	unsigned long				crc;
+     75          
+     76          	datalen = tlvpacket->ptr - 5;
+     77          
+     78          	// 填充长度
+     79          	tlvpacket->buffer[1]				= (datalen>>24) & 0xFF;
+     80          	tlvpacket->buffer[2]				= (datalen>>16) & 0xFF;
+     81          	tlvpacket->buffer[3]				= (datalen>>8) & 0xFF;
+     82          	tlvpacket->buffer[4]				= datalen & 0xFF;
+     83          
+     84          
+     85          
+     86          	// 停止位
+     87          	tlvpacket->buffer[tlvpacket->ptr++]	= 0x03;
+     88          
+     89          	// CRC
+     90          	crc = crc32(0, &tlvpacket->buffer[5], datalen);
+     91          	tlvpacket->buffer[tlvpacket->ptr++] = (crc >> 24 ) & 0xFF;
+     92          	tlvpacket->buffer[tlvpacket->ptr++] = (crc >> 16 ) & 0xFF;
+     93          	tlvpacket->buffer[tlvpacket->ptr++] = (crc >> 8  ) & 0xFF;
+     94          	tlvpacket->buffer[tlvpacket->ptr++] = (crc >> 0  ) & 0xFF;
+     95          }
+     96          
+     97          /**
+     98           * @brief 找到该tag的信息结构指针
+     99           * @param[in]
+    100           * @return
+    101           * @note
+    102           */
+    103          TTagInfo * tlv_get_taginfo(unsigned char tag)
+    104          {
+    105          	int			i,begin,end;
+    106          	
+    107          	// @note taginfo这个表的tag已经是按照升序排列的，所以可用二分法搜索
+    108          	
+    109          	begin = 0;
+    110          	end   = sizeof(taginfo)/sizeof(TTagInfo) - 1;
+    111          	i = (begin + end)/2;
+    112          	while(taginfo[i].tag != tag)
+    113          	{
+    114          		if(taginfo[i].tag > tag)
+    115          				end = i-1;
+    116          		else
+    117          				begin = i+1;
+    118          				
+    119          		if(begin > end)
+    120          				return (TTagInfo*)0;		
+    121          		
+    122          		i = (begin + end)/2;				
+    123          	}
+    124          	
+    125          	return (TTagInfo *)&taginfo[i];
+    126          }
+    127          
+    128          /**
+    129           * @brief 加入一个定长tag到tlv数据结构帧中
+    130           * @param[out] TTLVPacket *tlvpacket 要加入到的tlv数据结构
+    131           * @param[in] unsigned char tag 要加入的tag号
+    132           * @param[in] unsigned char *indata 该tag的数据
+    133           * @return
+    134           * @note   TAG对应的数据长度不能超过0xffffff
+    135           */
+    136          void tlv_addtag(TTLVPacket *tlvpacket, unsigned char tag, unsigned char *indata)
+    137          {
+    138          	TTagInfo					*tag_info;
+    139          	unsigned char			*buf;
+    140          
+    141          	tag_info					= tlv_get_taginfo(tag);
+    142          
+    143          	if(tag_info==(TTagInfo*)0)
+    144          	{
+    145          		return;
+    146          	}
+    147          	
+    148          	if(tag_info->length)
+    149          	{
+    150          		buf					= &tlvpacket->buffer[tlvpacket->ptr];
+    151          
+    152          		// 1 TAG
+    153          		*buf				= tag;
+    154          		buf++;
+    155          
+    156          		// 2 LEN
+    157          		if (tag_info->length < 0x80)
+    158          		{
+    159          			*buf				= tag_info->length;
+    160          			buf++;
+    161          
+    162          			tlvpacket->ptr			+= tag_info->length+2;
+    163          		}
+    164          		else if (tag_info->length < 0x100)
+    165          		{
+    166          			*buf = 0x81;
+    167          			buf++;
+    168          			*buf = tag_info->length;
+    169          			buf++;
+    170          
+    171          			tlvpacket->ptr			+= tag_info->length+3;
+    172          		}
+    173          		else if (tag_info->length < 0x10000)
+    174          		{
+    175          			*buf = 0x82;
+    176          			buf++;
+    177          			*buf = (tag_info->length >> 8) & 0xff;
+    178          			buf++;
+    179          			*buf = tag_info->length & 0xff;
+    180          			buf++;
+    181          			tlvpacket->ptr			+= tag_info->length+4;
+    182          		}
+    183          		else if (tag_info->length < 0x1000000)
+    184          		{
+    185          			*buf = 0x83;
+    186          			buf++;
+    187          			*buf = (tag_info->length >> 16) & 0xff;
+    188          			buf++;
+    189          			*buf = (tag_info->length >> 8) & 0xff;
+    190          			buf++;
+    191          			*buf = tag_info->length & 0xff;
+    192          			buf++;
+    193          			tlvpacket->ptr			+= tag_info->length+5;
+    194          		}
+    195          		else
+    196          		{
+    197          			//太长了，无法添加到TLV的结构中来
+    198          			return;
+    199          		}
+    200          		
+    201          		// 3 VAL
+    202          		memcpy(buf, indata, tag_info->length);
+    203          	}
+    204          }
+    205          /**
+    206          * @brief 加入变长Tag到tlv数据结构帧中
+    207          * @param[out] TTLVPacket *tlvpacket 要加入到的tlv数据结构
+    208          * @param[in] unsigned char tag	  要加入数据域的tag
+    209          * @param[in] unsigned char *indata 该tag的数据
+    210          * @param[in] unsigned int len	   变长数据域的长度
+    211          * @return
+    212          * @note TAG对应的数据长度不能超过0xffffff
+    213          */
+    214          void tlv_addtag_ext(TTLVPacket *tlvpacket, unsigned char tag,unsigned char *indata,unsigned int len)
+    215          {
+    216          	unsigned char				*buf;
+    217          
+    218          	buf					= &tlvpacket->buffer[tlvpacket->ptr];
+    219          
+    220          	// 1 Add TAG
+    221          	*buf				= tag;
+    222          	buf++;
+    223          
+    224          	if (len == 0)
+    225          	{
+    226          		return;
+    227          	}
+    228          
+    229          	// 2 LEN
+    230          	if (len < 0x80)
+    231          	{
+    232          		*buf				= len;
+    233          		buf++;
+    234          
+    235          		tlvpacket->ptr			+= len+2;
+    236          	}
+    237          	else if (len < 0x100)
+    238          	{
+    239          		*buf = 0x81;
+    240          		buf++;
+    241          		*buf = len;
+    242          		buf++;
+    243          
+    244          		tlvpacket->ptr			+= len+3;
+    245          	}
+    246          	else if (len < 0x10000)
+    247          	{
+    248          		*buf = 0x82;
+    249          		buf++;
+    250          		*buf = (len >> 8) & 0xff;
+    251          		buf++;
+    252          		*buf = len & 0xff;
+    253          		buf++;
+    254          		tlvpacket->ptr			+= len+4;
+    255          	}
+    256          	else if (len < 0x1000000)
+    257          	{
+    258          		*buf = 0x83;
+    259          		buf++;
+    260          		*buf = (len >> 16) & 0xff;
+    261          		buf++;
+    262          		*buf = (len >> 8) & 0xff;
+    263          		buf++;
+    264          		*buf = len & 0xff;
+    265          		buf++;
+    266          		tlvpacket->ptr			+= len+5;
+    267          	}
+    268          	else
+    269          	{
+    270          		//太长了，无法添加到TLV的结构中来
+    271          		return;
+    272          	}
+    273          
+    274          	// 4 VAL
+    275          	memcpy(buf, indata, len);
+    276          }
+    277          
+    278          
+    279          /**
+    280           * @brief 校验数据是否符合规范定义的数据链路增的数据帧结构  STX(1Byte) | LEN(4Byte) | DATA（TLV数据结构）| ETX（1Byte） | CRC（4Byte）
+    281           * @param[in] unsigned char *indata  要校验的数据指针
+    282           * @return 0：符合 -1：起始位错误  -2：总长度溢出  -3：结束位错误  -4：CRC校验错误
+    283           */
+    284          int tlv_verify(unsigned char *indata)
+    285          {
+    286          	unsigned int			len,tmp;
+    287          	unsigned long			crc;
+    288          
+    289          	
+    290          	if( indata[0] != 0x02)
+    291          	{
+    292          		return -1;
+    293          	}
+    294          
+    295          	len = indata[1];
+    296          	len <<= 24;
+    297          	tmp = indata[2];
+    298          	tmp <<= 16;
+    299          	len |= tmp;
+    300          	tmp = indata[3];
+    301          	tmp <<= 8;
+    302          	len |= tmp;
+    303          	len |= indata[4];
+    304          
+    305          	if (len > (TLV_FRAME_SIZE - 10))
+    306          	{
+    307          		return -2;
+    308          	}
+    309          	
+    310          
+    311          	if(indata[len+5] != 0x03)
+    312          	{
+    313          		return -3;
+    314          	}
+    315          	crc = crc32(0, &indata[5], len);
+    316          
+    317          	if( indata[len+6] != ((crc>>24)&0xFF) ||
+    318          		indata[len+7] != ((crc>>16)&0xFF) ||
+    319          		indata[len+8] != ((crc>> 8)&0xFF) ||
+    320          		indata[len+9] != (crc & 0xFF))
+    321          	{
+    322          		return -4;
+    323          	}
+    324          
+    325          	return 0;
+    326          }
+    327          
+    328          /**
+    329           * @brief 从tlv数据帧中找到相应tag域，并返回数据域指针
+    330           * @note  此搜索函数只是支持TAG对应的长度字节为1个字节的，兼容性很差
+    331           */
+    332          unsigned char *tlv_get_tagvalue(unsigned char tag, TTLVPacket *tlv_packet)
+    333          {
+    334          	unsigned char					*pindata;
+    335          	int								len, pos,tmp_len,tmp;
+    336          
+    337          	pindata	= &tlv_packet->buffer[5];
+    338          
+    339          	len	= tlv_packet->buffer[1];
+    340          	len	<<= 24;
+    341          	tmp_len	= tlv_packet->buffer[2];
+    342          	tmp_len	<<= 16;
+    343          	len |= tmp_len;
+    344          	tmp_len	= tlv_packet->buffer[3];
+    345          	tmp_len	<<= 8;
+    346          	len |= tmp_len;
+    347          	len	|= tlv_packet->buffer[4];
+    348          
+    349          	pos								= 0;
+    350          
+    351          	while(pos < len)
+    352          	{
+    353          		if ((pindata[1] & 0x80) == 0x80)
+    354          		{
+    355          			//说明表示不止一个字节用来表示长度
+    356          			if ((pindata[1] & 0x0f) == 0x01)
+    357          			{
+    358          				tmp_len = pindata[2];
+    359          				tmp = 2;
+    360          			}
+    361          			else if ((pindata[1] & 0x0f) == 0x02)
+    362          			{
+    363          				tmp_len = pindata[2];
+    364          				tmp_len <<= 8;
+    365          				tmp_len += pindata[3];
+    366          
+    367          				tmp = 3;
+    368          			}
+    369          			else if ((pindata[1] & 0x0f) == 0x03)
+    370          			{
+    371          				tmp_len = pindata[2];
+    372          				tmp_len <<= 16;
+    373          				tmp = pindata[3];
+    374          				tmp <<= 8;
+    375          				tmp_len |= tmp;
+    376          				tmp_len |= pindata[4];
+    377          
+    378          				tmp = 4;
+    379          			}
+    380          			else
+    381          			{		
+    382          				return (unsigned char *)0;
+    383          			}
+    384          		}
+    385          		else
+    386          		{
+    387          			tmp_len = pindata[1];
+    388          			tmp = 1;
+    389          		}
+    390          
+    391          		if(pindata[0] == tag)
+    392          		{
+    393          			return pindata+1+tmp; 
+    394          		}
+    395          
+    396          		pos							+= tmp_len + 1 + tmp;
+    397          		pindata						+= tmp_len + 1 + tmp;
+    398          
+    399          	}
+    400          	return (unsigned char *)0;
+    401          }
+    402          
+    403          /**
+    404          * @brief 检查tag相对应的数据域是否合法
+    405          * @param[in] BYTE tag	tag类型
+    406          * @param[in] BYTE * pvalue  该tag的数据域指针
+    407          * @return  -1: 该数据域指针为0
+    408          *          -2: 数据域有错误
+    409          *           0: OK
+    410          * @note
+    411          */
+    412          /*
+    413          int tlv_check_value(BYTE tag,BYTE * pvalue)
+    414          {
+    415          	//@todo...
+    416          	return 0;
+    417          }
+    418          */
+    419          
+    420          
+    421          /*
+    422          * @brief 解析如下所示的TLV数据结构，从一包符合类似下面结构的TLV数据包中解出指定TAG所对应的数据域出来
+    423          * @param[in] BYTE tag			tag类型
+    424          * @param[in] BYTE * inbuf		需要解析的数据包
+    425          * @param[in] unsigned int in_len		需要解析的数据包的长度
+    426          * @param[out] unsigned int *data_len	该TAG对应数据域的长度
+    427          * @return	返回该TAG对应的数据域中的偏移
+    428          	‘6F’	FCI模板											M
+    429          			‘84’	DF名									M
+    430          			‘A5’	FCI数据专用模板							M
+    431          				‘BF0C’	发卡方自定义数据的FCI			M
+    432          					‘61’	目录入口						M
+    433          						‘4F’	DF名(AID)					M
+    434          						‘50’	应用标签					O
+    435          						‘87’	应用优先指示器				C
+    436          * @note 如果是搜索单字节TAG，先在后面补齐0x00
+    437          *		此函数目前的局限性在于，假如包含两个相同的TAG，那么只能找到前面的TAG所对应的数据域
+    438          */
+    439          /*
+    440          WORD tlv_search_tagvalue(WORD tag, BYTE* inbuf,WORD in_len,WORD *data_len) reentrant
+    441          {
+    442          	WORD	offset = 0;
+    443          	BYTE	len_byte,i;
+    444          	WORD	value_len,k,len;
+    445          	WORD	current_tag;
+    446          
+    447          	while (offset < in_len)
+    448          	{
+    449          		if (0x1f == (inbuf[offset] & 0x1f)) 
+    450          		{
+    451          			//如果TAG第一个字节的低5位全是1，那么TAG由2个字节组成，否则，TAG只有1个字节
+    452          			len_byte = inbuf[2+offset];
+    453          			current_tag = (inbuf[offset] << 8) + inbuf[offset+1];
+    454          			offset += 2;
+    455          		}
+    456          		else
+    457          		{
+    458          			len_byte = inbuf[offset+1];
+    459          			current_tag = inbuf[offset] << 8;
+    460          			offset += 1;
+    461          		}
+    462          
+    463          		if (len_byte & 0x80)
+    464          		{
+    465          			//长度字节的最高位如果是1的话，那么这个字节的低半字节的值就表示后面会跟多少个字节用来表示长度。比如0x82 0x01 0x02 就表示0x82后面还会有2个字节用来表示数据域的长度的。即0x0201 低位在前
+    466          			if ((len_byte & 0x0f) > 4)
+    467          			{
+    468          				//表示长度的字节不可能大于4个字节
+    469          				value_len = 0;
+    470          				return 0;
+    471          			}
+    472          			value_len = 0;
+    473          			k = 1;
+    474          			for (i = 0; i < (len_byte & 0x0f);i++)
+    475          			{
+    476          				value_len += inbuf[offset+1+i] * k;
+    477          				k *= 256;
+    478          			}
+    479          			offset += (len_byte & 0x0f) + 1;
+    480          		}
+    481          		else
+    482          		{
+    483          			value_len = len_byte;
+    484          			offset += 1;
+    485          		}
+    486          
+    487          		if (tag == current_tag)
+    488          		{
+    489          			*data_len = value_len;
+    490          			return offset;
+    491          		}
+    492          		else 
+    493          		{
+    494          			if (((current_tag >> 8) & 0x20) == 0)
+    495          			{
+    496          				//TAG的第一个字节的bit6等于0表示其数据域再没有子域了
+    497          				offset += value_len;
+    498          				continue;
+    499          			}
+    500          			else
+    501          			{
+    502          				//当前数据域中还包含了子域，那么要进行深度搜索
+    503          				k = tlv_search_tagvalue(tag,inbuf+offset,value_len,&len);
+    504          				if (0 == k)
+    505          				{
+    506          					//如果没有搜索到该TAG，那么继续往后搜索
+    507          					offset += value_len;
+    508          					continue;
+    509          				}
+    510          				else
+    511          				{
+    512          					*data_len = len;
+    513          					return offset+k;
+    514          				}
+    515          			}
+    516          		}
+    517          	}
+    518          	return 0;
+    519          }
+    520          */
+    521          
+
+   Maximum stack usage in bytes:
+
+     Function         .cstack
+     --------         -------
+     memcpy                8
+     memset                8
+     tlv_addtag           16
+     tlv_addtag_ext       16
+     tlv_get_taginfo       8
+     tlv_get_tagvalue     16
+     tlv_init             16
+     tlv_pack              8
+     tlv_verify           16
+
+
+   Section sizes:
+
+     Function/Label   Bytes
+     --------------   -----
+     memcpy             14
+     memset             20
+     taginfo           216
+     tlv_init           42
+     tlv_pack          100
+     tlv_get_taginfo    88
+     tlv_addtag        190
+     tlv_addtag_ext    142
+     tlv_verify        128
+     tlv_get_tagvalue  156
+
+ 
+ 216 bytes in section .rodata
+ 880 bytes in section .text
+ 
+ 846 bytes of CODE  memory (+ 34 bytes shared)
+ 216 bytes of CONST memory
+
+Errors: none
+Warnings: none

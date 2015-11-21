@@ -1,0 +1,1093 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     19/May/2015  10:28:17 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\T6\FW\src\App\gui.c                                   #
+#    Command line =  E:\T6\FW\src\App\gui.c -lcN                              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\List\ -o              #
+#                    E:\T6\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse         #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "D:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\ -I                      #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\App\ -I               #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Drivers\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\FatFs\ -I             #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I           #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I       #
+#                    E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports\   #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Sourc #
+#                    e\ -I E:\T6\FW\src\Project\EWARMv5\..\..\uCOS\uC-Probe\  #
+#                    -I E:\T6\FW\src\Project\EWARMv5\..\..\usb_lib\ -I        #
+#                    "D:\Program Files\IAR Systems\Embedded Workbench         #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\T6\FW\src\Project\EWARMv5\Debug\List\gui.lst          #
+#    Object file  =  E:\T6\FW\src\Project\EWARMv5\Debug\Obj\gui.o             #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\T6\FW\src\App\gui.c
+      1          /**
+      2          * @file gui.c
+      3          * @brief 刷卡机项目的UI驱动模块
+      4          *
+      5          * @version V0.0.1
+      6          * @author zhongyh
+      7          * @date 2009年8月28日
+      8          * @note
+      9          *      提供非接刷卡器界面接口
+     10          *      320x240
+     11          *      前景背景色选定后，GUI模块所有函数按此参数进行绘制
+     12          *      
+     13          *      
+     14          * @note 文字输出说明：
+     15          *      
+     16          *      本模块文字部分为16,24,32三种字库，在选择字体后，调用文字输出函数即为所选字体。
+     17          *      文字输出时简单计算输出的宽度，多余部分换行输出。直到满屏或字符截止为止。
+     18          *      字库存放在Data SDCard里
+     19          *     增加32号字体16*32的ASCII字体和32*32的中文字体
+     20          *     竖屏显示改为横屏显示
+     21          *
+     22          *
+     23          * @copy
+     24          *
+     25          * 此代码为深圳江波龙电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     26          * 本公司以外的项目。本司保留一切追究权利。
+     27          *
+     28          * <h1><center>&copy; COPYRIGHT 2009 netcom</center></h1>
+     29          */
+     30          
+     31          
+     32          #include "gui.h"
+     33          #include "lcd.h"
+     34          #include "res_spi.h"
+     35          #include "AsciiLib_6x12.h"
+     36          #include "cpu.h"
+     37          #include "pic.h"
+     38          
+     39          // 关于 TFontInfo 的type说明
+     40          // BIT 7 6 5 4 3 2 1 0
+     41          //     | | | |       +----  0 ROM字库 1资源卡字库
+     42          //     +-+-+-+------------  0 标准字库 1:FontMaker字库 其他，未定义
+     43          //
+     44          
+     45          
+     46          
+     47          static unsigned short				bgColor;
+     48          static unsigned short				textColor;
+     49          
+     50          unsigned char						gFontSize;			// 字号
+     51          unsigned char				g_language;			// 文字类型
+     52          
+     53          extern unsigned short			edit_display_x_patch;
+     54          
+     55          #define MAX_FNT_CNT				FNT_CHN_12_12
+     56          
+     57          
+     58          /**
+     59          *	@brief  刷卡机项目中用到的字体信息表
+     60          */
+     61          TFontInfo FontList[MAX_FNT_CNT+1] = {
+     62          	{	0, 6,  12, 12, 0	},							// ascii 8x12
+     63          	{	0, 12, 12, 24, 0	},							// chn 12x12
+     64          };
+     65          
+     66          unsigned int						dwPictureLBA;
+     67          
+     68          
+     69          /**
+     70          * @brief 初始化显示模块
+     71          */
+     72          void gui_init(void)
+     73          {
+     74          	Lcd_init();											// 初始化LCD硬件
+     75          	//Lcd_init();											// 初始化LCD硬件
+     76          	Lcd_Clear(BG_COLOR);
+     77          
+     78          	FontList[FNT_ASC_6_12].address	= (unsigned int)AsciiLib_6x12;
+     79          	FontList[FNT_CHN_12_12].address	= 0;
+     80          
+     81          	dwPictureLBA					= 0;
+     82          
+     83          	gui_SetFont(12);
+     84          	gui_SetTextColor(TXT_COLOR);
+     85          }
+     86          
+     87          /**
+     88          * @brief 装入字库信息
+     89          * @note 从SD卡中找到相应的字库
+     90          *       每个字库有一个独立的BPT
+     91          */
+     92          #if 0
+     93          void gui_load_font(void)
+     94          {
+     95          	int				i;
+     96          
+     97          	for(i=0; i<=MAX_FNT_CNT; i++)
+     98          	{
+     99          		if(FontList[i].type == 0)
+    100          		{
+    101          		}
+    102          		else
+    103          		{	// 从sd卡装载
+    104          		}
+    105          	}
+    106          }
+    107          #endif
+    108          
+    109          /**
+    110          * @brief 安装中文字库
+    111          */
+    112          int gui_setup_font(unsigned int dwLBA, unsigned char id)
+    113          {
+    114          	if( id == FNT_ASC_6_12 || id == FNT_CHN_12_12)
+    115          	{
+    116          		FontList[id].address = dwLBA;
+    117          	}
+    118          	return 0;
+    119          }
+    120          
+    121          
+    122          void gui_clear(unsigned short color)
+    123          {
+    124          	Lcd_Clear(color);
+    125          }
+    126          
+    127          #if 0
+    128          /**
+    129          * @brief 取得ASCII字库信息
+    130          */
+    131          static void 
+    132          GetAscFontData(
+    133          			   char* pBuffer, 
+    134          			   FONT* pFont,
+    135          			   char* pChar
+    136          			   )
+    137          {
+    138          	int								iOffset;
+    139          
+    140          	iOffset							= pFont->iOffset + pFont->FontLibHeader.iSize 
+    141          		+ pFont->FontLibHeader.iAscOffset;
+    142          
+    143          	iOffset							= iOffset+(*pChar) * pFont->FontLibHeader.iAscBytes;
+    144          
+    145          	shm_read(pBuffer, iOffset, pFont->FontLibHeader.iAscBytes);
+    146          }
+    147          
+    148          /**
+    149          * @brief 取得中文字字模信息
+    150          */
+    151          static void 
+    152          GetChnFontData(
+    153          			   char* pBuffer, 
+    154          			   FONT* pFont,
+    155          			   char* pChar
+    156          			   )
+    157          {
+    158          	unsigned char					qh,wh;
+    159          	int								iOffset;
+    160          
+    161          	//qu-wei code of chinese
+    162          	qh								= *(pChar)-0xa0;
+    163          	wh								= *(pChar+1)-0xa0;
+    164          
+    165          	if(qh>=0x10)
+    166          	{
+    167          		iOffset						= pFont->iOffset + pFont->FontLibHeader.iSize 
+    168          			+ pFont->FontLibHeader.iChnOffset;
+    169          		iOffset						= iOffset 
+    170          			+ ((94*(qh-1)+(wh-1))-0x0582)* pFont->FontLibHeader.iChnBytes;
+    171          	}
+    172          	else{
+    173          		iOffset						= pFont->iOffset + pFont->FontLibHeader.iSize 
+    174          			+ pFont->FontLibHeader.iChnSymOffset;
+    175          		iOffset						= iOffset 
+    176          			+ (94*(qh-1)+(wh-1)) * pFont->FontLibHeader.iChnBytes;
+    177          	}
+    178          
+    179          	shm_read(pBuffer, iOffset, pFont->FontLibHeader.iChnBytes);
+    180          }
+    181          #endif
+    182          
+    183          /**
+    184          * @brief 输出一个英文字符
+    185          * @note  目前只支持一种字体的显示,且坐标必须为4的倍数
+    186          */
+    187          static void gui_PutChar(unsigned short x,unsigned short y,unsigned char c,unsigned int refresh_flag)
+    188          {
+    189          	int								i;
+    190          	unsigned char		*pData;
+    191          	TFontInfo			*pInfo;
+    192          	unsigned short      lcd_x, lcd_y;
+    193          
+    194          	lcd_x							= x;
+    195          	lcd_y							= y;
+    196          
+    197          	if( gFontSize == 12)
+    198          	{	// 6x12号的ascii
+    199          		// 计算字模地址
+    200          		if (c >= 0x20)
+    201          		{
+    202          			pData			= (unsigned char *)(FontList[FNT_ASC_6_12].address + FontList[FNT_ASC_6_12].size * (c-0x20+3));	//在可见字符之前加了三个特殊字符
+    203          		}
+    204          		else if (c == 0x09)
+    205          		{
+    206          			//为了设置TAB键，用一个特殊的可见字符表示TAB键
+    207          			pData			= (unsigned char *)(FontList[FNT_ASC_6_12].address + FontList[FNT_ASC_6_12].size * 0);	
+    208          		}
+    209          		else if (c == 0x0a)
+    210          		{
+    211          			//为了设置换行键，用一个特殊的可见字符表示换行键
+    212          			pData			= (unsigned char *)(FontList[FNT_ASC_6_12].address + FontList[FNT_ASC_6_12].size * 1);	
+    213          		}
+    214          		else if (c == 0x0d)
+    215          		{
+    216          			//为了设置回车键，用一个特殊的可见字符表示回车键
+    217          			pData			= (unsigned char *)(FontList[FNT_ASC_6_12].address + FontList[FNT_ASC_6_12].size * 2);	
+    218          		}
+    219          		else
+    220          		{
+    221          			return;
+    222          		}
+    223          		
+    224          		pInfo			= &FontList[FNT_ASC_6_12];
+    225          
+    226          		for(i=0; i<pInfo->height; i++, lcd_y++)
+    227          		{
+    228          			Lcd_PutCharLineExt(lcd_x, lcd_y, *pData++, textColor,6,refresh_flag);
+    229          		}
+    230          	}//12
+    231          	else if (gFontSize == 6)
+    232          	{
+    233          		if ((c >= 0x30)&&(c <= 0x39))
+    234          		{
+    235          			pData			= (unsigned char *)(num0_9_4x6 + 6 * (c-0x30));
+    236          			for(i=0; i<6; i++, lcd_y++)
+    237          			{
+    238          				Lcd_PutCharLineExt(lcd_x, lcd_y, *pData++, textColor,4,refresh_flag);
+    239          			}
+    240          		}
+    241          	}
+    242          }
+    243          
+    244          /**
+    245          ***************************************************************************
+    246          *@brief	输出一个中文字附（泛指非ascii字符）
+    247          *@param[in] x 横坐标
+    248          *@param[in] y 纵坐标
+    249          *@note  目前只支持一种字体的显示,且坐标必须为4的倍数
+    250          ***************************************************************************
+    251          */
+    252          static void gui_PutChn(unsigned short x,unsigned short y,unsigned char *c,unsigned int refresh_flag)
+    253          {
+    254          	int						i;
+    255          	TFontInfo				*pInfo;
+    256          	int						offset;
+    257          	unsigned char			*pData;
+    258          	unsigned char			*pOrg;
+    259          
+    260          	if(gFontSize == 12)
+    261          	{
+    262          
+    263          		/*
+    264          		GBK码对字库中偏移量的计算公式为：
+    265          
+    266          		GBKindex = ((unsigned char)GBKword[0]-129)*190 +
+    267          
+    268          		((unsigned char)GBKword[1]-64) - (unsigned char)GBKword[1]/128;
+    269          
+    270          		*/
+    271          		offset				= ((c[0] - 0xA1) & 0x7F) * 94 + ((c[1]-0xA1)&0x7F);		//GB2312字符集偏移计算公式
+    272          
+    273          		//offset				= (c[0] - 129) * 190 + (c[1]-64) - (c[1]/128);				//GBK字符集偏移计算公式
+    274          		pInfo				= &FontList[FNT_CHN_12_12];
+    275          
+    276          
+    277          		if(pInfo->address == 0)
+    278          			return;
+    279          
+    280          		offset				*= pInfo->size;
+    281          		//pData				= (unsigned char*)(pInfo->address + offset);	// 指向存在STM32 Flash区域字库对应的该字模的起始地址
+    282          		pData				= read_resdata(pInfo->address + (offset/512));	// 计算所在的扇区
+    283          		pOrg				= pData;
+    284          		pData				+= offset & 0x1FF;								// 计算扇区内的偏移
+    285          
+    286          
+    287          		//显示字模数据
+    288          		for(i=0;i<pInfo->height; i++, y++)
+    289          		{
+    290          			Lcd_PutCharLine(x, y, *pData++, textColor,refresh_flag);
+    291          
+    292          			Lcd_PutCharLineExt(x+8, y, *pData++, textColor,4,refresh_flag);
+    293          			//下一行的字模处于下一个扇区
+    294          			if( ((unsigned int)pOrg + 0x1FF) < (unsigned int)pData )
+    295          			{
+    296                                    y++;
+    297                                    i++;
+    298          				break;
+    299          			}
+    300          		}
+    301          		if (i < pInfo->height)
+    302          		{
+    303          			//读取位于下一个Sector的字模数据
+    304          			pData				= read_resdata(pInfo->address + (offset/512) + 1);
+    305          
+    306          			//输出剩余的字模
+    307          			for(;i<pInfo->height; i++, y++)
+    308          			{
+    309          				Lcd_PutCharLine(x, y, *pData++, textColor,refresh_flag);
+    310          				Lcd_PutCharLineExt(x+8, y, *pData++, textColor,4,refresh_flag);
+    311          			}
+    312          		}
+    313          	}//12
+    314          
+    315          }
+    316          
+    317          /**
+    318          * @brief 文字输出
+    319          */
+    320          void gui_TextOut(int x, int y, unsigned char *pText, int bk,unsigned int refresh_flag)
+    321          {
+    322          	unsigned char					*pChar = pText;
+    323          
+    324                  edit_display_x_patch = 0;
+    325          	while(*pChar)
+    326          	{
+    327          		if(( *pChar >= 0x20 && *pChar <= 0x80)||(*pChar == 0x09)||(*pChar == 0x0a)||(*pChar == 0x0d))
+    328          		{	// ASCII
+    329          			if(x > GUI_WIDTH-6)
+    330          			{
+    331          				x	= 0;
+    332          				if (y > GUI_HEIGHT-12)
+    333          				{
+    334          					return;
+    335          				}
+    336          				else
+    337          				{
+    338          					y	+= 13;
+    339          				}
+    340          			}
+    341          
+    342          			gui_PutChar(x, y, *pChar,refresh_flag);
+    343          			x		+= gFontSize/2;
+    344          			pChar++;
+    345          		}
+    346          		else if(*pChar < 0x20)
+    347          		{
+    348          			return;
+    349          		} 
+    350          		else
+    351          		{		// 简体中文,中文字库在sd卡里
+    352          			if(x > GUI_WIDTH-12)
+    353          			{
+    354          				if (x == (GUI_WIDTH - 6))
+    355          				{
+    356          					//编辑框显示时，由于在一行的最后不能显示一个汉字，所以需要在换行的最后一个位置空出一个字符的位置来
+    357          					edit_display_x_patch += 6;
+    358          					gui_PutChar(x, y, ' ',refresh_flag);
+    359          				}
+    360          				x	= 0;
+    361          				if (y > GUI_HEIGHT-12)
+    362          				{
+    363          					return;
+    364          				}
+    365          				else
+    366          				{
+    367          					y	+= 13;
+    368          				}
+    369          			}
+    370          			gui_PutChn(x, y, pChar,refresh_flag);
+    371          			x		+= gFontSize;
+    372          			pChar	+= 2;
+    373          		}
+    374          	}
+    375          
+    376          	if(bk != 2)
+    377          	{
+    378          		Lcd_DrawLineV(GUI_WIDTH,y,gFontSize,BG_COLOR,1);
+    379          		Lcd_DrawLineV(GUI_WIDTH+1,y,gFontSize,BG_COLOR,1);
+    380          	}
+    381          }
+    382          
+    383          /**
+    384          * @brief 文字输出,x坐标指定为以下几种模式
+    385          *	0：左对齐
+    386          *   1：居中显示
+    387          *   2：右对齐
+    388          * @note  只能单行显示
+    389          */
+    390          void gui_TextOut_ext(unsigned char mode,int y, unsigned char *pText, int bk,unsigned int refresh_flag)
+    391          {
+    392          	unsigned char					*pChar = pText;
+    393          	unsigned int					x  = 0;
+    394          
+    395          
+    396          	if (mode == LEFT_ALIGN)
+    397          	{
+    398          		x = 0;
+    399          	}
+    400          	else
+    401          	{
+    402          		while(*pChar)
+    403          		{
+    404          			if(( *pChar >= 0x20 && *pChar <= 0x80)||(*pChar == 0x09)||(*pChar == 0x0a)||(*pChar == 0x0d))
+    405          			{	// ASCII
+    406          				x += 6;   
+    407          				pChar++;
+    408          			}
+    409          			else
+    410          			{	
+    411          				x		+= 12;
+    412          				pChar	+= 2;
+    413          			}
+    414          		}
+    415          		if (x > GUI_WIDTH)
+    416          		{
+    417          			gui_TextOutEx2(0,y,pText,bk,refresh_flag);
+    418          			return;
+    419          		}
+    420          
+    421          		if (mode == CENTER_ALIGN)
+    422          		{
+    423          			x = (GUI_WIDTH - x)/2;
+    424          		}
+    425          		else if (mode == RIGHT_ALIGN)
+    426          		{
+    427          			x = GUI_WIDTH - x;
+    428          		}
+    429          		else
+    430          		{
+    431          			return;
+    432          		}
+    433          	}
+    434          
+    435          	pChar = pText;
+    436          	while(*pChar)
+    437          	{
+    438          		if(( *pChar >= 0x20 && *pChar <= 0x80)||(*pChar == 0x09)||(*pChar == 0x0a)||(*pChar == 0x0d))
+    439          		{	// ASCII
+    440          			gui_PutChar(x, y, *pChar,refresh_flag);
+    441          			x += 6;  
+    442          			pChar++;
+    443          		}
+    444          		else if(*pChar < 0x20)
+    445          		{
+    446          			return;
+    447          		} 
+    448          		else
+    449          		{		// 简体中文,中文字库在sd卡里
+    450          			gui_PutChn(x, y, pChar,refresh_flag);
+    451          			x		+= 12;
+    452          			pChar	+= 2;
+    453          		}
+    454          	}
+    455          }
+    456          
+    457          /**
+    458          * @brief 文字输出,x坐标指定为以下几种模式
+    459          *	0：左对齐
+    460          *   1：居中显示
+    461          *   2：右对齐
+    462          * @note  只能单行显示
+    463          */
+    464          void gui_TextOutEx2(int x,int y, unsigned char *pText, int bk,unsigned int refresh_flag)
+    465          {
+    466          	unsigned char					*pChar = pText;
+    467          
+    468          	pChar = pText;
+    469          	while(*pChar)
+    470          	{
+    471          		if(( *pChar >= 0x20 && *pChar <= 0x80)||(*pChar == 0x09)||(*pChar == 0x0a)||(*pChar == 0x0d))
+    472          		{	// ASCII
+    473          			if (x+6>GUI_WIDTH)
+    474          			{
+    475          				return;
+    476          			}
+    477          			gui_PutChar(x, y, *pChar,refresh_flag);
+    478          			x += 6;  
+    479          			pChar++;
+    480          		}
+    481          		else if(*pChar < 0x20)
+    482          		{
+    483          			return;
+    484          		} 
+    485          		else
+    486          		{		// 简体中文,中文字库在sd卡里
+    487          			if (x+12>GUI_WIDTH)
+    488          			{
+    489          				return;
+    490          			}
+    491          			gui_PutChn(x, y, pChar,refresh_flag);
+    492          			x		+= 12;
+    493          			pChar	+= 2;
+    494          		}
+    495          	}
+    496          }
+    497          
+    498          
+    499          /**
+    500          * @brief 文字输出,x坐标指定为以下几种模式
+    501          *	0：左对齐
+    502          *   1：居中显示
+    503          *   2：右对齐
+    504          * @note  支持自动换行显示
+    505          */
+    506          void gui_TextOutEx(unsigned char mode,int y, unsigned char *pText, int bk,unsigned int refresh_flag)
+    507          {
+    508          	unsigned char					*pChar = pText;
+    509          	unsigned int					x  = 0;
+    510          	unsigned char					disp_str[21],i = 0;
+    511          	unsigned char					line = 0;
+    512          
+    513          
+    514          
+    515          	while(*pChar)
+    516          	{
+    517          		if( *pChar >= 0x20 && *pChar <= 0x80)
+    518          		{	// ASCII
+    519          			x += 6; 
+    520          			if (x > GUI_WIDTH)
+    521          			{
+    522          				disp_str[i] = 0;
+    523          				gui_TextOut_ext(LEFT_ALIGN,y+line*(gFontSize+2),disp_str,bk,refresh_flag);
+    524          				line++;
+    525          				i = 0;
+    526                                          x = 0;
+    527          			}
+    528          			else
+    529          			{
+    530          				disp_str[i++] = *pChar;
+    531          				pChar++;
+    532          			}
+    533          		}
+    534          		else if ((*pChar == 0x0d)&&(*(pChar+1) == 0x0a))
+    535          		{
+    536          			disp_str[i] = 0;
+    537          			gui_TextOut_ext(mode,y+line*(gFontSize+2),disp_str,bk,refresh_flag);
+    538          			line++;
+    539          			i = 0;
+    540          
+    541          			pChar += 2;
+    542                                  x = 0;
+    543          		}
+    544          		else
+    545          		{	
+    546          			x		+= 12;
+    547          			if (x > GUI_WIDTH)
+    548          			{
+    549          				disp_str[i] = 0;
+    550          				gui_TextOut_ext(LEFT_ALIGN,y+line*(gFontSize+2),disp_str,bk,refresh_flag);
+    551          				line++;
+    552          				i = 0;
+    553                                          x = 0;
+    554          			}
+    555          			else
+    556          			{
+    557          				disp_str[i++] = *pChar;
+    558          				disp_str[i++] = *(pChar+1);
+    559          				pChar	+= 2;
+    560          			}
+    561          		}
+    562          	}
+    563          
+    564          	disp_str[i] = 0;
+    565          
+    566          	gui_TextOut_ext(mode,y+line*(gFontSize+2),disp_str,bk,refresh_flag);
+    567          }
+    568          
+    569          /**
+    570          * @brief 画水平线
+    571          * @param[in] int x, y 线起始点
+    572          * @param[in] int width 线长
+    573          */
+    574          void gui_LineH(int x, int y, int width, unsigned short color,unsigned char refresh_flag)
+    575          {
+    576          	//Lcd_DrawLineH(x, y, width,color);
+    577          
+    578          	int w;
+    579          	w = GUI_WIDTH - x;
+    580          	if (w >= width)
+    581          	{
+    582          		Lcd_DrawLineH(x, y, width, color,refresh_flag);
+    583          		return ;
+    584          	}
+    585          	else
+    586          	{
+    587          		Lcd_DrawLineH(x, y, w, color,refresh_flag);
+    588          		w = width - w;		//剩余线长
+    589          		while(1)
+    590          		{
+    591          			y += 13;
+    592          			if (w > GUI_WIDTH)
+    593          			{
+    594          				Lcd_DrawLineH(0, y, GUI_WIDTH, color,refresh_flag);
+    595          				w -= GUI_WIDTH;
+    596          			}
+    597          			else
+    598          			{
+    599          				Lcd_DrawLineH(0, y, w, color,refresh_flag);
+    600          				break;
+    601          			}
+    602          		}
+    603          	}
+    604          }
+    605          
+    606          /**
+    607          * @brief 画垂直线
+    608          * @param[in] int x,y 线起始点
+    609          @ @param[in] int hight 线高
+    610          */
+    611          void gui_LineV(int x, int y, int hight, unsigned short color)
+    612          {
+    613          	while(x > GUI_WIDTH)
+    614          	{
+    615          		y += 13;
+    616          		x -= GUI_WIDTH;
+    617          	}
+    618          	Lcd_DrawLineV(x, y, hight,color,1);
+    619          }
+    620          
+    621          /**
+    622          * @brief 用前景色画一个矩型
+    623          * @param[in] int x,y 左上角坐标
+    624          * @param[out] int w,h 宽高
+    625          */
+    626          void gui_FillRect(int x, int y, int w, int h, unsigned short color,unsigned int refresh_flag)
+    627          {
+    628          	while(h--)
+    629          		Lcd_DrawLineH(x, y++, w,color,refresh_flag); 
+    630          }
+    631          
+    632          void gui_DrawRect(int x, int y, int w, int h, unsigned short color)
+    633          {
+    634          	Lcd_DrawLineV(x, y, h+1,color,1);
+    635          	Lcd_DrawLineV(x+w, y, h+1,color,1);
+    636          	Lcd_DrawLineH(x, y, w,color,1);
+    637          	Lcd_DrawLineH(x, y+h, w,color,1);
+    638          }
+    639          
+    640          /**
+    641          * @brief 找到了图片资源，根据ID，得到地址
+    642          */
+    643          void gui_setup_picture(unsigned int dwLBA)
+    644          {
+    645          	dwPictureLBA					= dwLBA;
+    646          }
+    647          
+    648          /**
+    649          * @brief 将单色的BMP图片输出到lcd上
+    650          * @note 为了兼顾效率，此部分直接操作lcd硬件接口
+    651          */
+    652          static void gui_PictureStreem(int x, int y, unsigned int dwLBA, unsigned int offset,unsigned int refresh_flag)
+    653          {
+    654          	unsigned char					*pData, *pOrg;
+    655          	unsigned short					w, h;
+    656          	int								i, j;
+    657          	unsigned short					lcd_x,lcd_y;
+    658          	unsigned int					data_offset,remain;
+    659          	unsigned char					tmp[26];
+    660          
+    661          
+    662          	lcd_x							= x;
+    663          	lcd_y							= y;
+    664          
+    665          	// pOrg   res_buffer起始地址
+    666          	// pData  工作指针
+    667          	pOrg							= read_resdata(dwLBA);
+    668          
+    669          	if(pOrg == (unsigned char*)0)
+    670          		return;
+    671          
+    672          	pData						= pOrg + offset;
+    673          #if 0	
+    674          	if ((pData+10) > (pOrg + 0x200))
+    675          	{
+    676          		remain = pOrg + 0x200 - pData;
+    677          		data_offset = pData + 10 - pOrg - 0x200;
+    678          		dwLBA++;
+    679          		pOrg							= read_resdata(dwLBA);
+    680          		pData = pOrg;
+    681          		data_offset = *(unsigned short*)(pData+10-remain);
+    682          
+    683          		w							= *(unsigned int*)(pData+18 - remain);
+    684          		h							= *(unsigned int*)(pData+22 - remain);
+    685          
+    686          		pData						+= data_offset - remain;
+    687          	}
+    688          #endif
+    689          	if ((pData+26) >= (pOrg + 0x200))
+    690          	{
+    691          		remain = pOrg + 0x200 - pData;
+    692          		memcpy(tmp,pData,remain);
+    693          		
+    694          		dwLBA++;
+    695          		pOrg							= read_resdata(dwLBA);
+    696          		pData = pOrg;
+    697          		memcpy(tmp+remain,pData,26-remain);
+    698          
+    699          		if ((*tmp != 'B')||(*(tmp+1) != 'M'))
+    700          		{
+    701          			return;		//有些BMP图片文件的标志字节并不是BM
+    702          		}
+    703          
+    704          		data_offset = *(unsigned short*)(tmp+10);
+    705          
+    706          		w							= *(unsigned int*)(tmp+18);
+    707          		h							= *(unsigned int*)(tmp+22);
+    708          
+    709          		pData						+= data_offset - remain;
+    710          	}
+    711          
+    712          	else
+    713          	{
+    714          		if ((*pData != 'B')||(*(pData+1) != 'M'))
+    715          		{
+    716          			return;		//有些BMP图片文件的标志字节并不是BM
+    717          		}
+    718          
+    719          		data_offset = *(unsigned short*)(pData+10);	//真正的位图数据的起始地址
+    720          
+    721          		w							= *(unsigned int*)(pData+18);
+    722          		h							= *(unsigned int*)(pData+22);
+    723          
+    724          		pData						+= data_offset;
+    725          	}
+    726          
+    727          	pOrg						+= 0x200;
+    728          	if (pData > pOrg)
+    729          	{
+    730          		data_offset = pData - pOrg;
+    731          		dwLBA ++;
+    732          		pOrg							= read_resdata(dwLBA);
+    733          		pData = pOrg + data_offset;
+    734          		pOrg += 0x200;
+    735          	}
+    736          	i							= w;
+    737          	j							= lcd_x;
+    738          lop:
+    739          	for(;h>0; h--)
+    740          	{
+    741          		while(w>0)
+    742          		{
+    743          			Lcd_PutCharLine(lcd_x, lcd_y, *pData,0xffff,refresh_flag);
+    744          			pData				++;
+    745          			w -= 8;
+    746          			lcd_x += 8;
+    747          			if(pData >= pOrg)
+    748          			{
+    749          				dwLBA++;
+    750          				pData			= read_resdata(dwLBA);
+    751          				goto lop;
+    752          			}
+    753          		}
+    754          		lcd_y++;
+    755          		w						= i;		// 恢复宽度
+    756          		if((w/8)%4)
+    757          		{
+    758          			pData += 4 - ((w/8)%4);		//由于BMP一行数据是4字节对齐，所以需要处理  
+    759          		}
+    760          		lcd_x						= j;		// 回到x起点
+    761          	}
+    762          }
+    763          
+    764          /**
+    765          * @brief 将单色的BMP图片输出到lcd上
+    766          * @note 为了兼顾效率，此部分直接操作lcd硬件接口
+    767          */
+    768          static void gui_PictureStreem_ext(int x, int y, unsigned char* pData,unsigned int refresh_flag)
+    769          {
+    770          	unsigned short					w, h;
+    771          	int								i, j;
+    772          	unsigned short					lcd_x,lcd_y;
+    773          	unsigned int					data_offset;
+    774          
+    775          
+    776          	lcd_x							= x;
+    777          	lcd_y							= y;
+    778          
+    779          
+    780          
+    781          	if ((*pData != 'B')||(*(pData+1) != 'M'))
+    782          	{
+    783          		return;		//有些BMP图片文件的标志字节并不是BM
+    784          	}
+    785          
+    786          	data_offset = *(unsigned short*)(pData+10);	//真正的位图数据的起始地址
+    787          
+    788          	w							= *(unsigned int*)(pData+18);
+    789          	h							= *(unsigned int*)(pData+22);
+    790          
+    791          	pData						+= data_offset;
+    792          
+    793          	i							= w;
+    794          	j							= lcd_x;
+    795          	for(;h>0; h--)
+    796          	{
+    797          		while(w>0)
+    798          		{
+    799          			Lcd_PutCharLine(lcd_x, lcd_y, *pData,0xffff,refresh_flag);
+    800          			pData				++;
+    801          			w -= 8;
+    802          			lcd_x += 8;
+    803          		}
+    804          		lcd_y++;
+    805          		w						= i;		// 恢复宽度
+    806          		if((w/8)%4)
+    807          		{
+    808          			pData += 4 - ((w/8)%4);		//由于BMP一行数据是4字节对齐，所以需要处理  
+    809          		}
+    810          		lcd_x						= j;		// 回到x起点
+    811          	}
+    812          }
+    813          
+    814          /**
+    815          * @brief 根据图片ID，在指定位置上显示图片
+    816          * @param[in] int x,y 输出的坐标
+    817          * @param[in] unsigned int PicID 图片ID
+    818          */
+    819          void gui_PictureOut(int x, int y, unsigned int PicID,unsigned int refresh_flag)
+    820          {
+    821          	unsigned int					*pIDArray;
+    822          	unsigned int					pic_address, pic_sector;
+    823          	//volatile int	temp;
+    824          
+    825          
+    826          	if(dwPictureLBA == 0)
+    827          	{
+    828          		// 图片装载失败
+    829          		return;
+    830          	}
+    831          
+    832          	// 装入ID数组,每个ID占4字节,所以通过基址dwPictureLBA,加上ID的偏移得到该ID地址
+    833          	// 所在的扇区
+    834          	if (PicID != PIC_USBLINK)
+    835          	{
+    836          		pIDArray						= (unsigned int*)read_resdata(dwPictureLBA + (PicID*4)/512);
+    837          		if(pIDArray)
+    838          		{
+    839          			pIDArray					+= PicID % 128;
+    840          		}
+    841          
+    842          		// 取得地址
+    843          		pic_address						= *pIDArray;
+    844          		if (pic_address)
+    845          		{
+    846          			pic_sector						= dwPictureLBA + (pic_address / 512);	// 数据所在的
+    847          			pic_address						&= (512-1);								// 扇区内的偏移值
+    848          
+    849          			gui_PictureStreem(x, y, pic_sector, pic_address,refresh_flag);
+    850          		}
+    851          	}
+    852          	else
+    853          	{
+    854          		gui_PictureStreem_ext(x, y, (unsigned char*)pic_usblink,refresh_flag);
+    855          	}
+    856          
+    857          }
+    858          
+    859          /**
+    860          * @brief 将图片流输出到lcd上
+    861          * @pPic: 保存图片的地址
+    862          * @note 为了兼顾效率，此部分直接操作lcd硬件接口
+    863          */
+    864          void gui_PictureArrayOut(int x, int y, unsigned char const *pPic)
+    865          {
+    866          
+    867          }
+    868          
+    869          void gui_SetBGColor(unsigned short color)
+    870          {
+    871          	bgColor			= color;
+    872          }
+    873          
+    874          unsigned short gui_GetBGColor(void)
+    875          {
+    876          	return bgColor;
+    877          }
+    878          
+    879          
+    880          void gui_SetTextColor(unsigned short color)
+    881          {
+    882          	textColor		= color;
+    883          }
+    884          
+    885          unsigned short gui_GetTextColor(void)
+    886          {
+    887          	return textColor;
+    888          }
+    889          
+    890          
+    891          void gui_SetFont(int font)
+    892          {
+    893          	if ((font != 12) && (font != 16) && (font != 6))
+    894          	{
+    895          		gFontSize = 12;
+    896          	}
+    897          	gFontSize		= font;
+    898          }
+    899          
+    900          //unsigned char gui_GetFont(void)
+    901          //{
+    902          //	return gFontSize;
+    903          //}
+    904          
+    905          void gui_CtrlBL(int on)
+    906          {
+    907          	//Lcd_BackLight(on);
+    908          }
+    909          
+    910          
+    911          /**
+    912          ***************************************************************************
+    913          *@brief	设置系统使用的语言
+    914          *@param[in] 
+    915          *@return 
+    916          *@warning
+    917          *@see	
+    918          *@note 
+    919          ***************************************************************************
+    920          */
+    921          void gui_setlanguage(unsigned char language)
+    922          {
+    923          	if(language < 3)
+    924          		g_language					= language;
+    925          	else
+    926          		g_language					= 0;
+    927          
+    928          }
+    929          
+    930          /**
+    931          ***************************************************************************
+    932          *@brief	获取系统当前使用的语言类型
+    933          *@param[in] 
+    934          *@return 
+    935          *@warning
+    936          *@see	
+    937          *@note 
+    938          ***************************************************************************
+    939          */
+    940          #if 0
+    941          unsigned char gui_getlanguage(void)
+    942          {
+    943          	return g_language;
+    944          }
+    945          #endif
+    946          
+    947          
+    948          void gui_test(void)
+    949          {
+    950          	int i,j;
+    951          	for (i = 0; i < 10;i++)
+    952          	{
+    953          		for (j = 0; j < 10; j++)
+    954          		{
+    955          			gui_PutChar(j*8,i*12,0x21+j+(10*i),1);
+    956          		}
+    957          	}
+    958          }
+    959          
+    960          
+    961          //刷新显示
+    962          void gui_refresh(unsigned int x,unsigned int y,unsigned int w,unsigned int h)
+    963          {
+    964          	Lcd_refresh(x,y,w,h);
+    965          }
+
+   Maximum stack usage in bytes:
+
+     Function              .cstack
+     --------              -------
+     gui_CtrlBL                 0
+     gui_DrawRect              32
+     gui_FillRect              40
+     gui_GetBGColor             0
+     gui_GetTextColor           0
+     gui_LineH                 32
+     gui_LineV                 16
+     gui_PictureArrayOut        0
+     gui_PictureOut            32
+     gui_PictureStreem         80
+     gui_PictureStreem_ext     48
+     gui_PutChar               40
+     gui_PutChn                48
+     gui_SetBGColor             0
+     gui_SetFont                0
+     gui_SetTextColor           0
+     gui_TextOut               32
+     gui_TextOutEx             64
+     gui_TextOutEx2            24
+     gui_TextOut_ext           32
+     gui_clear                  8
+     gui_init                   8
+     gui_refresh                8
+     gui_setlanguage            0
+     gui_setup_font             0
+     gui_setup_picture          0
+     gui_test                  16
+
+
+   Section sizes:
+
+     Function/Label        Bytes
+     --------------        -----
+     AsciiLib_6x12         1176
+     num0_9_4x6              60
+     pic_usblink            208
+     bgColor                  2
+     textColor                2
+     gFontSize                1
+     g_language               1
+     FontList                16
+     dwPictureLBA             4
+     gui_init                52
+     gui_setup_font          26
+     gui_clear               10
+     gui_PutChar            248
+     gui_PutChn             304
+     gui_TextOut            240
+     gui_TextOut_ext        204
+     gui_TextOutEx2         114
+     gui_TextOutEx          282
+     gui_LineH              116
+     gui_LineV               26
+     gui_FillRect            52
+     gui_DrawRect           100
+     gui_setup_picture        6
+     gui_PictureStreem      334
+     gui_PictureStreem_ext  152
+     gui_PictureOut         104
+     gui_PictureArrayOut      2
+     gui_SetBGColor           6
+     gui_GetBGColor           6
+     gui_SetTextColor         6
+     gui_GetTextColor         6
+     gui_SetFont             24
+     gui_CtrlBL               2
+     gui_setlanguage         24
+     gui_test                58
+     gui_refresh              8
+     ??DataTable13            4
+     ??DataTable33            4
+     ??DataTable35            4
+     ??DataTable37            4
+     ??DataTable39            4
+
+ 
+    10 bytes in section .bss
+    16 bytes in section .data
+ 1 444 bytes in section .rodata
+ 2 532 bytes in section .text
+ 
+ 2 532 bytes of CODE  memory
+ 1 444 bytes of CONST memory
+    26 bytes of DATA  memory
+
+Errors: none
+Warnings: 1

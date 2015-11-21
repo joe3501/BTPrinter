@@ -1,0 +1,233 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     26/Sep/2015  11:37:19 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\App\Terminal_Para.c                      #
+#    Command line =  E:\H520B\FW\src\App\Terminal_Para.c -lcN                 #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\List\ -o           #
+#                    E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\ --no_cse      #
+#                    --no_unroll --no_inline --no_code_motion --no_tbaa       #
+#                    --no_clustering --no_scheduling --debug --endian=little  #
+#                    --cpu=Cortex-M3 -e --fpu=None --dlib_config "C:\Program  #
+#                    Files\IAR Systems\Embedded Workbench                     #
+#                    5.4\arm\INC\DLib_Config_Full.h" -I                       #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\Terminal_Para #
+#                    .lst                                                     #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\Terminal_Para. #
+#                    o                                                        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\App\Terminal_Para.c
+      1          /**
+      2           * @file  Terminal_Para.c
+      3           * @brief T1Gen项目的终端参数管理模块
+      4           * @version 1.0
+      5           * @author joe
+      6           * @date 2011年03月30日
+      7           * @note
+      8          */  
+      9          /* Private include -----------------------------------------------------------*/
+     10          #include "Terminal_Para.h"
+     11          #include <string.h>
+     12          #include "crc32.h"
+     13          #include "ff.h"
+     14          
+     15          extern FATFS fs;
+     16          FIL	 file1;
+     17          
+     18          #define PARAM_FILE	"/device.cfg"
+     19          
+     20          
+     21          /* private Variable -----------------------------------------------*/
+     22          /* external Variable -----------------------------------------------*/
+     23          
+     24          /* Global Variable -----------------------------------------------*/
+     25          //定义终端的系统参数
+     26          TTerminalPara		g_param;				//终端参数
+     27          
+     28          
+     29          /* Private function prototypes -----------------------------------------------*/
+     30          /* Private function  -----------------------------------------------*/
+     31          
+     32          /**
+     33          * @brief	从保存终端系统参数的存储模块中读取参数保存到全局变量中
+     34          * @param[in]  none				
+     35          * @param[out] 存储终端参数的全局变量
+     36          * @return     unsigned char  0  :SUCCESS   else : 错误代码
+     37          * @note                  
+     38          */
+     39          int ReadTerminalPara(void)
+     40          {
+     41          	unsigned char			*pDst;
+     42          //	unsigned char			i,j;
+     43          	unsigned long			checkvalue;
+     44          	unsigned int				rd;
+     45          
+     46          	pDst				= (unsigned char *)&g_param;	//指向全局参数存储区	
+     47          	if( f_open(&file1, PARAM_FILE, FA_OPEN_EXISTING | FA_READ ) != FR_OK )
+     48          	{
+     49          		return -1;
+     50          	}
+     51          
+     52          	if(f_lseek(&file1,0) != FR_OK)
+     53          	{
+     54          		f_close(&file1);
+     55          		return -1;
+     56          	}
+     57          	
+     58          	if (f_read(&file1,(void*)pDst,sizeof(TTerminalPara),&rd) != FR_OK)
+     59          	{
+     60          		f_close(&file1);
+     61          		return -1;
+     62          	}
+     63          
+     64          #if 1
+     65          	//计算校验值是否正确
+     66          	checkvalue = crc32(0,&g_param.struct_ver,sizeof(TTerminalPara) - 4);
+     67          	if (g_param.checkvalue != checkvalue)
+     68          	{
+     69          		//参数的校验值不对
+     70          		return 2;
+     71          	}
+     72          
+     73          	// 检查参数是否正确
+     74          	if ((g_param.endtag[0] != 0x55)||(g_param.endtag[1] != 0xAA)||(g_param.struct_ver != 1))
+     75          	{
+     76          		//参数的结束标记不对
+     77          		return 3;
+     78          	}
+     79          
+     80          
+     81          	//检查其余参数是否正确
+     82          	//@todo....
+     83          #endif
+     84          	return 0;	
+     85          }
+     86          
+     87          /**
+     88          * @brief	将用户变更后的终端系统参数保存到存储模块
+     89          * @param[in]   none				
+     90          * @param[in] 存储终端参数的全局变量
+     91          * @return     none
+     92          * @note   此函数中实现的是将参数保存到PSAM卡中                
+     93          */
+     94          int SaveTerminalPara(void)
+     95          {
+     96          	unsigned char		*pSrc;
+     97          	unsigned int		wr;
+     98          
+     99          	pSrc				= (unsigned char *)&g_param;
+    100          
+    101          	// 重新计算校验        
+    102          	g_param.checkvalue = crc32(0,&g_param.struct_ver, sizeof(TTerminalPara)-4);
+    103          
+    104          	if( f_open(&file1, PARAM_FILE, FA_OPEN_ALWAYS | FA_WRITE ) != FR_OK )
+    105          	{
+    106          		return -1;
+    107          	}
+    108          
+    109          	if(f_lseek(&file1,0) != FR_OK)
+    110          	{
+    111          		f_close(&file1);
+    112          		return -1;
+    113          	}
+    114          
+    115          	if (f_write(&file1,(void*)pSrc,sizeof(TTerminalPara),&wr) != FR_OK)
+    116          	{
+    117          		f_close(&file1);
+    118          		return -1;
+    119          	}
+    120          
+    121          	if (wr != sizeof(TTerminalPara))
+    122          	{
+    123          		f_close(&file1);
+    124          		return -1;
+    125          	}
+    126          	 
+    127          	f_close(&file1);
+    128          	return 0;
+    129          }
+    130          
+    131          
+    132          /**
+    133          * @brief 建立默认的测试参数并保存
+    134          */
+    135          int DefaultTerminalPara(void)
+    136          {
+    137          	unsigned char		*pSrc;
+    138          	//unsigned char		i,tmp[2];
+    139          
+    140          	pSrc				= (unsigned char *)&g_param;
+    141          	//先清空所有参数
+    142          	memset(pSrc,0,sizeof(TTerminalPara));
+    143          	//设置结束标记
+    144          	g_param.endtag[0]		= 0x55;
+    145          	g_param.endtag[1]		= 0xAA;
+    146          	//设置参数结构版本号
+    147          	g_param.struct_ver		= 0x01;
+    148          
+    149          	
+    150          	//构造默认的终端参数
+    151          	g_param.beep_volume = 3;		
+    152          	//g_param.power_save_mode = 1;		//默认支持节能模式
+    153          	g_param.lower_power_timeout = 0;	//默认1分钟进入低功耗模式
+    154          	
+    155          	return SaveTerminalPara();
+    156          }
+    157          
+
+   Maximum stack usage in bytes:
+
+     Function            .cstack
+     --------            -------
+     DefaultTerminalPara      8
+     ReadTerminalPara        16
+     SaveTerminalPara        16
+     memset                   8
+
+
+   Section sizes:
+
+     Function/Label            Bytes
+     --------------            -----
+     memset                      20
+     file1                      548
+     g_param                     32
+     ReadTerminalPara           132
+     SaveTerminalPara           120
+     DefaultTerminalPara         48
+     ??DataTable13                4
+     ??DataTable15                4
+     ??DataTable22                4
+     ??DataTable28                4
+     ?<Constant "/device.cfg">   12
+
+ 
+ 580 bytes in section .bss
+  12 bytes in section .rodata
+ 336 bytes in section .text
+ 
+ 316 bytes of CODE  memory (+ 20 bytes shared)
+  12 bytes of CONST memory
+ 580 bytes of DATA  memory
+
+Errors: none
+Warnings: none

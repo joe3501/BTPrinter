@@ -1,0 +1,366 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     30/Sep/2015  17:04:46 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\H520B\FW\src\uCOS\uCOS-II\Ports\os_dbg.c              #
+#    Command line =  E:\H520B\FW\src\uCOS\uCOS-II\Ports\os_dbg.c -D           #
+#                    DEBUG_VER -lcN E:\H520B\FW\src\Project\EWARMv5\Debug\Lis #
+#                    t\ -o E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\         #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I             #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\ -I                   #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\App\ -I            #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Drivers\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\FatFs\ -I          #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\Lib\inc\ -I        #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-CPU\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC-LIB\ -I    #
+#                    E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Ports #
+#                    \ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\ #
+#                    Source\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -Probe\ -I E:\H520B\FW\src\Project\EWARMv5\..\..\usb_lib #
+#                    \ -I "C:\Program Files\IAR Systems\Embedded Workbench    #
+#                    5.4\arm\INC\" -Ol                                        #
+#    List file    =  E:\H520B\FW\src\Project\EWARMv5\Debug\List\os_dbg.lst    #
+#    Object file  =  E:\H520B\FW\src\Project\EWARMv5\Debug\Obj\os_dbg.o       #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\H520B\FW\src\uCOS\uCOS-II\Ports\os_dbg.c
+      1          /*
+      2          *********************************************************************************************************
+      3          *                                               uC/OS-II
+      4          *                                         The Real-Time Kernel
+      5          *                                          DEBUGGER CONSTANTS
+      6          *
+      7          *                                (c) Copyright 2006, Micrium, Weston, FL
+      8          *                                          All Rights Reserved
+      9          *
+     10          *                                           ARM Cortex-M3 Port
+     11          *
+     12          * File      : OS_DBG.C
+     13          * Version   : V2.86
+     14          * By        : Jean J. Labrosse
+     15          *
+     16          * For       : ARMv7M Cortex-M3
+     17          * Mode      : Thumb2
+     18          * Toolchain : IAR EWARM
+     19          *********************************************************************************************************
+     20          */
+     21          
+     22          #include <ucos_ii.h>
+     23          
+     24          #define  OS_COMPILER_OPT  __root
+     25          
+     26          /*
+     27          *********************************************************************************************************
+     28          *                                             DEBUG DATA
+     29          *********************************************************************************************************
+     30          */
+     31          
+     32          OS_COMPILER_OPT  INT16U  const  OSDebugEn          = OS_DEBUG_EN;                /* Debug constants are defined below   */
+     33          
+     34          #if OS_DEBUG_EN > 0
+     35          
+     36          OS_COMPILER_OPT  INT32U  const  OSEndiannessTest   = 0x12345678L;                /* Variable to test CPU endianness     */
+     37          
+     38          OS_COMPILER_OPT  INT16U  const  OSEventMax         = OS_MAX_EVENTS;              /* Number of event control blocks      */
+     39          OS_COMPILER_OPT  INT16U  const  OSEventNameSize    = OS_EVENT_NAME_SIZE;         /* Size (in bytes) of event names      */
+     40          OS_COMPILER_OPT  INT16U  const  OSEventEn          = OS_EVENT_EN;
+     41          #if (OS_EVENT_EN > 0) && (OS_MAX_EVENTS > 0)
+     42          OS_COMPILER_OPT  INT16U  const  OSEventSize        = sizeof(OS_EVENT);           /* Size in Bytes of OS_EVENT           */
+     43          OS_COMPILER_OPT  INT16U  const  OSEventTblSize     = sizeof(OSEventTbl);         /* Size of OSEventTbl[] in bytes       */
+     44          #else
+     45          OS_COMPILER_OPT  INT16U  const  OSEventSize        = 0;
+     46          OS_COMPILER_OPT  INT16U  const  OSEventTblSize     = 0;
+     47          #endif
+     48          
+     49          OS_COMPILER_OPT  INT16U  const  OSFlagEn           = OS_FLAG_EN;
+     50          #if (OS_FLAG_EN > 0) && (OS_MAX_FLAGS > 0)
+     51          OS_COMPILER_OPT  INT16U  const  OSFlagGrpSize      = sizeof(OS_FLAG_GRP);        /* Size in Bytes of OS_FLAG_GRP        */
+     52          OS_COMPILER_OPT  INT16U  const  OSFlagNodeSize     = sizeof(OS_FLAG_NODE);       /* Size in Bytes of OS_FLAG_NODE       */
+     53          OS_COMPILER_OPT  INT16U  const  OSFlagWidth        = sizeof(OS_FLAGS);           /* Width (in bytes) of OS_FLAGS        */
+     54          #else
+     55          OS_COMPILER_OPT  INT16U  const  OSFlagGrpSize      = 0;
+     56          OS_COMPILER_OPT  INT16U  const  OSFlagNodeSize     = 0;
+     57          OS_COMPILER_OPT  INT16U  const  OSFlagWidth        = 0;
+     58          #endif
+     59          OS_COMPILER_OPT  INT16U  const  OSFlagMax          = OS_MAX_FLAGS;
+     60          OS_COMPILER_OPT  INT16U  const  OSFlagNameSize     = OS_FLAG_NAME_SIZE;          /* Size (in bytes) of flag names       */
+     61          
+     62          OS_COMPILER_OPT  INT16U  const  OSLowestPrio       = OS_LOWEST_PRIO;
+     63          
+     64          OS_COMPILER_OPT  INT16U  const  OSMboxEn           = OS_MBOX_EN;
+     65          
+     66          OS_COMPILER_OPT  INT16U  const  OSMemEn            = OS_MEM_EN;
+     67          OS_COMPILER_OPT  INT16U  const  OSMemMax           = OS_MAX_MEM_PART;            /* Number of memory partitions         */
+     68          OS_COMPILER_OPT  INT16U  const  OSMemNameSize      = OS_MEM_NAME_SIZE;           /* Size (in bytes) of partition names  */
+     69          #if (OS_MEM_EN > 0) && (OS_MAX_MEM_PART > 0)
+     70          OS_COMPILER_OPT  INT16U  const  OSMemSize          = sizeof(OS_MEM);             /* Mem. Partition header sine (bytes)  */
+     71          OS_COMPILER_OPT  INT16U  const  OSMemTblSize       = sizeof(OSMemTbl);
+     72          #else
+     73          OS_COMPILER_OPT  INT16U  const  OSMemSize          = 0;
+     74          OS_COMPILER_OPT  INT16U  const  OSMemTblSize       = 0;
+     75          #endif
+     76          OS_COMPILER_OPT  INT16U  const  OSMutexEn          = OS_MUTEX_EN;
+     77          
+     78          OS_COMPILER_OPT  INT16U  const  OSPtrSize          = sizeof(void *);             /* Size in Bytes of a pointer          */
+     79          
+     80          OS_COMPILER_OPT  INT16U  const  OSQEn              = OS_Q_EN;
+     81          OS_COMPILER_OPT  INT16U  const  OSQMax             = OS_MAX_QS;                  /* Number of queues                    */
+     82          #if (OS_Q_EN > 0) && (OS_MAX_QS > 0)
+     83          OS_COMPILER_OPT  INT16U  const  OSQSize            = sizeof(OS_Q);               /* Size in bytes of OS_Q structure     */
+     84          #else
+     85          OS_COMPILER_OPT  INT16U  const  OSQSize            = 0;
+     86          #endif
+     87          
+     88          OS_COMPILER_OPT  INT16U  const  OSRdyTblSize       = OS_RDY_TBL_SIZE;            /* Number of bytes in the ready table  */
+     89          
+     90          OS_COMPILER_OPT  INT16U  const  OSSemEn            = OS_SEM_EN;
+     91          
+     92          OS_COMPILER_OPT  INT16U  const  OSStkWidth         = sizeof(OS_STK);             /* Size in Bytes of a stack entry      */
+     93          
+     94          OS_COMPILER_OPT  INT16U  const  OSTaskCreateEn     = OS_TASK_CREATE_EN;
+     95          OS_COMPILER_OPT  INT16U  const  OSTaskCreateExtEn  = OS_TASK_CREATE_EXT_EN;
+     96          OS_COMPILER_OPT  INT16U  const  OSTaskDelEn        = OS_TASK_DEL_EN;
+     97          OS_COMPILER_OPT  INT16U  const  OSTaskIdleStkSize  = OS_TASK_IDLE_STK_SIZE;
+     98          OS_COMPILER_OPT  INT16U  const  OSTaskProfileEn    = OS_TASK_PROFILE_EN;
+     99          OS_COMPILER_OPT  INT16U  const  OSTaskMax          = OS_MAX_TASKS + OS_N_SYS_TASKS;  /* Total max. number of tasks      */
+    100          OS_COMPILER_OPT  INT16U  const  OSTaskNameSize     = OS_TASK_NAME_SIZE;              /* Size (in bytes) of task names   */
+    101          OS_COMPILER_OPT  INT16U  const  OSTaskStatEn       = OS_TASK_STAT_EN;
+    102          OS_COMPILER_OPT  INT16U  const  OSTaskStatStkSize  = OS_TASK_STAT_STK_SIZE;
+    103          OS_COMPILER_OPT  INT16U  const  OSTaskStatStkChkEn = OS_TASK_STAT_STK_CHK_EN;
+    104          OS_COMPILER_OPT  INT16U  const  OSTaskSwHookEn     = OS_TASK_SW_HOOK_EN;
+    105          
+    106          OS_COMPILER_OPT  INT16U  const  OSTCBPrioTblMax    = OS_LOWEST_PRIO + 1;         /* Number of entries in OSTCBPrioTbl[] */
+    107          OS_COMPILER_OPT  INT16U  const  OSTCBSize          = sizeof(OS_TCB);             /* Size in Bytes of OS_TCB             */
+    108          OS_COMPILER_OPT  INT16U  const  OSTicksPerSec      = OS_TICKS_PER_SEC;
+    109          OS_COMPILER_OPT  INT16U  const  OSTimeTickHookEn   = OS_TIME_TICK_HOOK_EN;
+    110          OS_COMPILER_OPT  INT16U  const  OSVersionNbr       = OS_VERSION;
+    111          
+    112          #endif
+    113          
+    114          /*$PAGE*/
+    115          /*
+    116          *********************************************************************************************************
+    117          *                                             DEBUG DATA
+    118          *                            TOTAL DATA SPACE (i.e. RAM) USED BY uC/OS-II
+    119          *********************************************************************************************************
+    120          */
+    121          #if OS_DEBUG_EN > 0
+    122          
+    123          OS_COMPILER_OPT  INT16U  const  OSDataSize = sizeof(OSCtxSwCtr)
+    124          #if (OS_EVENT_EN > 0) && (OS_MAX_EVENTS > 0)
+    125                                                     + sizeof(OSEventFreeList)
+    126                                                     + sizeof(OSEventTbl)
+    127          #endif
+    128          #if (OS_VERSION >= 251) && (OS_FLAG_EN > 0) && (OS_MAX_FLAGS > 0)
+    129                                                     + sizeof(OSFlagTbl)
+    130                                                     + sizeof(OSFlagFreeList)
+    131          #endif
+    132          #if OS_TASK_STAT_EN > 0
+    133                                                     + sizeof(OSCPUUsage)
+    134                                                     + sizeof(OSIdleCtrMax)
+    135                                                     + sizeof(OSIdleCtrRun)
+    136                                                     + sizeof(OSStatRdy)
+    137                                                     + sizeof(OSTaskStatStk)
+    138          #endif
+    139          #if OS_TICK_STEP_EN > 0
+    140                                                     + sizeof(OSTickStepState)
+    141          #endif
+    142          #if (OS_MEM_EN > 0) && (OS_MAX_MEM_PART > 0)
+    143                                                     + sizeof(OSMemFreeList)
+    144                                                     + sizeof(OSMemTbl)
+    145          #endif
+    146          #if (OS_Q_EN > 0) && (OS_MAX_QS > 0)
+    147                                                     + sizeof(OSQFreeList)
+    148                                                     + sizeof(OSQTbl)
+    149          #endif
+    150          #if OS_TIME_GET_SET_EN > 0
+    151                                                     + sizeof(OSTime)
+    152          #endif
+    153                                                     + sizeof(OSIntNesting)
+    154                                                     + sizeof(OSLockNesting)
+    155                                                     + sizeof(OSPrioCur)
+    156                                                     + sizeof(OSPrioHighRdy)
+    157                                                     + sizeof(OSRdyGrp)
+    158                                                     + sizeof(OSRdyTbl)
+    159                                                     + sizeof(OSRunning)
+    160                                                     + sizeof(OSTaskCtr)
+    161                                                     + sizeof(OSIdleCtr)
+    162                                                     + sizeof(OSTaskIdleStk)
+    163                                                     + sizeof(OSTCBCur)
+    164                                                     + sizeof(OSTCBFreeList)
+    165                                                     + sizeof(OSTCBHighRdy)
+    166                                                     + sizeof(OSTCBList)
+    167                                                     + sizeof(OSTCBPrioTbl)
+    168                                                     + sizeof(OSTCBTbl);
+    169          
+    170          #endif
+    171          
+    172          /*$PAGE*/
+    173          /*
+    174          *********************************************************************************************************
+    175          *                                       OS DEBUG INITIALIZAZTION
+    176          *
+    177          * Description: This function is used to make sure that debug variables that are unused in the application
+    178          *              are not optimized away.  This function might not be necessary for all compilers.  In this
+    179          *              case, you should simply DELETE the code in this function while still leaving the declaration
+    180          *              of the function itself.
+    181          *
+    182          * Arguments  : none
+    183          *
+    184          * Returns    : none
+    185          *
+    186          * Note(s)    : (1) This code doesn't do anything, it simply prevents the compiler from optimizing out
+    187          *                  the 'const' variables which are declared in this file.
+    188          *********************************************************************************************************
+    189          */
+    190          
+    191          #if OS_VERSION >= 270 && OS_DEBUG_EN > 0
+    192          void  OSDebugInit (void)
+    193          {
+    194              void  *ptemp;
+    195          
+    196          
+    197              ptemp = (void *)&OSDebugEn;
+    198          
+    199              ptemp = (void *)&OSEndiannessTest;
+    200          
+    201              ptemp = (void *)&OSEventMax;
+    202              ptemp = (void *)&OSEventNameSize;
+    203              ptemp = (void *)&OSEventEn;
+    204              ptemp = (void *)&OSEventSize;
+    205              ptemp = (void *)&OSEventTblSize;
+    206          
+    207              ptemp = (void *)&OSFlagEn;
+    208              ptemp = (void *)&OSFlagGrpSize;
+    209              ptemp = (void *)&OSFlagNodeSize;
+    210              ptemp = (void *)&OSFlagWidth;
+    211              ptemp = (void *)&OSFlagMax;
+    212              ptemp = (void *)&OSFlagNameSize;
+    213          
+    214              ptemp = (void *)&OSLowestPrio;
+    215          
+    216              ptemp = (void *)&OSMboxEn;
+    217          
+    218              ptemp = (void *)&OSMemEn;
+    219              ptemp = (void *)&OSMemMax;
+    220              ptemp = (void *)&OSMemNameSize;
+    221              ptemp = (void *)&OSMemSize;
+    222              ptemp = (void *)&OSMemTblSize;
+    223          
+    224              ptemp = (void *)&OSMutexEn;
+    225          
+    226              ptemp = (void *)&OSPtrSize;
+    227          
+    228              ptemp = (void *)&OSQEn;
+    229              ptemp = (void *)&OSQMax;
+    230              ptemp = (void *)&OSQSize;
+    231          
+    232              ptemp = (void *)&OSRdyTblSize;
+    233          
+    234              ptemp = (void *)&OSSemEn;
+    235          
+    236              ptemp = (void *)&OSStkWidth;
+    237          
+    238              ptemp = (void *)&OSTaskCreateEn;
+    239              ptemp = (void *)&OSTaskCreateExtEn;
+    240              ptemp = (void *)&OSTaskDelEn;
+    241              ptemp = (void *)&OSTaskIdleStkSize;
+    242              ptemp = (void *)&OSTaskProfileEn;
+    243              ptemp = (void *)&OSTaskMax;
+    244              ptemp = (void *)&OSTaskNameSize;
+    245              ptemp = (void *)&OSTaskStatEn;
+    246              ptemp = (void *)&OSTaskStatStkSize;
+    247              ptemp = (void *)&OSTaskStatStkChkEn;
+    248              ptemp = (void *)&OSTaskSwHookEn;
+    249          
+    250              ptemp = (void *)&OSTCBPrioTblMax;
+    251              ptemp = (void *)&OSTCBSize;
+    252          
+    253              ptemp = (void *)&OSTicksPerSec;
+    254              ptemp = (void *)&OSTimeTickHookEn;
+    255          
+    256              ptemp = (void *)&OSVersionNbr;
+    257          
+    258              ptemp = (void *)&OSDataSize;
+    259          
+    260              ptemp = ptemp;                             /* Prevent compiler warning for 'ptemp' not being used! */
+    261          }
+    262          #endif
+
+   Maximum stack usage in bytes:
+
+     Function    .cstack
+     --------    -------
+     OSDebugInit      0
+
+
+   Section sizes:
+
+     Function/Label     Bytes
+     --------------     -----
+     OSDebugEn             2
+     OSEndiannessTest      4
+     OSEventMax            2
+     OSEventNameSize       2
+     OSEventEn             2
+     OSEventSize           2
+     OSEventTblSize        2
+     OSFlagEn              2
+     OSFlagGrpSize         2
+     OSFlagNodeSize        2
+     OSFlagWidth           2
+     OSFlagMax             2
+     OSFlagNameSize        2
+     OSLowestPrio          2
+     OSMboxEn              2
+     OSMemEn               2
+     OSMemMax              2
+     OSMemNameSize         2
+     OSMemSize             2
+     OSMemTblSize          2
+     OSMutexEn             2
+     OSPtrSize             2
+     OSQEn                 2
+     OSQMax                2
+     OSQSize               2
+     OSRdyTblSize          2
+     OSSemEn               2
+     OSStkWidth            2
+     OSTaskCreateEn        2
+     OSTaskCreateExtEn     2
+     OSTaskDelEn           2
+     OSTaskIdleStkSize     2
+     OSTaskProfileEn       2
+     OSTaskMax             2
+     OSTaskNameSize        2
+     OSTaskStatEn          2
+     OSTaskStatStkSize     2
+     OSTaskStatStkChkEn    2
+     OSTaskSwHookEn        2
+     OSTCBPrioTblMax       2
+     OSTCBSize             2
+     OSTicksPerSec         2
+     OSTimeTickHookEn      2
+     OSVersionNbr          2
+     OSDataSize            2
+     OSDebugInit         360
+
+ 
+  92 bytes in section .rodata
+ 360 bytes in section .text
+ 
+ 360 bytes of CODE  memory
+  92 bytes of CONST memory
+
+Errors: none
+Warnings: none

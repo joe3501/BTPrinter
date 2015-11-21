@@ -1,0 +1,480 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     17/Nov/2015  15:49:40 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\rec_ecc.c                       #
+#    Command line =  "E:\BT Printer\FW\src\App\rec_ecc.c" -D DEBUG_VER -lcN   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\" -o    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\rec_ecc. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\rec_ecc.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\rec_ecc.c
+      1          /**
+      2          ***************************************************************************
+      3          * @file  rec_ecc.c
+      4          * @brief This file contains an ECC algorithm that detects and corrects 1 bit
+      5          *        errors in a 256 byte block of data.
+      6          ***************************************************************************
+      7          *
+      8          * @version	V0.0.1
+      9          * @author	Frans Meulenbroeks
+     10          * @date		2010年09月06日
+     11          * @note
+     12          ***************************************************************************
+     13          *
+     14          * @copy
+     15          *
+     16          * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得
+     17          * 复制传播，或用于本公司以外的项目。本司保留一切追究权利。
+     18          *
+     19          * <h1><center>&copy; COPYRIGHT 2010 heroje</center></h1>
+     20          */
+     21          
+     22          /*
+     23          * invparity is a 256 byte table that contains the odd parity
+     24          * for each byte. So if the number of bits in a byte is even,
+     25          * the array element is 1, and when the number of bits is odd
+     26          * the array eleemnt is 0.
+     27          */
+     28          static const char invparity[256] = {
+     29          	1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+     30          	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+     31          	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+     32          	1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+     33          	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+     34          	1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+     35          	1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+     36          	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+     37          	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+     38          	1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+     39          	1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+     40          	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+     41          	1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+     42          	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+     43          	0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+     44          	1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
+     45          };
+     46          
+     47          /*
+     48           * bitsperbyte contains the number of bits per byte
+     49           * this is only used for testing and repairing parity
+     50           * (a precalculated value slightly improves performance)
+     51           */
+     52          static const char bitsperbyte[256] = {
+     53          	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+     54          	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+     55          	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+     56          	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+     57          	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+     58          	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+     59          	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+     60          	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+     61          	1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+     62          	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+     63          	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+     64          	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+     65          	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+     66          	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+     67          	3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+     68          	4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
+     69          };
+     70          
+     71          /*
+     72           * addressbits is a lookup table to filter out the bits from the xor-ed
+     73           * ecc data that identify the faulty location.
+     74           * this is only used for repairing parity
+     75           * see the comments in nand_correct_data for more details
+     76           */
+     77          static const char addressbits[256] = {
+     78          	0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01,
+     79          	0x02, 0x02, 0x03, 0x03, 0x02, 0x02, 0x03, 0x03,
+     80          	0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01,
+     81          	0x02, 0x02, 0x03, 0x03, 0x02, 0x02, 0x03, 0x03,
+     82          	0x04, 0x04, 0x05, 0x05, 0x04, 0x04, 0x05, 0x05,
+     83          	0x06, 0x06, 0x07, 0x07, 0x06, 0x06, 0x07, 0x07,
+     84          	0x04, 0x04, 0x05, 0x05, 0x04, 0x04, 0x05, 0x05,
+     85          	0x06, 0x06, 0x07, 0x07, 0x06, 0x06, 0x07, 0x07,
+     86          	0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01,
+     87          	0x02, 0x02, 0x03, 0x03, 0x02, 0x02, 0x03, 0x03,
+     88          	0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01,
+     89          	0x02, 0x02, 0x03, 0x03, 0x02, 0x02, 0x03, 0x03,
+     90          	0x04, 0x04, 0x05, 0x05, 0x04, 0x04, 0x05, 0x05,
+     91          	0x06, 0x06, 0x07, 0x07, 0x06, 0x06, 0x07, 0x07,
+     92          	0x04, 0x04, 0x05, 0x05, 0x04, 0x04, 0x05, 0x05,
+     93          	0x06, 0x06, 0x07, 0x07, 0x06, 0x06, 0x07, 0x07,
+     94          	0x08, 0x08, 0x09, 0x09, 0x08, 0x08, 0x09, 0x09,
+     95          	0x0a, 0x0a, 0x0b, 0x0b, 0x0a, 0x0a, 0x0b, 0x0b,
+     96          	0x08, 0x08, 0x09, 0x09, 0x08, 0x08, 0x09, 0x09,
+     97          	0x0a, 0x0a, 0x0b, 0x0b, 0x0a, 0x0a, 0x0b, 0x0b,
+     98          	0x0c, 0x0c, 0x0d, 0x0d, 0x0c, 0x0c, 0x0d, 0x0d,
+     99          	0x0e, 0x0e, 0x0f, 0x0f, 0x0e, 0x0e, 0x0f, 0x0f,
+    100          	0x0c, 0x0c, 0x0d, 0x0d, 0x0c, 0x0c, 0x0d, 0x0d,
+    101          	0x0e, 0x0e, 0x0f, 0x0f, 0x0e, 0x0e, 0x0f, 0x0f,
+    102          	0x08, 0x08, 0x09, 0x09, 0x08, 0x08, 0x09, 0x09,
+    103          	0x0a, 0x0a, 0x0b, 0x0b, 0x0a, 0x0a, 0x0b, 0x0b,
+    104          	0x08, 0x08, 0x09, 0x09, 0x08, 0x08, 0x09, 0x09,
+    105          	0x0a, 0x0a, 0x0b, 0x0b, 0x0a, 0x0a, 0x0b, 0x0b,
+    106          	0x0c, 0x0c, 0x0d, 0x0d, 0x0c, 0x0c, 0x0d, 0x0d,
+    107          	0x0e, 0x0e, 0x0f, 0x0f, 0x0e, 0x0e, 0x0f, 0x0f,
+    108          	0x0c, 0x0c, 0x0d, 0x0d, 0x0c, 0x0c, 0x0d, 0x0d,
+    109          	0x0e, 0x0e, 0x0f, 0x0f, 0x0e, 0x0e, 0x0f, 0x0f
+    110          };
+    111          
+    112          /**
+    113           * calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256/512-byte
+    114           *			 block
+    115           * @buf:	input buffer with raw data
+    116           * @eccsize:	data bytes per ecc step (256 or 512)
+    117           * @code:	output buffer with ECC
+    118           */
+    119          void calculate_ecc(const unsigned char *buf, unsigned int eccsize,
+    120          		       unsigned char *code)
+    121          {
+    122          	int i;
+    123          	const unsigned int *bp = (unsigned int *)buf;
+    124          	/* 256 or 512 bytes/ecc  */
+    125          	const unsigned int eccsize_mult = eccsize >> 8;
+    126          	unsigned int cur;		/* current value in buffer */
+    127          	/* rp0..rp15..rp17 are the various accumulated parities (per byte) */
+    128          	unsigned int rp0, rp1, rp2, rp3, rp4, rp5, rp6, rp7;
+    129          	unsigned int rp8, rp9, rp10, rp11, rp12, rp13, rp14, rp15, rp16;
+    130          	unsigned int rp17;	/* to make compiler happy */
+    131          	unsigned int par;		/* the cumulative parity for all data */
+    132          	unsigned int tmppar;	/* the cumulative parity for this iteration;
+    133          				   for rp12, rp14 and rp16 at the end of the
+    134          				   loop */
+    135          
+    136          	par = 0;
+    137          	rp4 = 0;
+    138          	rp6 = 0;
+    139          	rp8 = 0;
+    140          	rp10 = 0;
+    141          	rp12 = 0;
+    142          	rp14 = 0;
+    143          	rp16 = 0;
+    144          
+    145          	/*
+    146          	 * The loop is unrolled a number of times;
+    147          	 * This avoids if statements to decide on which rp value to update
+    148          	 * Also we process the data by longwords.
+    149          	 * Note: passing unaligned data might give a performance penalty.
+    150          	 * It is assumed that the buffers are aligned.
+    151          	 * tmppar is the cumulative sum of this iteration.
+    152          	 * needed for calculating rp12, rp14, rp16 and par
+    153          	 * also used as a performance improvement for rp6, rp8 and rp10
+    154          	 */
+    155          	for (i = 0; i < eccsize_mult << 2; i++) {
+    156          		cur = *bp++;
+    157          		tmppar = cur;
+    158          		rp4 ^= cur;
+    159          		cur = *bp++;
+    160          		tmppar ^= cur;
+    161          		rp6 ^= tmppar;
+    162          		cur = *bp++;
+    163          		tmppar ^= cur;
+    164          		rp4 ^= cur;
+    165          		cur = *bp++;
+    166          		tmppar ^= cur;
+    167          		rp8 ^= tmppar;
+    168          
+    169          		cur = *bp++;
+    170          		tmppar ^= cur;
+    171          		rp4 ^= cur;
+    172          		rp6 ^= cur;
+    173          		cur = *bp++;
+    174          		tmppar ^= cur;
+    175          		rp6 ^= cur;
+    176          		cur = *bp++;
+    177          		tmppar ^= cur;
+    178          		rp4 ^= cur;
+    179          		cur = *bp++;
+    180          		tmppar ^= cur;
+    181          		rp10 ^= tmppar;
+    182          
+    183          		cur = *bp++;
+    184          		tmppar ^= cur;
+    185          		rp4 ^= cur;
+    186          		rp6 ^= cur;
+    187          		rp8 ^= cur;
+    188          		cur = *bp++;
+    189          		tmppar ^= cur;
+    190          		rp6 ^= cur;
+    191          		rp8 ^= cur;
+    192          		cur = *bp++;
+    193          		tmppar ^= cur;
+    194          		rp4 ^= cur;
+    195          		rp8 ^= cur;
+    196          		cur = *bp++;
+    197          		tmppar ^= cur;
+    198          		rp8 ^= cur;
+    199          
+    200          		cur = *bp++;
+    201          		tmppar ^= cur;
+    202          		rp4 ^= cur;
+    203          		rp6 ^= cur;
+    204          		cur = *bp++;
+    205          		tmppar ^= cur;
+    206          		rp6 ^= cur;
+    207          		cur = *bp++;
+    208          		tmppar ^= cur;
+    209          		rp4 ^= cur;
+    210          		cur = *bp++;
+    211          		tmppar ^= cur;
+    212          
+    213          		par ^= tmppar;
+    214          		if ((i & 0x1) == 0)
+    215          			rp12 ^= tmppar;
+    216          		if ((i & 0x2) == 0)
+    217          			rp14 ^= tmppar;
+    218          		if (eccsize_mult == 2 && (i & 0x4) == 0)
+    219          			rp16 ^= tmppar;
+    220          	}
+    221          
+    222          	/*
+    223          	 * handle the fact that we use longword operations
+    224          	 * we'll bring rp4..rp14..rp16 back to single byte entities by
+    225          	 * shifting and xoring first fold the upper and lower 16 bits,
+    226          	 * then the upper and lower 8 bits.
+    227          	 */
+    228          	rp4 ^= (rp4 >> 16);
+    229          	rp4 ^= (rp4 >> 8);
+    230          	rp4 &= 0xff;
+    231          	rp6 ^= (rp6 >> 16);
+    232          	rp6 ^= (rp6 >> 8);
+    233          	rp6 &= 0xff;
+    234          	rp8 ^= (rp8 >> 16);
+    235          	rp8 ^= (rp8 >> 8);
+    236          	rp8 &= 0xff;
+    237          	rp10 ^= (rp10 >> 16);
+    238          	rp10 ^= (rp10 >> 8);
+    239          	rp10 &= 0xff;
+    240          	rp12 ^= (rp12 >> 16);
+    241          	rp12 ^= (rp12 >> 8);
+    242          	rp12 &= 0xff;
+    243          	rp14 ^= (rp14 >> 16);
+    244          	rp14 ^= (rp14 >> 8);
+    245          	rp14 &= 0xff;
+    246          	if (eccsize_mult == 2) {
+    247          		rp16 ^= (rp16 >> 16);
+    248          		rp16 ^= (rp16 >> 8);
+    249          		rp16 &= 0xff;
+    250          	}
+    251          
+    252          	/*
+    253          	 * we also need to calculate the row parity for rp0..rp3
+    254          	 * This is present in par, because par is now
+    255          	 * rp3 rp3 rp2 rp2 in little endian and
+    256          	 * rp2 rp2 rp3 rp3 in big endian
+    257          	 * as well as
+    258          	 * rp1 rp0 rp1 rp0 in little endian and
+    259          	 * rp0 rp1 rp0 rp1 in big endian
+    260          	 * First calculate rp2 and rp3
+    261          	 */
+    262          	rp3 = (par >> 16);
+    263          	rp3 ^= (rp3 >> 8);
+    264          	rp3 &= 0xff;
+    265          	rp2 = par & 0xffff;
+    266          	rp2 ^= (rp2 >> 8);
+    267          	rp2 &= 0xff;
+    268          
+    269          
+    270          	/* reduce par to 16 bits then calculate rp1 and rp0 */
+    271          	par ^= (par >> 16);
+    272          	rp1 = (par >> 8) & 0xff;
+    273          	rp0 = (par & 0xff);
+    274          
+    275          	/* finally reduce par to 8 bits */
+    276          	par ^= (par >> 8);
+    277          	par &= 0xff;
+    278          
+    279          	/*
+    280          	 * and calculate rp5..rp15..rp17
+    281          	 * note that par = rp4 ^ rp5 and due to the commutative property
+    282          	 * of the ^ operator we can say:
+    283          	 * rp5 = (par ^ rp4);
+    284          	 * The & 0xff seems superfluous, but benchmarking learned that
+    285          	 * leaving it out gives slightly worse results. No idea why, probably
+    286          	 * it has to do with the way the pipeline in pentium is organized.
+    287          	 */
+    288          	rp5 = (par ^ rp4) & 0xff;
+    289          	rp7 = (par ^ rp6) & 0xff;
+    290          	rp9 = (par ^ rp8) & 0xff;
+    291          	rp11 = (par ^ rp10) & 0xff;
+    292          	rp13 = (par ^ rp12) & 0xff;
+    293          	rp15 = (par ^ rp14) & 0xff;
+    294          	if (eccsize_mult == 2)
+    295          		rp17 = (par ^ rp16) & 0xff;
+    296          
+    297          	/*
+    298          	 * Finally calculate the ecc bits.
+    299          	 * Again here it might seem that there are performance optimisations
+    300          	 * possible, but benchmarks showed that on the system this is developed
+    301          	 * the code below is the fastest
+    302          	 */
+    303          	code[1] =
+    304          	    (invparity[rp7] << 7) |
+    305          	    (invparity[rp6] << 6) |
+    306          	    (invparity[rp5] << 5) |
+    307          	    (invparity[rp4] << 4) |
+    308          	    (invparity[rp3] << 3) |
+    309          	    (invparity[rp2] << 2) |
+    310          	    (invparity[rp1] << 1) |
+    311          	    (invparity[rp0]);
+    312          	code[0] =
+    313          	    (invparity[rp15] << 7) |
+    314          	    (invparity[rp14] << 6) |
+    315          	    (invparity[rp13] << 5) |
+    316          	    (invparity[rp12] << 4) |
+    317          	    (invparity[rp11] << 3) |
+    318          	    (invparity[rp10] << 2) |
+    319          	    (invparity[rp9] << 1)  |
+    320          	    (invparity[rp8]);
+    321          
+    322          	if (eccsize_mult == 1)
+    323          		code[2] =
+    324          		    (invparity[par & 0xf0] << 7) |
+    325          		    (invparity[par & 0x0f] << 6) |
+    326          		    (invparity[par & 0xcc] << 5) |
+    327          		    (invparity[par & 0x33] << 4) |
+    328          		    (invparity[par & 0xaa] << 3) |
+    329          		    (invparity[par & 0x55] << 2) |
+    330          		    3;
+    331          	else
+    332          		code[2] =
+    333          		    (invparity[par & 0xf0] << 7) |
+    334          		    (invparity[par & 0x0f] << 6) |
+    335          		    (invparity[par & 0xcc] << 5) |
+    336          		    (invparity[par & 0x33] << 4) |
+    337          		    (invparity[par & 0xaa] << 3) |
+    338          		    (invparity[par & 0x55] << 2) |
+    339          		    (invparity[rp17] << 1) |
+    340          		    (invparity[rp16] << 0);
+    341          }
+    342          
+    343          /**
+    344           * correct_data - [NAND Interface] Detect and correct bit error(s)
+    345           * @buf:	raw data read from the chip
+    346           * @read_ecc:	ECC from the chip
+    347           * @calc_ecc:	the ECC calculated from raw data
+    348           * @eccsize:	data bytes per ecc step (256 or 512)
+    349           *
+    350           * Detect and correct a 1 bit error for eccsize byte block
+    351           */
+    352          int correct_data(unsigned char *buf,
+    353          			unsigned char *read_ecc, unsigned char *calc_ecc,
+    354          			unsigned int eccsize)
+    355          {
+    356          	unsigned char b0, b1, b2, bit_addr;
+    357          	unsigned int byte_addr;
+    358          	/* 256 or 512 bytes/ecc  */
+    359          	const unsigned int eccsize_mult = eccsize >> 8;
+    360          
+    361          	/*
+    362          	 * b0 to b2 indicate which bit is faulty (if any)
+    363          	 * we might need the xor result  more than once,
+    364          	 * so keep them in a local var
+    365          	*/
+    366          	b0 = read_ecc[1] ^ calc_ecc[1];
+    367          	b1 = read_ecc[0] ^ calc_ecc[0];
+    368          	b2 = read_ecc[2] ^ calc_ecc[2];
+    369          
+    370          	/* check if there are any bitfaults */
+    371          
+    372          	/* repeated if statements are slightly more efficient than switch ... */
+    373          	/* ordered in order of likelihood */
+    374          
+    375          	if ((b0 | b1 | b2) == 0)
+    376          		return 0;	/* no error */
+    377          
+    378          	if ((((b0 ^ (b0 >> 1)) & 0x55) == 0x55) &&
+    379          	    (((b1 ^ (b1 >> 1)) & 0x55) == 0x55) &&
+    380          	    ((eccsize_mult == 1 && ((b2 ^ (b2 >> 1)) & 0x54) == 0x54) ||
+    381          	     (eccsize_mult == 2 && ((b2 ^ (b2 >> 1)) & 0x55) == 0x55))) {
+    382          	/* single bit error */
+    383          		/*
+    384          		 * rp17/rp15/13/11/9/7/5/3/1 indicate which byte is the faulty
+    385          		 * byte, cp 5/3/1 indicate the faulty bit.
+    386          		 * A lookup table (called addressbits) is used to filter
+    387          		 * the bits from the byte they are in.
+    388          		 * A marginal optimisation is possible by having three
+    389          		 * different lookup tables.
+    390          		 * One as we have now (for b0), one for b2
+    391          		 * (that would avoid the >> 1), and one for b1 (with all values
+    392          		 * << 4). However it was felt that introducing two more tables
+    393          		 * hardly justify the gain.
+    394          		 *
+    395          		 * The b2 shift is there to get rid of the lowest two bits.
+    396          		 * We could also do addressbits[b2] >> 1 but for the
+    397          		 * performance it does not make any difference
+    398          		 */
+    399          		if (eccsize_mult == 1)
+    400          			byte_addr = (addressbits[b1] << 4) + addressbits[b0];
+    401          		else
+    402          			byte_addr = (addressbits[b2 & 0x3] << 8) +
+    403          				    (addressbits[b1] << 4) + addressbits[b0];
+    404          		bit_addr = addressbits[b2 >> 2];
+    405          		/* flip the bit */
+    406          		buf[byte_addr] ^= (1 << bit_addr);
+    407          		return 1;
+    408          
+    409          	}
+    410          	/* count nr of bits; use table lookup, faster than calculating it */
+    411          	if ((bitsperbyte[b0] + bitsperbyte[b1] + bitsperbyte[b2]) == 1)
+    412          		return 1;	/* error in ecc data; no action needed */
+    413          	return -1;
+    414          }
+
+   Maximum stack usage in bytes:
+
+     Function      .cstack
+     --------      -------
+     calculate_ecc     72
+     correct_data      16
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     invparity       256
+     bitsperbyte     256
+     addressbits     256
+     calculate_ecc   932
+     correct_data    244
+
+ 
+   768 bytes in section .rodata
+ 1 176 bytes in section .text
+ 
+ 1 176 bytes of CODE  memory
+   768 bytes of CONST memory
+
+Errors: none
+Warnings: none

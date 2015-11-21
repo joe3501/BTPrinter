@@ -1,0 +1,236 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:05 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\Project\EWARMv5\stm32f10x_vector.c  #
+#    Command line =  "E:\BT Printer\FW\src\Project\EWARMv5\stm32f10x_vector.c #
+#                    " -D DEBUG_VER -lcN "E:\BT Printer\FW\src\Project\EWARMv #
+#                    5\Debug\List\" -o "E:\BT Printer\FW\src\Project\EWARMv5\ #
+#                    Debug\Obj\" --no_cse --no_unroll --no_inline             #
+#                    --no_code_motion --no_tbaa --no_clustering               #
+#                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
+#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
+#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
+#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
+#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
+#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
+#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\stm32f10 #
+#                    x_vector.lst                                             #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\stm32f10x #
+#                    _vector.o                                                #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\Project\EWARMv5\stm32f10x_vector.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : stm32f10x_vector.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.0.3
+      5          * Date               : 09/22/2008
+      6          * Description        : STM32F10x vector table for EWARM5.x toolchain.
+      7          *                      This module performs:
+      8          *                      - Set the initial SP
+      9          *                      - Set the initial PC == __iar_program_start,
+     10          *                      - Set the vector table entries with the exceptions ISR address,
+     11          *                      - Configure external SRAM mounted on STM3210E-EVAL board
+     12          *                       to be used as data memory (optional, to be enabled by user)
+     13          *                      After Reset the Cortex-M3 processor is in Thread mode,
+     14          *                      priority is Privileged, and the Stack is set to Main.
+     15          ********************************************************************************
+     16          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+     17          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     18          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     19          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     20          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     21          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     22          *******************************************************************************/
+     23          
+     24          /* Includes ------------------------------------------------------------------*/
+     25          #include "stm32f10x_lib.h"
+     26          #include "stm32f10x_it.h"
+     27          #include "ucos_ii.h"
+     28          
+     29          /* Private typedef -----------------------------------------------------------*/
+     30          typedef void( *intfunc )( void );
+     31          typedef union { intfunc __fun; void * __ptr; } intvec_elem;
+     32          
+     33          /* Private define ------------------------------------------------------------*/
+     34          /* Uncomment the following line if you need to use external SRAM mounted on
+     35             STM3210E-EVAL board as data memory */
+     36          /* #define DATA_IN_ExtSRAM */
+     37          
+     38          /* Private macro -------------------------------------------------------------*/
+     39          /* Private variables ---------------------------------------------------------*/
+     40          /* Private function prototypes -----------------------------------------------*/
+     41          /* Private functions ---------------------------------------------------------*/
+     42          
+     43          
+     44          #pragma language=extended
+     45          #pragma segment="CSTACK"
+     46          
+     47          void __iar_program_start( void );
+     48          
+     49          #pragma location = ".intvec"
+     50          
+     51          /* STM32F10x Vector Table entries */
+     52          const intvec_elem __vector_table[] =
+     53          {
+     54          	{ .__ptr = __sfe( "CSTACK" ) },
+     55          	__iar_program_start,
+     56          	NMIException,
+     57          	HardFaultException,
+     58          	MemManageException,
+     59          	BusFaultException,
+     60          	UsageFaultException,
+     61          	0, 0, 0, 0,            /* Reserved */ 
+     62          	SVCHandler,
+     63          	DebugMonitor,
+     64          	0,                      /* Reserved */
+     65          	PendSVC,
+     66          	SysTickHandler,
+     67          	WWDG_IRQHandler,
+     68          	PVD_IRQHandler,
+     69          	TAMPER_IRQHandler,
+     70          	RTC_IRQHandler,
+     71          	FLASH_IRQHandler,
+     72          	RCC_IRQHandler,
+     73          	EXTI0_IRQHandler,
+     74          	EXTI1_IRQHandler,
+     75          	EXTI2_IRQHandler,
+     76          	EXTI3_IRQHandler,
+     77          	EXTI4_IRQHandler,
+     78          	DMA1_Channel1_IRQHandler,
+     79          	DMA1_Channel2_IRQHandler,
+     80          	DMA1_Channel3_IRQHandler,
+     81          	DMA1_Channel4_IRQHandler,
+     82          	DMA1_Channel5_IRQHandler,
+     83          	DMA1_Channel6_IRQHandler,
+     84          	DMA1_Channel7_IRQHandler,
+     85          	ADC1_2_IRQHandler,
+     86          	USB_HP_CAN_TX_IRQHandler,
+     87          	USB_LP_CAN_RX0_IRQHandler,
+     88          	CAN_RX1_IRQHandler,
+     89          	CAN_SCE_IRQHandler,
+     90          	EXTI9_5_IRQHandler,
+     91          	TIM1_BRK_IRQHandler,
+     92          	TIM1_UP_IRQHandler,
+     93          	TIM1_TRG_COM_IRQHandler,
+     94          	TIM1_CC_IRQHandler,
+     95          	TIM2_IRQHandler,
+     96          	TIM3_IRQHandler,
+     97          	TIM4_IRQHandler,
+     98          	I2C1_EV_IRQHandler,
+     99          	I2C1_ER_IRQHandler,
+    100          	I2C2_EV_IRQHandler,
+    101          	I2C2_ER_IRQHandler,
+    102          	SPI1_IRQHandler,
+    103          	SPI2_IRQHandler,
+    104          	USART1_IRQHandler,
+    105          	USART2_IRQHandler,
+    106          	USART3_IRQHandler,
+    107          	EXTI15_10_IRQHandler,
+    108          	RTCAlarm_IRQHandler,
+    109          	USBWakeUp_IRQHandler,
+    110          	TIM8_BRK_IRQHandler,
+    111          	TIM8_UP_IRQHandler,
+    112          	TIM8_TRG_COM_IRQHandler,
+    113          	TIM8_CC_IRQHandler,
+    114          	ADC3_IRQHandler,
+    115          	FSMC_IRQHandler,
+    116          	SDIO_IRQHandler,
+    117          	TIM5_IRQHandler,
+    118          	SPI3_IRQHandler,
+    119          	UART4_IRQHandler,
+    120          	UART5_IRQHandler,
+    121          	TIM6_IRQHandler,
+    122          	TIM7_IRQHandler,
+    123          	DMA2_Channel1_IRQHandler,
+    124          	DMA2_Channel2_IRQHandler,
+    125          	DMA2_Channel3_IRQHandler,
+    126          	DMA2_Channel4_5_IRQHandler,
+    127          	( intfunc)0x12345678uL,    // version
+    128          	( intfunc)0x00000000uL,    // checksum of code
+    129          	( intfunc)0x00000001uL,    // codelength in byte
+    130          	( intfunc)0x12345678uL,    // pattern
+    131          };
+    132          
+    133          #ifdef DATA_IN_ExtSRAM
+    134          #pragma language=extended
+    135          
+    136          __interwork int __low_level_init(void);
+    137          
+    138          #pragma location="ICODE"
+    139          __interwork int __low_level_init(void)
+    140          {
+    141             
+    142          /* FSMC Bank1 NOR/SRAM3 is used for the STM3210E-EVAL, if another Bank is 
+    143            required, then adjust the Register Addresses*/
+    144          
+    145          	/* Enable FSMC clock */
+    146          	*(vu32 *)0x40021014 = 0x00000114;
+    147          
+    148          	/* Enable GPIOD, GPIOE, GPIOF and GPIOG clocks */  
+    149          	*(vu32 *)0x40021018 = 0x000001E0;
+    150            
+    151          /* ---------------  SRAM Data lines, NOE and NWE configuration ---------------*/
+    152          /*----------------  SRAM Address lines configuration -------------------------*/
+    153          /*----------------  NOE and NWE configuration --------------------------------*/  
+    154          /*----------------  NE3 configuration ----------------------------------------*/
+    155          /*----------------  NBL0, NBL1 configuration ---------------------------------*/
+    156            
+    157          	*(vu32 *)0x40011400 = 0x44BB44BB;
+    158          	*(vu32 *)0x40011404 = 0xBBBBBBBB;
+    159          
+    160          	*(vu32 *)0x40011800 = 0xB44444BB;
+    161          	*(vu32 *)0x40011804 = 0xBBBBBBBB;
+    162          
+    163          	*(vu32 *)0x40011C00 = 0x44BBBBBB;
+    164          	*(vu32 *)0x40011C04 = 0xBBBB4444;  
+    165          
+    166          	*(vu32 *)0x40012000 = 0x44BBBBBB;
+    167          	*(vu32 *)0x40012004 = 0x44444B44;
+    168            
+    169          /*----------------  FSMC Configuration ---------------------------------------*/  
+    170          /*----------------  Enable FSMC Bank1_SRAM Bank ------------------------------*/
+    171            
+    172          	*(vu32 *)0xA0000010 = 0x00001011;
+    173          	*(vu32 *)0xA0000014 = 0x00000200;
+    174          
+    175          
+    176          	return (1);
+    177          }
+    178          #endif /*DATA_IN_ExtSRAM*/
+    179          
+    180          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+    181          
+    182          
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     __vector_table  320
+
+ 
+ 320 bytes in section .intvec
+ 
+ 320 bytes of CONST memory
+
+Errors: none
+Warnings: none

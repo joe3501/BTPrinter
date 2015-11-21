@@ -1,0 +1,295 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  15:08:15 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_pwr.c                   #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_pwr.c" -D DEBUG_VER    #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_pwr. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_pwr.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_pwr.c
+      1          /******************** (C) COPYRIGHT 2008 STMicroelectronics ********************
+      2          * File Name          : usb_pwr.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V2.2.1
+      5          * Date               : 09/22/2008
+      6          * Description        : Connection/disconnection & power management
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          
+     16          /* Includes ------------------------------------------------------------------*/
+     17          #include "stm32f10x_lib.h"
+     18          #include "usb_lib.h"
+     19          #include "usb_conf.h"
+     20          #include "usb_pwr.h"
+     21          #include "hw_config.h"
+     22          
+     23          /* Private typedef -----------------------------------------------------------*/
+     24          /* Private define ------------------------------------------------------------*/
+     25          /* Private macro -------------------------------------------------------------*/
+     26          /* Private variables ---------------------------------------------------------*/
+     27          vu32 bDeviceState = UNCONNECTED; /* USB device status */
+     28          volatile bool fSuspendEnabled = TRUE;  /* True when suspend is possible */
+     29          
+     30          struct
+     31          {
+     32            volatile RESUME_STATE eState;
+     33            volatile u8 bESOFcnt;
+     34          }
+     35          ResumeS;
+     36          
+     37          /* Extern variables ----------------------------------------------------------*/
+     38          /* Private function prototypes -----------------------------------------------*/
+     39          /* Extern function prototypes ------------------------------------------------*/
+     40          /* Private functions ---------------------------------------------------------*/
+     41          
+     42          /*******************************************************************************
+     43          * Function Name  : PowerOn
+     44          * Description    : USB IP power ON Routine.
+     45          * Input          : None.
+     46          * Output         : None.
+     47          * Return         : USB_SUCCESS.
+     48          *******************************************************************************/
+     49          RESULT USB_PowerOn(void)
+     50          {
+     51            u16 wRegVal;
+     52          
+     53            /*** CNTR_PWDN = 0 ***/
+     54            wRegVal = CNTR_FRES;
+     55            _SetCNTR(wRegVal);
+     56          
+     57            /*** CNTR_FRES = 0 ***/
+     58            wInterrupt_Mask = 0;
+     59            _SetCNTR(wInterrupt_Mask);
+     60            /*** Clear pending interrupts ***/
+     61            _SetISTR(0);
+     62            /*** Set interrupt mask ***/
+     63            wInterrupt_Mask = CNTR_RESETM | CNTR_SUSPM | CNTR_WKUPM;
+     64            _SetCNTR(wInterrupt_Mask);
+     65          
+     66            return USB_SUCCESS;
+     67          }
+     68          
+     69          /*******************************************************************************
+     70          * Function Name  : PowerOff
+     71          * Description    : Handles switch-off conditions
+     72          * Input          : None.
+     73          * Output         : None.
+     74          * Return         : USB_SUCCESS.
+     75          *******************************************************************************/
+     76          RESULT USB_PowerOff()
+     77          {
+     78            /* disable all ints and force USB reset */
+     79            _SetCNTR(CNTR_FRES);
+     80            /* clear interrupt status register */
+     81            _SetISTR(0);
+     82            /* Disable the Pull-Up*/
+     83            //USB_Cable_Config(DISABLE);
+     84            /* switch-off device */
+     85            _SetCNTR(CNTR_FRES + CNTR_PDWN);
+     86            /* sw variables reset */
+     87            /* ... */
+     88          
+     89            return USB_SUCCESS;
+     90          }
+     91          
+     92          /*******************************************************************************
+     93          * Function Name  : Suspend
+     94          * Description    : sets suspend mode operating conditions
+     95          * Input          : None.
+     96          * Output         : None.
+     97          * Return         : USB_SUCCESS.
+     98          *******************************************************************************/
+     99          void Suspend(void)
+    100          {
+    101            u16 wCNTR;
+    102            /* suspend preparation */
+    103            /* ... */
+    104          
+    105            /* macrocell enters suspend mode */
+    106            wCNTR = _GetCNTR();
+    107            wCNTR |= CNTR_FSUSP;
+    108            _SetCNTR(wCNTR);
+    109          
+    110            /* ------------------ ONLY WITH BUS-POWERED DEVICES ---------------------- */
+    111            /* power reduction */
+    112            /* ... on connected devices */
+    113          
+    114          
+    115            /* force low-power mode in the macrocell */
+    116            wCNTR = _GetCNTR();
+    117            wCNTR |= CNTR_LPMODE;
+    118            _SetCNTR(wCNTR);
+    119          
+    120            /* switch-off the clocks */
+    121            /* ... */
+    122            Enter_LowPowerMode();
+    123          
+    124          }
+    125          
+    126          /*******************************************************************************
+    127          * Function Name  : Resume_Init
+    128          * Description    : Handles wake-up restoring normal operations
+    129          * Input          : None.
+    130          * Output         : None.
+    131          * Return         : USB_SUCCESS.
+    132          *******************************************************************************/
+    133          void Resume_Init(void)
+    134          {
+    135            u16 wCNTR;
+    136            /* ------------------ ONLY WITH BUS-POWERED DEVICES ---------------------- */
+    137            /* restart the clocks */
+    138            /* ...  */
+    139          
+    140            /* CNTR_LPMODE = 0 */
+    141            wCNTR = _GetCNTR();
+    142            wCNTR &= (~CNTR_LPMODE);
+    143            _SetCNTR(wCNTR);
+    144          
+    145            /* restore full power */
+    146            /* ... on connected devices */
+    147            Leave_LowPowerMode();
+    148          
+    149            /* reset FSUSP bit */
+    150            _SetCNTR(IMR_MSK);
+    151          
+    152            /* reverse suspend preparation */
+    153            /* ... */
+    154          
+    155          }
+    156          
+    157          /*******************************************************************************
+    158          * Function Name  : Resume
+    159          * Description    : This is the state machine handling resume operations and
+    160          *                 timing sequence. The control is based on the Resume structure
+    161          *                 variables and on the ESOF interrupt calling this subroutine
+    162          *                 without changing machine state.
+    163          * Input          : a state machine value (RESUME_STATE)
+    164          *                  RESUME_ESOF doesn't change ResumeS.eState allowing
+    165          *                  decrementing of the ESOF counter in different states.
+    166          * Output         : None.
+    167          * Return         : None.
+    168          *******************************************************************************/
+    169          void Resume(RESUME_STATE eResumeSetVal)
+    170          {
+    171            u16 wCNTR;
+    172          
+    173            if (eResumeSetVal != RESUME_ESOF)
+    174              ResumeS.eState = eResumeSetVal;
+    175          
+    176            switch (ResumeS.eState)
+    177            {
+    178              case RESUME_EXTERNAL:
+    179                Resume_Init();
+    180                ResumeS.eState = RESUME_OFF;
+    181                break;
+    182              case RESUME_INTERNAL:
+    183                Resume_Init();
+    184                ResumeS.eState = RESUME_START;
+    185                break;
+    186              case RESUME_LATER:
+    187                ResumeS.bESOFcnt = 2;
+    188                ResumeS.eState = RESUME_WAIT;
+    189                break;
+    190              case RESUME_WAIT:
+    191                ResumeS.bESOFcnt--;
+    192                if (ResumeS.bESOFcnt == 0)
+    193                  ResumeS.eState = RESUME_START;
+    194                break;
+    195              case RESUME_START:
+    196                wCNTR = _GetCNTR();
+    197                wCNTR |= CNTR_RESUME;
+    198                _SetCNTR(wCNTR);
+    199                ResumeS.eState = RESUME_ON;
+    200                ResumeS.bESOFcnt = 10;
+    201                break;
+    202              case RESUME_ON:
+    203                ResumeS.bESOFcnt--;
+    204                if (ResumeS.bESOFcnt == 0)
+    205                {
+    206                  wCNTR = _GetCNTR();
+    207                  wCNTR &= (~CNTR_RESUME);
+    208                  _SetCNTR(wCNTR);
+    209                  ResumeS.eState = RESUME_OFF;
+    210                }
+    211                break;
+    212              case RESUME_OFF:
+    213              case RESUME_ESOF:
+    214              default:
+    215                ResumeS.eState = RESUME_OFF;
+    216                break;
+    217            }
+    218          }
+    219          
+    220          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function     .cstack
+     --------     -------
+     Resume            8
+     Resume_Init       8
+     Suspend           8
+     USB_PowerOff      0
+     USB_PowerOn       0
+
+
+   Section sizes:
+
+     Function/Label  Bytes
+     --------------  -----
+     bDeviceState       4
+     fSuspendEnabled    1
+     ResumeS            4
+     USB_PowerOn       52
+     USB_PowerOff      22
+     Suspend           36
+     Resume_Init       32
+     Resume           184
+     ??DataTable5       4
+     ??DataTable17      4
+
+ 
+   8 bytes in section .bss
+   1 byte  in section .data
+ 334 bytes in section .text
+ 
+ 334 bytes of CODE memory
+   9 bytes of DATA memory
+
+Errors: none
+Warnings: none

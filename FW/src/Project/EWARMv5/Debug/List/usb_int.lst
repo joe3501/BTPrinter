@@ -1,0 +1,259 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     17/Nov/2015  15:49:48 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\usb_lib\usb_int.c                   #
+#    Command line =  "E:\BT Printer\FW\src\usb_lib\usb_int.c" -D DEBUG_VER    #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\usb_int. #
+#                    lst                                                      #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\usb_int.o #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\usb_lib\usb_int.c
+      1          /******************** (C) COPYRIGHT 2010 STMicroelectronics ********************
+      2          * File Name          : usb_int.c
+      3          * Author             : MCD Application Team
+      4          * Version            : V3.1.1
+      5          * Date               : 04/07/2010
+      6          * Description        : Endpoint CTR (Low and High) interrupt's service routines
+      7          ********************************************************************************
+      8          * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
+      9          * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE TIME.
+     10          * AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY DIRECT,
+     11          * INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING FROM THE
+     12          * CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE CODING
+     13          * INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+     14          *******************************************************************************/
+     15          #ifndef STM32F10X_CL
+     16          
+     17          /* Includes ------------------------------------------------------------------*/
+     18          #include "usb_lib.h"
+     19          
+     20          /* Private typedef -----------------------------------------------------------*/
+     21          /* Private define ------------------------------------------------------------*/
+     22          /* Private macro -------------------------------------------------------------*/
+     23          /* Private variables ---------------------------------------------------------*/
+     24          u16 SaveRState;
+     25          u16 SaveTState;
+     26          
+     27          /* Extern variables ----------------------------------------------------------*/
+     28          extern void (*pEpInt_IN[7])(void);    /*  Handles IN  interrupts   */
+     29          extern void (*pEpInt_OUT[7])(void);   /*  Handles OUT interrupts   */
+     30          
+     31          /* Private function prototypes -----------------------------------------------*/
+     32          /* Private functions ---------------------------------------------------------*/
+     33          
+     34          /*******************************************************************************
+     35          * Function Name  : CTR_LP.
+     36          * Description    : Low priority Endpoint Correct Transfer interrupt's service
+     37          *                  routine.
+     38          * Input          : None.
+     39          * Output         : None.
+     40          * Return         : None.
+     41          *******************************************************************************/
+     42          void CTR_LP(void)
+     43          {
+     44          	u16 wEPVal = 0;
+     45            /* stay in loop while pending ints */
+     46            while (((wIstr = _GetISTR()) & ISTR_CTR) != 0)
+     47            {
+     48              /* extract highest priority endpoint number */
+     49              EPindex = (u8)(wIstr & ISTR_EP_ID);
+     50              if (EPindex == 0)
+     51              {
+     52                /* Decode and service control endpoint interrupt */
+     53                /* calling related service routine */
+     54                /* (Setup0_Process, In0_Process, Out0_Process) */
+     55          
+     56                /* save RX & TX status */
+     57                /* and set both to NAK */
+     58          
+     59          
+     60          	    SaveRState = _GetENDPOINT(ENDP0);
+     61          	    SaveTState = SaveRState & EPTX_STAT;
+     62          	    SaveRState &=  EPRX_STAT;	
+     63          
+     64          	    _SetEPRxTxStatus(ENDP0,EP_RX_NAK,EP_TX_NAK);
+     65          
+     66                /* DIR bit = origin of the interrupt */
+     67          
+     68                if ((wIstr & ISTR_DIR) == 0)
+     69                {
+     70                  /* DIR = 0 */
+     71          
+     72                  /* DIR = 0      => IN  int */
+     73                  /* DIR = 0 implies that (EP_CTR_TX = 1) always  */
+     74          
+     75          
+     76                  _ClearEP_CTR_TX(ENDP0);
+     77                  In0_Process();
+     78          
+     79                     /* before terminate set Tx & Rx status */
+     80          
+     81                      _SetEPRxTxStatus(ENDP0,SaveRState,SaveTState);
+     82          		  return;
+     83                }
+     84                else
+     85                {
+     86                  /* DIR = 1 */
+     87          
+     88                  /* DIR = 1 & CTR_RX       => SETUP or OUT int */
+     89                  /* DIR = 1 & (CTR_TX | CTR_RX) => 2 int pending */
+     90          
+     91                  wEPVal = _GetENDPOINT(ENDP0);
+     92                  
+     93                  if ((wEPVal &EP_SETUP) != 0)
+     94                  {
+     95                    _ClearEP_CTR_RX(ENDP0); /* SETUP bit kept frozen while CTR_RX = 1 */
+     96                    Setup0_Process();
+     97                    /* before terminate set Tx & Rx status */
+     98          
+     99          		      _SetEPRxTxStatus(ENDP0,SaveRState,SaveTState);
+    100                    return;
+    101                  }
+    102          
+    103                  else if ((wEPVal & EP_CTR_RX) != 0)
+    104                  {
+    105                    _ClearEP_CTR_RX(ENDP0);
+    106                    Out0_Process();
+    107                    /* before terminate set Tx & Rx status */
+    108               
+    109          		     _SetEPRxTxStatus(ENDP0,SaveRState,SaveTState);
+    110                    return;
+    111                  }
+    112                }
+    113              }/* if(EPindex == 0) */
+    114              else
+    115              {
+    116                /* Decode and service non control endpoints interrupt  */
+    117          
+    118                /* process related endpoint register */
+    119                wEPVal = _GetENDPOINT(EPindex);
+    120                if ((wEPVal & EP_CTR_RX) != 0)
+    121                {
+    122                  /* clear int flag */
+    123                  _ClearEP_CTR_RX(EPindex);
+    124          
+    125                  /* call OUT service function */
+    126                  (*pEpInt_OUT[EPindex-1])();
+    127          
+    128                } /* if((wEPVal & EP_CTR_RX) */
+    129          
+    130                if ((wEPVal & EP_CTR_TX) != 0)
+    131                {
+    132                  /* clear int flag */
+    133                  _ClearEP_CTR_TX(EPindex);
+    134          
+    135                  /* call IN service function */
+    136                  (*pEpInt_IN[EPindex-1])();
+    137                } /* if((wEPVal & EP_CTR_TX) != 0) */
+    138          
+    139              }/* if(EPindex == 0) else */
+    140          
+    141            }/* while(...) */
+    142          }
+    143          
+    144          /*******************************************************************************
+    145          * Function Name  : CTR_HP.
+    146          * Description    : High Priority Endpoint Correct Transfer interrupt's service 
+    147          *                  routine.
+    148          * Input          : None.
+    149          * Output         : None.
+    150          * Return         : None.
+    151          *******************************************************************************/
+    152          void CTR_HP(void)
+    153          {
+    154            u32 wEPVal = 0;
+    155          
+    156            while (((wIstr = _GetISTR()) & ISTR_CTR) != 0)
+    157            {
+    158              _SetISTR((u16)CLR_CTR); /* clear CTR flag */
+    159              /* extract highest priority endpoint number */
+    160              EPindex = (u8)(wIstr & ISTR_EP_ID);
+    161              /* process related endpoint register */
+    162              wEPVal = _GetENDPOINT(EPindex);
+    163              if ((wEPVal & EP_CTR_RX) != 0)
+    164              {
+    165                /* clear int flag */
+    166                _ClearEP_CTR_RX(EPindex);
+    167          
+    168                /* call OUT service function */
+    169                (*pEpInt_OUT[EPindex-1])();
+    170          
+    171              } /* if((wEPVal & EP_CTR_RX) */
+    172              else if ((wEPVal & EP_CTR_TX) != 0)
+    173              {
+    174                /* clear int flag */
+    175                _ClearEP_CTR_TX(EPindex);
+    176          
+    177                /* call IN service function */
+    178                (*pEpInt_IN[EPindex-1])();
+    179          
+    180          
+    181              } /* if((wEPVal & EP_CTR_TX) != 0) */
+    182          
+    183            }/* while(...) */
+    184          }
+    185          
+    186          #endif  /* STM32F10X_CL */
+    187          
+    188          /******************* (C) COPYRIGHT 2010 STMicroelectronics *****END OF FILE****/
+
+   Maximum stack usage in bytes:
+
+     Function .cstack
+     -------- -------
+     CTR_HP        8
+     CTR_LP        8
+
+
+   Section sizes:
+
+     Function/Label Bytes
+     -------------- -----
+     SaveRState        2
+     SaveTState        2
+     CTR_LP          556
+     CTR_HP          156
+     ??DataTable41     4
+     ??DataTable44     4
+     ??DataTable45     4
+     ??DataTable52     4
+     ??DataTable53     4
+     ??DataTable54     4
+
+ 
+   4 bytes in section .bss
+ 736 bytes in section .text
+ 
+ 736 bytes of CODE memory
+   4 bytes of DATA memory
+
+Errors: none
+Warnings: none
