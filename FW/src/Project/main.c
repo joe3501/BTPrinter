@@ -315,7 +315,7 @@ static void GPIO_AllAinConfig(void)
 void EnterLowPowerMode(void)
 {
 	//GPIO_InitTypeDef GPIO_InitStructure;
-	BT816_enter_sleep();
+	//BT816_enter_sleep();
 	stop_real_timer();
 
 	//但是需要开启PWR模块的时钟
@@ -337,7 +337,7 @@ void ExitLowPowerMode(void)
 	//GPIO_InitTypeDef GPIO_InitStructure;
 	//重新配置时钟
 	RCC_Configuration();
-	BT816_wakeup();
+	//BT816_wakeup();
 	start_real_timer();
 }
 

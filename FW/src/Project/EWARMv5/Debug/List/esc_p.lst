@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     20/Nov/2015  18:18:44 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     26/Nov/2015  15:26:55 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -83,7 +83,7 @@ E:\BT Printer\FW\src\App\esc_p.c
      45          #define SP		(0x20)
      46          
      47          ESC_P_STS_T  esc_sts[MAX_PT_CHANNEL];
-     48          unsigned char	 current_channel;		//当前正在处理的通道
+     48          signed char	 current_channel;		//当前正在处理的通道
      49          	
      50          extern void esc_p_init(void)
      51          {
@@ -138,7 +138,7 @@ E:\BT Printer\FW\src\App\esc_p.c
     100          		}
     101          	}
     102          
-    103          	current_channel = 0;
+    103          	current_channel = -1;
     104          }
     105          extern esc_init(void)
     106          {
@@ -241,15 +241,15 @@ E:\BT Printer\FW\src\App\esc_p.c
      memset             20
      esc_sts         14024
      current_channel     1
-     esc_p_init        624
+     esc_p_init        628
      esc_init            8
      esc_p             146
 
  
  14 025 bytes in section .bss
-    798 bytes in section .text
+    802 bytes in section .text
  
-    778 bytes of CODE memory (+ 20 bytes shared)
+    782 bytes of CODE memory (+ 20 bytes shared)
  14 025 bytes of DATA memory
 
 Errors: none

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     21/Nov/2015  17:20:25 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     26/Nov/2015  15:26:55 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -685,24 +685,24 @@ E:\BT Printer\FW\src\App\font.c
      --------------    -----
      memcpy              14
      memset              20
-     FontBold           608
-     FontEnlarge        190
+     FontBold           636
+     FontEnlarge        192
      FontSmoothing        2
-     FontUnderline      178
+     FontUnderline      188
      FontRevertProc      36
-     FontRevert         158
+     FontRevert         168
      FontCircumvolve    514
-     GetEnglishFont     434
-     GetChineseFont     378
-     GetEnglishHRIFont  234
+     GetEnglishFont     468
+     GetChineseFont     406
+     GetEnglishHRIFont  252
      ??DataTable121       4
      ??DataTable130       4
      ??DataTable131       4
 
  
- 2 778 bytes in section .text
+ 2 908 bytes in section .text
  
- 2 744 bytes of CODE memory (+ 34 bytes shared)
+ 2 874 bytes of CODE memory (+ 34 bytes shared)
 
 Errors: none
 Warnings: 1

@@ -45,7 +45,7 @@
 #define SP		(0x20)
 
 ESC_P_STS_T  esc_sts[MAX_PT_CHANNEL];
-unsigned char	 current_channel;		//当前正在处理的通道
+signed char	 current_channel;		//当前正在处理的通道
 	
 extern void esc_p_init(void)
 {
@@ -100,7 +100,7 @@ extern void esc_p_init(void)
 		}
 	}
 
-	current_channel = 0;
+	current_channel = -1;
 }
 extern esc_init(void)
 {

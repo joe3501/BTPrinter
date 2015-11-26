@@ -22,6 +22,10 @@
 #include "ringbuffer.h"
 #include "BT816.h"
 #include "Event.h"
+#include "Esc_p.h"
+
+#define		CHANNEL_TIMEOUT_TH		100		//当某一个串口通道在100ms内没有接收到数据时，认为此通道打印任务结束，此数据待调试	
+
 /******************************************************************************
 **Function name:  Getchar
 **
@@ -32,38 +36,83 @@
 **
 ******************************************************************************/
 extern uint8_t Getchar(void)        //接收数据
-    {
-        uint8_t c;
-        while(1)
-        {
-            event_proc();
+{
+	uint8_t c;
+	unsigned int	i,delay;
+	static unsigned int timeout;
+	while(1)
+	{
+		event_proc();
 
-			if (ringbuffer_getchar(&spp_ringbuf,&c))
+		if (current_channel == -1)
+		{
+			//还未进入打印通道的打印会话过程
+			for (i = 0; i < MAX_PT_CHANNEL;i++)
 			{
+				if (ringbuffer_getchar(&spp_ringbuf[i],&c))
+				{
+					current_channel = i;
+					return c;
+				}
+			}
+		}
+		else
+		{
+			//已经进入某一个打印通道的打印会话过程
+			if (ringbuffer_getchar(&spp_ringbuf[current_channel],&c))
+			{
+				timeout = 0;
 				return c;
 			}
-        }
+			else
+			{
+				delay = SysTick_GetCounter();
+				if (timeout == 0)
+				{
+					timeout = delay;
+				}
+				else
+				{
+					if (delay > timeout)
+					{
+						delay = delay-timeout;
+					}
+					else
+					{
+						delay += 0xffffffff-timeout;
+					}
 
-    }
+					if (delay > (CHANNEL_TIMEOUT_TH/10))	//systick是10ms计数的
+					{
+						PrintBufToZero();
+						current_channel = -1;
+					}
+				}
+			}
+		}
+		
+	}
+
+}
 
  extern uint8_t PrintBufGetchar(uint8_t *ch)
  {
-	return ringbuffer_getchar(&spp_ringbuf,ch);
+	return ringbuffer_getchar(&spp_ringbuf[current_channel],ch);
  }
 
  extern void PrintBufPushBytes(uint8_t c)
  {
-      ringbuffer_putchar(&spp_ringbuf,c);
+      ringbuffer_putchar(&spp_ringbuf[current_channel],c);
  }
 
 //======================================================================================================
 extern void PrintBufPushLine( uint8_t *p, uint32_t len)
 {
-	ringbuffer_put(&spp_ringbuf,p,len);
+	ringbuffer_put(&spp_ringbuf[current_channel],p,len);
 }
 extern void PrintBufToZero(void)
 {
-     ringbuffer_reset(&spp_ringbuf);
+     ringbuffer_reset(&spp_ringbuf[current_channel]);
 }
 /******************************************************************************
 **                            End Of File

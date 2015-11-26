@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     21/Nov/2015  11:15:51 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     26/Nov/2015  15:26:53 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -352,7 +352,7 @@ E:\BT Printer\FW\src\Project\main.c
     315          void EnterLowPowerMode(void)
     316          {
     317          	//GPIO_InitTypeDef GPIO_InitStructure;
-    318          	BT816_enter_sleep();
+    318          	//BT816_enter_sleep();
     319          	stop_real_timer();
     320          
     321          	//但是需要开启PWR模块的时钟
@@ -374,7 +374,7 @@ E:\BT Printer\FW\src\Project\main.c
     337          	//GPIO_InitTypeDef GPIO_InitStructure;
     338          	//重新配置时钟
     339          	RCC_Configuration();
-    340          	BT816_wakeup();
+    340          	//BT816_wakeup();
     341          	start_real_timer();
     342          }
     343          
@@ -452,8 +452,8 @@ E:\BT Printer\FW\src\Project\main.c
      RCC_Configuration                       136
      Unconfigure_All                          32
      GPIO_AllAinConfig                        80
-     EnterLowPowerMode                        38
-     ExitLowPowerMode                         16
+     EnterLowPowerMode                        34
+     ExitLowPowerMode                         12
      NVIC_DisableIRQ                          20
      NVIC_EnableIRQ                           32
      ??DataTable5                              4
@@ -465,9 +465,9 @@ E:\BT Printer\FW\src\Project\main.c
  
    1 byte  in section .bss
   52 bytes in section .rodata
- 640 bytes in section .text
+ 632 bytes in section .text
  
- 640 bytes of CODE  memory
+ 632 bytes of CODE  memory
   52 bytes of CONST memory
    1 byte  of DATA  memory
 

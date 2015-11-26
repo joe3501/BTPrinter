@@ -5,6 +5,7 @@
 #include "Esc_p.h"
 #include "Event.h"
 #include "KeyScan.h"
+#include "BT816.h"
 
 uint8_t printersts,papercnt,platencnt,bm_cnt;
 
@@ -280,9 +281,14 @@ uint8_t TPPaperReady(void)
 //================================================================================================
 void SysTick_IRQ_Handle(void)
 {
+	int i;
 	KeyScanProc();
 	TPBMSNSDetect();
 	TPPaperSNSDetect( PAPERSNS());
+	for (i = 0; i < MAX_PT_CHANNEL;i++)
+	{
+		BT816_connect_status(i);
+	}
 #ifdef HW_VER_LCD
 	//LCD_Refresh();
 #else

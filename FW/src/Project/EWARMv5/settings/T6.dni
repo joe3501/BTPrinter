@@ -11,7 +11,7 @@ ActionState=1
 Enabled=0
 ShowSource=1
 [DebugChecksum]
-Checksum=-1725741857
+Checksum=-2048381728
 [DisAssemblyWindow]
 NumStates=_ 1
 State 1=_ 1
@@ -95,4 +95,5 @@ Bp7=_ "STD_CODE" "{$PROJ_DIR$}.2876.9@1" 0 0 0 0 "" 0 "" 0
 Bp8=_ "STD_CODE" "{E:\H520B\FW\src\App\record_m.c}.583.2@1" 0 0 0 0 "" 0 "" 0
 Bp9=_ "STD_CODE" "{E:\BT Printer\FW\src\App\DotFill.c}.248.3@1" 1 0 0 0 "" 0 "" 0
 Bp10=_ "STD_CODE" "{E:\BT Printer\FW\src\App\Event.c}.67.6@1" 1 0 0 0 "" 0 "" 0
-Count=11
+Bp11=_ "STD_CODE" "{E:\BT Printer\FW\src\App\PaperDetect.c}.207.6@1" 1 0 0 0 "" 0 "" 0
+Count=12

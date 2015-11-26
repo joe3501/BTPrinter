@@ -21,6 +21,8 @@
 #include "stm32f10x_it.h"
 #include "PaperDetect.h"
 #include "TP.h"
+#include "BT816.h"
+#include "usb_int.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -371,6 +373,14 @@ void DMA1_Channel1_IRQHandler(void)
 *******************************************************************************/
 void DMA1_Channel2_IRQHandler(void)
 {
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	if (DMA_GetITStatus(DMA1_IT_TC2))
+	{
+		DMA_Cmd(DMA1_Channel2, DISABLE);
+	}
+	/* clear DMA flag */
+	DMA_ClearFlag(DMA1_FLAG_TC2 | DMA1_FLAG_TE2);
+#endif
 }
 
 /*******************************************************************************
@@ -393,6 +403,14 @@ void DMA1_Channel3_IRQHandler(void)
 *******************************************************************************/
 void DMA1_Channel4_IRQHandler(void)
 {
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	if (DMA_GetITStatus(DMA1_IT_TC4))
+	{
+		DMA_Cmd(DMA1_Channel4, DISABLE);
+	}
+	/* clear DMA flag */
+	DMA_ClearFlag(DMA1_FLAG_TC4 | DMA1_FLAG_TE4);
+#endif
 }
 
 /*******************************************************************************
@@ -426,6 +444,14 @@ void DMA1_Channel6_IRQHandler(void)
 *******************************************************************************/
 void DMA1_Channel7_IRQHandler(void)
 {
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	if (DMA_GetITStatus(DMA1_IT_TC7))
+	{
+		DMA_Cmd(DMA1_Channel7, DISABLE);
+	}
+	/* clear DMA flag */
+	DMA_ClearFlag(DMA1_FLAG_TC7 | DMA1_FLAG_TE7);
+#endif
 }
 
 /*******************************************************************************
@@ -659,7 +685,31 @@ void SPI2_IRQHandler(void)
 *******************************************************************************/
 void USART1_IRQHandler(void)
 {
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	unsigned int temp = 0;    
+	if(USART_GetITStatus(USART1, USART_IT_IDLE) != RESET)  
+	{  
+		//USART_ClearFlag(USART1,USART_IT_IDLE);  
+		temp = USART1->SR;  
+		temp = USART1->DR; //清USART_IT_IDLE标志  
+		DMA_Cmd(DMA1_Channel5,DISABLE);  
 
+		temp = BT816_RES_BUFFER_LEN - DMA_GetCurrDataCounter(DMA1_Channel5);  
+
+		BT816_Channel1_RxISRHandler(BT816_recbuffer[BT1_MODULE],temp); 
+
+		//设置传输数据长度  
+		//DMA1_Channel5->CNDTR = BT816_RES_BUFFER_LEN; 
+
+
+		//打开DMA  
+		DMA_Cmd(DMA1_Channel5,ENABLE);  
+	}  
+	else if (USART_GetFlagStatus(USART1, USART_FLAG_ORE) != RESET)
+	{
+		USART_ReceiveData(USART1);
+	}
+#endif
 }
 
 /*******************************************************************************
@@ -671,38 +721,31 @@ void USART1_IRQHandler(void)
 *******************************************************************************/
 void USART2_IRQHandler(void)
 {
-//	unsigned int temp = 0;    
-//	if(USART_GetITStatus(USART2, USART_IT_IDLE) != RESET)  
-//	{  
-//		//USART_ClearFlag(USART1,USART_IT_IDLE);  
-//		temp = USART2->SR;  
-//		temp = USART2->DR; //清USART_IT_IDLE标志  
-//		DMA_Cmd(DMA1_Channel6,DISABLE);  
-//  
-//#if(BT_MODULE == USE_WBTDS01)
-//			temp = WBTD_RES_BUFFER_LEN - DMA_GetCurrDataCounter(DMA1_Channel6);  
-//
-//			WBTD_RxISRHandler(wbtd_recbuffer,temp); 
-//
-//			//设置传输数据长度  
-//			DMA1_Channel6->CNDTR = WBTD_RES_BUFFER_LEN;
-//#else
-//			temp = BT816_RES_BUFFER_LEN - DMA_GetCurrDataCounter(DMA1_Channel6);  
-//
-//			BT816_RxISRHandler(BT816_recbuffer,temp); 
-//
-//			//设置传输数据长度  
-//			DMA1_Channel6->CNDTR = BT816_RES_BUFFER_LEN;
-//#endif  
-//
-//		
-//		//打开DMA  
-//		DMA_Cmd(DMA1_Channel6,ENABLE);  
-//	}  
-//	else if (USART_GetFlagStatus(USART2, USART_FLAG_ORE) != RESET)
-//	{
-//		USART_ReceiveData(USART2);
-//	}
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	unsigned int temp = 0;    
+	if(USART_GetITStatus(USART2, USART_IT_IDLE) != RESET)  
+	{  
+		//USART_ClearFlag(USART2,USART_IT_IDLE);  
+		temp = USART2->SR;  
+		temp = USART2->DR; //清USART_IT_IDLE标志  
+		DMA_Cmd(DMA1_Channel6,DISABLE);  
+
+		temp = BT816_RES_BUFFER_LEN - DMA_GetCurrDataCounter(DMA1_Channel6);  
+
+		BT816_Channel2_RxISRHandler(BT816_recbuffer[BT2_MODULE],temp); 
+
+		//设置传输数据长度  
+		//DMA1_Channel6->CNDTR = BT816_RES_BUFFER_LEN; 
+
+
+		//打开DMA  
+		DMA_Cmd(DMA1_Channel6,ENABLE);  
+	}  
+	else if (USART_GetFlagStatus(USART2, USART_FLAG_ORE) != RESET)
+	{
+		USART_ReceiveData(USART2);
+	}
+#endif
 }
 
 /*******************************************************************************
@@ -714,7 +757,31 @@ void USART2_IRQHandler(void)
 *******************************************************************************/
 void USART3_IRQHandler(void)
 {
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	unsigned int temp = 0;    
+	if(USART_GetITStatus(USART3, USART_IT_IDLE) != RESET)  
+	{  
+		//USART_ClearFlag(USART3,USART_IT_IDLE);  
+		temp = USART3->SR;  
+		temp = USART3->DR; //清USART_IT_IDLE标志  
+		DMA_Cmd(DMA1_Channel3,DISABLE);  
 
+		temp = BT816_RES_BUFFER_LEN - DMA_GetCurrDataCounter(DMA1_Channel3);  
+
+		BT816_Channel3_RxISRHandler(BT816_recbuffer[BT3_MODULE],temp); 
+
+		//设置传输数据长度  
+		//DMA1_Channel3->CNDTR = BT816_RES_BUFFER_LEN; 
+
+
+		//打开DMA  
+		DMA_Cmd(DMA1_Channel3,ENABLE);  
+	}  
+	else if (USART_GetFlagStatus(USART3, USART_FLAG_ORE) != RESET)
+	{
+		USART_ReceiveData(USART3);
+	}
+#endif
 }
 
 /*******************************************************************************
@@ -860,20 +927,21 @@ void SPI3_IRQHandler(void)
 *******************************************************************************/
 void UART4_IRQHandler(void)
 {
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
 	unsigned int temp = 0;    
 	if(USART_GetITStatus(UART4, USART_IT_IDLE) != RESET)  
 	{  
+		DMA_Cmd(DMA2_Channel3,DISABLE);
 		//USART_ClearFlag(USART1,USART_IT_IDLE);  
 		temp = UART4->SR;  
 		temp = UART4->DR; //清USART_IT_IDLE标志  
-		DMA_Cmd(DMA2_Channel3,DISABLE);  
 
 		temp = BT816_RES_BUFFER_LEN - DMA_GetCurrDataCounter(DMA2_Channel3);  
 
-		BT816_RxISRHandler(BT816_recbuffer,temp); 
+		BT816_Channel4_RxISRHandler(BT816_recbuffer[BT4_MODULE],temp); 
 
 		//设置传输数据长度  
-		DMA2_Channel3->CNDTR = BT816_RES_BUFFER_LEN; 
+		//DMA2_Channel3->CNDTR = BT816_RES_BUFFER_LEN; 
 
 
 		//打开DMA  
@@ -883,6 +951,7 @@ void UART4_IRQHandler(void)
 	{
 		USART_ReceiveData(UART4);
 	}
+#endif
 }
 
 /*******************************************************************************
@@ -961,12 +1030,14 @@ void DMA2_Channel3_IRQHandler(void)
 *******************************************************************************/
 void DMA2_Channel4_5_IRQHandler(void)
 {
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
 	if (DMA_GetITStatus(DMA2_IT_TC5))
 	{
 		DMA_Cmd(DMA2_Channel5, DISABLE);
 	}
 	/* clear DMA flag */
 	DMA_ClearFlag(DMA2_FLAG_TC5 | DMA2_FLAG_TE5);
+#endif
 }
 
 /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/

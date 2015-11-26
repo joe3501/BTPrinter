@@ -4,8 +4,9 @@
 #include "Type.h"
 #include "config.h"
 #include "TP.h"
+#include "BT816.h"
 
-#define MAX_PT_CHANNEL		4		//最多支持4个连接通道
+//#define MAX_PT_CHANNEL		4		//最多支持4个连接通道
 
 #if defined(TM_T88II)
 #define FONT_A_WIDTH		(12)
@@ -107,7 +108,7 @@ typedef struct
 }ESC_P_STS_T;
 
 extern  ESC_P_STS_T  esc_sts[];
-extern unsigned char	 current_channel;		//当前正在处理的通道
+extern signed char	 current_channel;		//当前正在处理的通道
 
 //======================================================================================================
 // 打印模式

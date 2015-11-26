@@ -53,174 +53,614 @@ typedef struct {
 	unsigned char			*DataBuffer;
 }TBT816Res;
 
-TBT816Res		BT816_res;
+TBT816Res		BT816_res[MAX_PT_CHANNEL];
 
-#define SLEEP		1
-#define WAKEUP		2
+static unsigned char	BT816_send_buff[MAX_PT_CHANNEL][32];
+unsigned char	BT816_recbuffer[MAX_PT_CHANNEL][BT816_RES_BUFFER_LEN];
 
-static unsigned char	BT816_send_buff[32];
-static unsigned char	BT816_power_state;
-unsigned char	BT816_recbuffer[BT816_RES_BUFFER_LEN];
+unsigned char		spp_rec_buffer[MAX_PT_CHANNEL][SPP_BUFFER_LEN];
+struct ringbuffer	spp_ringbuf[MAX_PT_CHANNEL];
 
-#ifdef SPP_MODE
-unsigned char	spp_rec_buffer[SPP_BUFFER_LEN];
-struct ringbuffer	spp_ringbuf;
-#endif
+#define RING_BUFF_FULL_TH		(SPP_BUFFER_LEN-256)	//当ringbuffer中接收到的数据大于此值时，实行流控，通知蓝牙模块不要再传数据下来了，此值待调试确定
 
+static	unsigned char  bt_connect_status;
 
+#define		BT1_CONNECT		(bt_connect_status&(1<<BT1_MODULE))
+#define		BT2_CONNECT		(bt_connect_status&(1<<BT2_MODULE))
+#define		BT3_CONNECT		(bt_connect_status&(1<<BT3_MODULE))
+#define		BT4_CONNECT		(bt_connect_status&(1<<BT4_MODULE))
+
+#define     set_BT1_BUSY()	GPIO_SetBits(GPIOB, GPIO_Pin_8)
+#define     set_BT1_FREE()	GPIO_ResetBits(GPIOB, GPIO_Pin_8)
+
+#define     set_BT2_BUSY()	GPIO_SetBits(GPIOC, GPIO_Pin_1)
+#define     set_BT2_FREE()	GPIO_ResetBits(GPIOC, GPIO_Pin_1)
+
+#define     set_BT3_BUSY()	GPIO_SetBits(GPIOE, GPIO_Pin_15)
+#define     set_BT3_FREE()	GPIO_ResetBits(GPIOE, GPIO_Pin_15)
+
+#define     set_BT4_BUSY()	GPIO_SetBits(GPIOD, GPIO_Pin_0)
+#define     set_BT4_FREE()	GPIO_ResetBits(GPIOD, GPIO_Pin_0)
+
+#define	RESET_BT1_DMA()		do{	\
+							DMA_Cmd(DMA1_Channel5,DISABLE);\
+							DMA1_Channel5->CNDTR = BT816_RES_BUFFER_LEN;\
+							DMA_Cmd(DMA1_Channel5,ENABLE);\
+							}while(0)
+
+#define	RESET_BT2_DMA()		do{	\
+							DMA_Cmd(DMA1_Channel6,DISABLE);\
+							DMA1_Channel6->CNDTR = BT816_RES_BUFFER_LEN; \
+							DMA_Cmd(DMA1_Channel6,ENABLE);\
+							}while(0)
+
+#define	RESET_BT3_DMA()		do{	\
+							DMA_Cmd(DMA1_Channel3,DISABLE);\
+							DMA1_Channel3->CNDTR = BT816_RES_BUFFER_LEN;\
+							DMA_Cmd(DMA1_Channel3,ENABLE);\
+							}while(0)
+
+#define	RESET_BT4_DMA()		do{	\
+							DMA_Cmd(DMA2_Channel3,DISABLE);\
+							DMA2_Channel3->CNDTR = BT816_RES_BUFFER_LEN;\
+							DMA_Cmd(DMA2_Channel3,ENABLE);\
+							}while(0)
 /*
  * @brief: 初始化模块端口
- * @note 使用串口2
+ * @param[in]  unsigned int bt_channel  蓝牙模块的索引
+ * @param[in]  unsigned int baudrate	与模块连接的串口波特率
 */
-/*
- * @brief: 初始化模块端口
- * @note 使用串口2
-*/
-static void BT816_GPIO_config(unsigned int baudrate)
+static void BT816_GPIO_config(unsigned int bt_channel,unsigned int baudrate)
 {
 	GPIO_InitTypeDef				GPIO_InitStructure;
 	USART_InitTypeDef				USART_InitStructure;
 	DMA_InitTypeDef					DMA_InitStructure;
 
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	if (bt_channel == BT1_MODULE)
+	{
+		//串口1
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 
-	//B-Reset  PD.1		B-Sleep	PD.0
-	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_0 | GPIO_Pin_1;
-    GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
-	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
-	GPIO_Init(GPIOD, &GPIO_InitStructure);
-	GPIO_SetBits(GPIOD, GPIO_Pin_1);
-	GPIO_SetBits(GPIOD, GPIO_Pin_0);
+		//B-Reset  PB.9		B-Busy	PB.8
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_8 | GPIO_Pin_9;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+		GPIO_Init(GPIOB, &GPIO_InitStructure);
+		GPIO_SetBits(GPIOB, GPIO_Pin_9);
+		GPIO_ResetBits(GPIOB, GPIO_Pin_8);
 
-	//B-State  PD.3
-	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_3;
-	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
-	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPD;
-	GPIO_Init(GPIOD, &GPIO_InitStructure);
+		//B-State  PB.7
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_7;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPD;
+		GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-	// 使用UART4, PC11,PC10
-	/* Configure UART4 Tx (PC.10) as alternate function push-pull */
-	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
-	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+		// 使用USART1, PA9,PA10
+		/* Configure USART1 Tx (PA.9) as alternate function push-pull */
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_9;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-	////trip for debug
-	//GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
-	//GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
-	//GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
-	//GPIO_Init(GPIOC, &GPIO_InitStructure);
-	//GPIO_SetBits(GPIOC, GPIO_Pin_10);
-	//GPIO_ResetBits(GPIOC, GPIO_Pin_10);
+		/* Configure USART1 Rx (PA.10) as input floating				*/
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
 
+		USART_InitStructure.USART_BaudRate		= baudrate;					
+		USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+		USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+		USART_InitStructure.USART_Parity		= USART_Parity_No;
+		USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+		USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
 
-	/* Configure UART4 Rx (PC.11) as input floating				*/
-	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_11;
-	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-	USART_InitStructure.USART_BaudRate		= baudrate;					
-	USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
-	USART_InitStructure.USART_StopBits		= USART_StopBits_1;
-	USART_InitStructure.USART_Parity		= USART_Parity_No;
-	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-	USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
-
-	USART_Init(UART4, &USART_InitStructure);
+		USART_Init(USART1, &USART_InitStructure);
 
 
-	/* DMA clock enable */
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA2, ENABLE);
+		/* DMA clock enable */
+		RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 
-	/* fill init structure */
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
-	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
-	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+		/* fill init structure */
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
 
-	/* DMA2 Channel5 (triggered by UART4 Tx event) Config */
-	DMA_DeInit(DMA2_Channel5);
-	DMA_InitStructure.DMA_PeripheralBaseAddr =(u32)(&UART4->DR);
-	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
-	/* As we will set them before DMA actually enabled, the DMA_MemoryBaseAddr
-	 * and DMA_BufferSize are meaningless. So just set them to proper values
-	 * which could make DMA_Init happy.
-	 */
-	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0;
-	DMA_InitStructure.DMA_BufferSize = 1;
-	DMA_Init(DMA2_Channel5, &DMA_InitStructure);
+		/* DMA1 Channel4 (triggered by USART1 Tx event) Config */
+		DMA_DeInit(DMA1_Channel4);
+		DMA_InitStructure.DMA_PeripheralBaseAddr =(u32)(&USART1->DR);
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+		/* As we will set them before DMA actually enabled, the DMA_MemoryBaseAddr
+		* and DMA_BufferSize are meaningless. So just set them to proper values
+		* which could make DMA_Init happy.
+		*/
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0;
+		DMA_InitStructure.DMA_BufferSize = 1;
+		DMA_Init(DMA1_Channel4, &DMA_InitStructure);
 
 
-	//DMA2通道3配置  
-	DMA_DeInit(DMA2_Channel3);  
-	//外设地址  
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&UART4->DR);  
-	//内存地址  
-	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)BT816_recbuffer;  
-	//dma传输方向单向  
-	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;  
-	//设置DMA在传输时缓冲区的长度  
-	DMA_InitStructure.DMA_BufferSize = BT816_RES_BUFFER_LEN;  
-	//设置DMA的外设递增模式，一个外设  
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  
-	//设置DMA的内存递增模式  
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  
-	//外设数据字长  
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  
-	//内存数据字长  
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;  
-	//设置DMA的传输模式  
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  
-	//设置DMA的优先级别  
-	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
-	//设置DMA的2个memory中的变量互相访问  
-	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  
-	DMA_Init(DMA2_Channel3,&DMA_InitStructure);  
+		//DMA1通道5配置  
+		DMA_DeInit(DMA1_Channel5);  
+		//外设地址  
+		DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&USART1->DR);  
+		//内存地址  
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)BT816_recbuffer[BT1_MODULE];  
+		//dma传输方向单向  
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;  
+		//设置DMA在传输时缓冲区的长度  
+		DMA_InitStructure.DMA_BufferSize = BT816_RES_BUFFER_LEN;  
+		//设置DMA的外设递增模式，一个外设  
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  
+		//设置DMA的内存递增模式  
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  
+		//外设数据字长  
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  
+		//内存数据字长  
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;  
+		//设置DMA的传输模式  
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  
+		//设置DMA的优先级别  
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
+		//设置DMA的2个memory中的变量互相访问  
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  
+		DMA_Init(DMA1_Channel5,&DMA_InitStructure);  
 
-	//使能通道6 
-	DMA_Cmd(DMA2_Channel3,ENABLE);  
+		//使能通道5 
+		DMA_Cmd(DMA1_Channel5,ENABLE);  
 
-	//采用DMA方式接收  
-	USART_DMACmd(UART4,USART_DMAReq_Rx,ENABLE); 
+		//采用DMA方式接收  
+		USART_DMACmd(USART1,USART_DMAReq_Rx,ENABLE); 
 
-	/* Enable UART4 DMA Tx request */
-	USART_DMACmd(UART4, USART_DMAReq_Tx , ENABLE);
+		/* Enable USART1 DMA Tx request */
+		USART_DMACmd(USART1, USART_DMAReq_Tx , ENABLE);
 
-	USART_Cmd(UART4, ENABLE);
+		USART_Cmd(USART1, ENABLE);
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	if (bt_channel == BT2_MODULE)
+	{
+		//USART2
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
+
+		//B-Reset  PC.3		B-Busy	PC.1
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_1 | GPIO_Pin_3;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+		GPIO_Init(GPIOC, &GPIO_InitStructure);
+		GPIO_SetBits(GPIOC, GPIO_Pin_3);
+		GPIO_ResetBits(GPIOC, GPIO_Pin_1);
+
+		//B-State  PC.2
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPD;
+		GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+		// 使用USART2, PA2,PA3
+		/* Configure USART2 Tx (PA.2) as alternate function push-pull */
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+		/* Configure USART2 Rx (PA.3) as input floating				*/
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_3;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+		GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+		USART_InitStructure.USART_BaudRate		= baudrate;					
+		USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+		USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+		USART_InitStructure.USART_Parity		= USART_Parity_No;
+		USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+		USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
+
+		USART_Init(USART2, &USART_InitStructure);
+
+
+		/* DMA clock enable */
+		RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+
+		/* fill init structure */
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+
+		/* DMA1 Channel7 (triggered by USART2 Tx event) Config */
+		DMA_DeInit(DMA1_Channel7);
+		DMA_InitStructure.DMA_PeripheralBaseAddr =(u32)(&USART2->DR);
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+		/* As we will set them before DMA actually enabled, the DMA_MemoryBaseAddr
+		* and DMA_BufferSize are meaningless. So just set them to proper values
+		* which could make DMA_Init happy.
+		*/
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0;
+		DMA_InitStructure.DMA_BufferSize = 1;
+		DMA_Init(DMA1_Channel7, &DMA_InitStructure);
+
+
+		//DMA1通道6配置  
+		DMA_DeInit(DMA1_Channel6);  
+		//外设地址  
+		DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&USART2->DR);  
+		//内存地址  
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)BT816_recbuffer[BT2_MODULE];  
+		//dma传输方向单向  
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;  
+		//设置DMA在传输时缓冲区的长度  
+		DMA_InitStructure.DMA_BufferSize = BT816_RES_BUFFER_LEN;  
+		//设置DMA的外设递增模式，一个外设  
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  
+		//设置DMA的内存递增模式  
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  
+		//外设数据字长  
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  
+		//内存数据字长  
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;  
+		//设置DMA的传输模式  
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  
+		//设置DMA的优先级别  
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
+		//设置DMA的2个memory中的变量互相访问  
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  
+		DMA_Init(DMA1_Channel6,&DMA_InitStructure);  
+
+		//使能通道6 
+		DMA_Cmd(DMA1_Channel6,ENABLE);  
+
+		//采用DMA方式接收  
+		USART_DMACmd(USART2,USART_DMAReq_Rx,ENABLE); 
+
+		/* Enable USART2 DMA Tx request */
+		USART_DMACmd(USART2, USART_DMAReq_Tx , ENABLE);
+
+		USART_Cmd(USART2, ENABLE);
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	if (bt_channel == BT3_MODULE)
+	{
+		//USART3
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOE | RCC_APB2Periph_AFIO, ENABLE);
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
+
+		//B-Reset  PE.13		B-Busy	PE.15
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_13 | GPIO_Pin_15;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+		GPIO_Init(GPIOE, &GPIO_InitStructure);
+		GPIO_SetBits(GPIOE, GPIO_Pin_13);
+		GPIO_ResetBits(GPIOE, GPIO_Pin_15);
+
+		//B-State  PE.14
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_14;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPD;
+		GPIO_Init(GPIOE, &GPIO_InitStructure);
+
+		// 使用USART3, PB10,PB11
+		/* Configure USART3 Tx (PB.10) as alternate function push-pull */
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+		GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+		/* Configure USART3 Rx (PB.11) as input floating				*/
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_11;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+		GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+		USART_InitStructure.USART_BaudRate		= baudrate;					
+		USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+		USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+		USART_InitStructure.USART_Parity		= USART_Parity_No;
+		USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+		USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
+
+		USART_Init(USART3, &USART_InitStructure);
+
+
+		/* DMA clock enable */
+		RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+
+		/* fill init structure */
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+
+		/* DMA1 Channel2 (triggered by USART3 Tx event) Config */
+		DMA_DeInit(DMA1_Channel2);
+		DMA_InitStructure.DMA_PeripheralBaseAddr =(u32)(&USART3->DR);
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+		/* As we will set them before DMA actually enabled, the DMA_MemoryBaseAddr
+		* and DMA_BufferSize are meaningless. So just set them to proper values
+		* which could make DMA_Init happy.
+		*/
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0;
+		DMA_InitStructure.DMA_BufferSize = 1;
+		DMA_Init(DMA1_Channel2, &DMA_InitStructure);
+
+
+		//DMA1通道3配置  
+		DMA_DeInit(DMA1_Channel3);  
+		//外设地址  
+		DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&USART3->DR);  
+		//内存地址  
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)BT816_recbuffer[BT3_MODULE];  
+		//dma传输方向单向  
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;  
+		//设置DMA在传输时缓冲区的长度  
+		DMA_InitStructure.DMA_BufferSize = BT816_RES_BUFFER_LEN;  
+		//设置DMA的外设递增模式，一个外设  
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  
+		//设置DMA的内存递增模式  
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  
+		//外设数据字长  
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  
+		//内存数据字长  
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;  
+		//设置DMA的传输模式  
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  
+		//设置DMA的优先级别  
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
+		//设置DMA的2个memory中的变量互相访问  
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  
+		DMA_Init(DMA1_Channel3,&DMA_InitStructure);  
+
+		//使能DMA1通道3 
+		DMA_Cmd(DMA1_Channel3,ENABLE);  
+
+		//采用DMA方式接收  
+		USART_DMACmd(USART3,USART_DMAReq_Rx,ENABLE); 
+
+		/* Enable USART3 DMA Tx request */
+		USART_DMACmd(USART3, USART_DMAReq_Tx , ENABLE);
+
+		USART_Cmd(USART3, ENABLE);
+	}
+#endif
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
+	if (bt_channel == BT4_MODULE)
+	{
+		//UART4
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO, ENABLE);
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
+
+		//B-Reset  PD.1		B-Busy	PD.0
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_0 | GPIO_Pin_1;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+		GPIO_Init(GPIOD, &GPIO_InitStructure);
+		GPIO_SetBits(GPIOD, GPIO_Pin_1);
+		GPIO_ResetBits(GPIOD, GPIO_Pin_0);
+
+		//B-State  PD.3
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_3;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPD;
+		GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+		// 使用UART4, PC11,PC10
+		/* Configure UART4 Tx (PC.10) as alternate function push-pull */
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_10;
+		GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_50MHz;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_AF_PP;
+		GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+		/* Configure UART4 Rx (PC.11) as input floating				*/
+		GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_11;
+		GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IN_FLOATING;
+		GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+		USART_InitStructure.USART_BaudRate		= baudrate;					
+		USART_InitStructure.USART_WordLength	= USART_WordLength_8b;
+		USART_InitStructure.USART_StopBits		= USART_StopBits_1;
+		USART_InitStructure.USART_Parity		= USART_Parity_No;
+		USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+		USART_InitStructure.USART_Mode			= USART_Mode_Rx | USART_Mode_Tx;
+
+		USART_Init(UART4, &USART_InitStructure);
+
+
+		/* DMA clock enable */
+		RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA2, ENABLE);
+
+		/* fill init structure */
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+
+		/* DMA2 Channel5 (triggered by UART4 Tx event) Config */
+		DMA_DeInit(DMA2_Channel5);
+		DMA_InitStructure.DMA_PeripheralBaseAddr =(u32)(&UART4->DR);
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+		/* As we will set them before DMA actually enabled, the DMA_MemoryBaseAddr
+		* and DMA_BufferSize are meaningless. So just set them to proper values
+		* which could make DMA_Init happy.
+		*/
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)0;
+		DMA_InitStructure.DMA_BufferSize = 1;
+		DMA_Init(DMA2_Channel5, &DMA_InitStructure);
+
+
+		//DMA2通道3配置  
+		DMA_DeInit(DMA2_Channel3);  
+		//外设地址  
+		DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)(&UART4->DR);  
+		//内存地址  
+		DMA_InitStructure.DMA_MemoryBaseAddr = (u32)BT816_recbuffer[BT4_MODULE];  
+		//dma传输方向单向  
+		DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;  
+		//设置DMA在传输时缓冲区的长度  
+		DMA_InitStructure.DMA_BufferSize = BT816_RES_BUFFER_LEN;  
+		//设置DMA的外设递增模式，一个外设  
+		DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  
+		//设置DMA的内存递增模式  
+		DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  
+		//外设数据字长  
+		DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  
+		//内存数据字长  
+		DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;  
+		//设置DMA的传输模式  
+		DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  
+		//设置DMA的优先级别  
+		DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;  
+		//设置DMA的2个memory中的变量互相访问  
+		DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  
+		DMA_Init(DMA2_Channel3,&DMA_InitStructure);  
+
+		//使能DMA2通道3 
+		DMA_Cmd(DMA2_Channel3,ENABLE);  
+
+		//采用DMA方式接收  
+		USART_DMACmd(UART4,USART_DMAReq_Rx,ENABLE); 
+
+		/* Enable UART4 DMA Tx request */
+		USART_DMACmd(UART4, USART_DMAReq_Tx , ENABLE);
+
+		USART_Cmd(UART4, ENABLE);
+	}
+#endif
 }
 
 /*
- * @brief: 串口中断的初始化
+* @brief: 串口中断的初始化
 */
-static void BT816_NVIC_config(void)
+static void BT816_NVIC_config(unsigned int bt_channel)
 {
 	NVIC_InitTypeDef				NVIC_InitStructure;
-	//中断配置  
-	USART_ITConfig(UART4,USART_IT_TC,DISABLE);  
-	USART_ITConfig(UART4,USART_IT_RXNE,DISABLE);  
-	USART_ITConfig(UART4,USART_IT_IDLE,ENABLE);    
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	if (bt_channel == BT1_MODULE)
+	{
+		//中断配置  
+		USART_ITConfig(USART1,USART_IT_TC,DISABLE);  
+		USART_ITConfig(USART1,USART_IT_RXNE,DISABLE);  
+		USART_ITConfig(USART1,USART_IT_IDLE,ENABLE);    
 
-	//配置UART4中断  
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
-	NVIC_InitStructure.NVIC_IRQChannel = UART4_IRQChannel;               //通道设置为串口2中断    
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
-	//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
-	NVIC_Init(&NVIC_InitStructure);  
+		//配置UART4中断  
+		NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+		NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQChannel;               //通道设置为串口2中断    
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
+		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
+		NVIC_Init(&NVIC_InitStructure);  
 
-	/* Enable the DMA2 Channel5 Interrupt */
-	NVIC_InitStructure.NVIC_IRQChannel = DMA2_Channel4_5_IRQChannel;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-	//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure);
+		/* Enable the DMA1 Channel4 Interrupt */
+		NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel4_IRQChannel;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+		NVIC_Init(&NVIC_InitStructure);
 
-	DMA_ITConfig(DMA2_Channel5, DMA_IT_TC | DMA_IT_TE, ENABLE);
-	DMA_ClearFlag(DMA2_FLAG_TC5);
+		DMA_ITConfig(DMA1_Channel4, DMA_IT_TC | DMA_IT_TE, ENABLE);
+		DMA_ClearFlag(DMA1_FLAG_TC4);
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	if (bt_channel == BT2_MODULE)
+	{
+		//中断配置  
+		USART_ITConfig(USART2,USART_IT_TC,DISABLE);  
+		USART_ITConfig(USART2,USART_IT_RXNE,DISABLE);  
+		USART_ITConfig(USART2,USART_IT_IDLE,ENABLE);    
+
+		//配置USART2中断  
+		NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+		NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQChannel;               //通道设置为串口2中断    
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
+		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
+		NVIC_Init(&NVIC_InitStructure);  
+
+		/* Enable the DMA1 Channel7 Interrupt */
+		NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel7_IRQChannel;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+		NVIC_Init(&NVIC_InitStructure);
+
+		DMA_ITConfig(DMA1_Channel7, DMA_IT_TC | DMA_IT_TE, ENABLE);
+		DMA_ClearFlag(DMA1_FLAG_TC7);
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	if (bt_channel == BT3_MODULE)
+	{
+		//中断配置  
+		USART_ITConfig(USART3,USART_IT_TC,DISABLE);  
+		USART_ITConfig(USART3,USART_IT_RXNE,DISABLE);  
+		USART_ITConfig(USART3,USART_IT_IDLE,ENABLE);    
+
+		//配置USART3中断  
+		NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+		NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQChannel;               //通道设置为串口2中断    
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
+		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
+		NVIC_Init(&NVIC_InitStructure);  
+
+		/* Enable the DMA1 Channel2 Interrupt */
+		NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel2_IRQChannel;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+		NVIC_Init(&NVIC_InitStructure);
+
+		DMA_ITConfig(DMA1_Channel2, DMA_IT_TC | DMA_IT_TE, ENABLE);
+		DMA_ClearFlag(DMA1_FLAG_TC2);
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
+	if (bt_channel == BT4_MODULE)
+	{
+		//中断配置  
+		USART_ITConfig(UART4,USART_IT_TC,DISABLE);  
+		USART_ITConfig(UART4,USART_IT_RXNE,DISABLE);  
+		USART_ITConfig(UART4,USART_IT_IDLE,ENABLE);    
+
+		//配置UART4中断  
+		NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+		NVIC_InitStructure.NVIC_IRQChannel = UART4_IRQChannel;               //通道设置为串口2中断    
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
+		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
+		NVIC_Init(&NVIC_InitStructure);  
+
+		/* Enable the DMA2 Channel5 Interrupt */
+		NVIC_InitStructure.NVIC_IRQChannel = DMA2_Channel4_5_IRQChannel;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+		NVIC_Init(&NVIC_InitStructure);
+
+		DMA_ITConfig(DMA2_Channel5, DMA_IT_TC | DMA_IT_TE, ENABLE);
+		DMA_ClearFlag(DMA2_FLAG_TC5);
+	}
+#endif
 }
 
 
@@ -229,24 +669,119 @@ static void BT816_NVIC_config(void)
 * @param[in] unsigned char *pData 要发送的数据
 * @param[in] int length 要发送数据的长度
 */
-static void send_data_to_BT816S01(const unsigned char *pData, unsigned int length)
+static void send_data_to_BT(unsigned int bt_channel,const unsigned char *pData, unsigned int length)
 {
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	if (bt_channel == BT1_MODULE)
+	{
+		//while(length--)
+		//{
+		//	USART_SendData(USART1, *pData++);
+		//	while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET)
+		//	{
+		//	}
+		//}
+		//while(USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET){};
+
+		/* disable DMA */
+		DMA_Cmd(DMA1_Channel4, DISABLE);
+
+		/* set buffer address */
+		memcpy(BT816_send_buff[BT1_MODULE],pData,length);
+
+		DMA1_Channel4->CMAR = (u32)&BT816_send_buff[BT1_MODULE][0];
+		/* set size */
+		DMA1_Channel4->CNDTR = length;
+
+		USART_DMACmd(USART1, USART_DMAReq_Tx , ENABLE);
+		/* enable DMA */
+		DMA_Cmd(DMA1_Channel4, ENABLE);
+
+		while(DMA1_Channel4->CNDTR);
+		while(USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET){};
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	if (bt_channel == BT2_MODULE)
+	{
+		//while(length--)
+		//{
+		//	USART_SendData(USART2, *pData++);
+		//	while(USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET)
+		//	{
+		//	}
+		//}
+		//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET){};
+
+		/* disable DMA */
+		DMA_Cmd(DMA1_Channel7, DISABLE);
+
+		/* set buffer address */
+		memcpy(BT816_send_buff[BT2_MODULE],pData,length);
+
+		DMA1_Channel7->CMAR = (u32)&BT816_send_buff[BT2_MODULE][0];
+		/* set size */
+		DMA1_Channel7->CNDTR = length;
+
+		USART_DMACmd(USART2, USART_DMAReq_Tx , ENABLE);
+		/* enable DMA */
+		DMA_Cmd(DMA1_Channel7, ENABLE);
+
+		while(DMA1_Channel7->CNDTR);
+		while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET){};
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	if (bt_channel == BT3_MODULE)
+	{
+		//while(length--)
+		//{
+		//	USART_SendData(USART3, *pData++);
+		//	while(USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET)
+		//	{
+		//	}
+		//}
+		//while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET){};
+
+		/* disable DMA */
+		DMA_Cmd(DMA1_Channel2, DISABLE);
+
+		/* set buffer address */
+		memcpy(BT816_send_buff[BT3_MODULE],pData,length);
+
+		DMA1_Channel2->CMAR = (u32)&BT816_send_buff[BT3_MODULE][0];
+		/* set size */
+		DMA1_Channel2->CNDTR = length;
+
+		USART_DMACmd(USART3, USART_DMAReq_Tx , ENABLE);
+		/* enable DMA */
+		DMA_Cmd(DMA1_Channel2, ENABLE);
+
+		while(DMA1_Channel2->CNDTR);
+		while(USART_GetFlagStatus(USART3, USART_FLAG_TC) == RESET){};
+	}
+#endif
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
+	if (bt_channel == BT4_MODULE)
+	{
 	//while(length--)
 	//{
-	//	USART_SendData(USART2, *pData++);
-	//	while(USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET)
+	//	USART_SendData(UART4, *pData++);
+	//	while(USART_GetFlagStatus(UART4, USART_FLAG_TXE) == RESET)
 	//	{
 	//	}
 	//}
-	//while(USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET){};
+	//while(USART_GetFlagStatus(UART4, USART_FLAG_TC) == RESET){};
 
 	/* disable DMA */
 	DMA_Cmd(DMA2_Channel5, DISABLE);
 
 	/* set buffer address */
-	memcpy(BT816_send_buff,pData,length);
+	memcpy(BT816_send_buff[BT4_MODULE],pData,length);
 
-	DMA2_Channel5->CMAR = (u32)&BT816_send_buff[0];
+	DMA2_Channel5->CMAR = (u32)&BT816_send_buff[BT4_MODULE][0];
 	/* set size */
 	DMA2_Channel5->CNDTR = length;
 
@@ -256,17 +791,59 @@ static void send_data_to_BT816S01(const unsigned char *pData, unsigned int lengt
 
 	while(DMA2_Channel5->CNDTR);
 	while(USART_GetFlagStatus(UART4, USART_FLAG_TC) == RESET){};
+	}
+#endif
 }
 
 
 /*
  * @brief 清空接收蓝牙模块响应数据的buffer
 */
-static void BT816_reset_resVar(void)
+static void BT816_reset_resVar(unsigned int bt_channel)
 {
-	BT816_res.DataPos = 0;
-	BT816_res.DataLength = 0;
-	BT816_res.status	 = BT816_RES_INIT;
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	if (bt_channel == BT1_MODULE)
+	{
+		BT816_res[bt_channel].DataPos = 0;
+		BT816_res[bt_channel].DataLength = 0;
+		BT816_res[bt_channel].status	 = BT816_RES_INIT;
+		bt_connect_status &= ~(1<<BT1_MODULE);
+		DMA1_Channel5->CNDTR = BT816_RES_BUFFER_LEN; 
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	if (bt_channel == BT2_MODULE)
+	{
+		BT816_res[bt_channel].DataPos = 0;
+		BT816_res[bt_channel].DataLength = 0;
+		BT816_res[bt_channel].status	 = BT816_RES_INIT;
+		bt_connect_status &= ~(1<<BT2_MODULE);
+		DMA1_Channel6->CNDTR = BT816_RES_BUFFER_LEN; 
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	if (bt_channel == BT3_MODULE)
+	{
+		BT816_res[bt_channel].DataPos = 0;
+		BT816_res[bt_channel].DataLength = 0;
+		BT816_res[bt_channel].status	 = BT816_RES_INIT;
+		bt_connect_status &= ~(1<<BT3_MODULE);
+		DMA1_Channel3->CNDTR = BT816_RES_BUFFER_LEN; 
+	}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
+	if (bt_channel == BT4_MODULE)
+	{
+	BT816_res[bt_channel].DataPos = 0;
+	BT816_res[bt_channel].DataLength = 0;
+	BT816_res[bt_channel].status	 = BT816_RES_INIT;
+	bt_connect_status &= ~(1<<BT4_MODULE);
+	DMA2_Channel3->CNDTR = BT816_RES_BUFFER_LEN;
+	}
+#endif
 }
 
 
@@ -276,86 +853,243 @@ static void BT816_reset_resVar(void)
 * @return 0:success put in buffer
 *        -1:fail
 */
-int BT816_RxISRHandler(unsigned char *res, unsigned int res_len)
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+int BT816_Channel1_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
-	if (res_len > 5)
+	if (BT1_CONNECT)
 	{
-		BT816_res.DataLength = res_len;
-		if ((res[0] == 0x0d)&&(res[1] == 0x0a)&&(res[2] == '+')			\
-			&&(res[res_len-2] == 0x0d)&&(res[res_len-1] == 0x0a))
+		//已经处于连接状态，蓝牙模块进入数据透传模式
+		set_BT1_BUSY();
+		ringbuffer_put(&spp_ringbuf[BT1_MODULE],res,res_len);
+		DMA1_Channel5->CNDTR = BT816_RES_BUFFER_LEN;
+		if (ringbuffer_data_len(&spp_ringbuf[BT1_MODULE]) >= RING_BUFF_FULL_TH)
 		{
-#ifdef SPP_MODE
-			if (res_len > 11)
-			{
-				if(memcmp(&res[3],"SPPREC=",7) == 0)
-				{
-					len = 0;
-					for (i = 10; i < res_len-2;i++)
-					{
-						if (res[i] == ',')
-						{
-							break;
-						}
-						len*=10;
-						len += res[i]-0x30;
-					}
-
-					if (len)
-					{
-						ringbuffer_put(&spp_ringbuf,&res[i+1],len);
-					}
-
-					return 0;
-				}
-			}
-
-#endif
-
-			if (BT816_res.status == BT816_RES_INIT)
-			{
-				for (i = 3; i < res_len-2;i++)
-				{
-					if (res[i] == '#')
-					{
-						if (res[i+1] == '0')
-						{
-							BT816_res.status = BT816_RES_SUCCESS;
-						}
-						else if (res[i+1] == '1')
-						{
-							BT816_res.status = BT816_RES_INVALID_STATE;
-						}
-						else if (res[i+1] == '2')
-						{
-							BT816_res.status = BT816_RES_INVALID_SYNTAX;
-						}
-						else
-						{
-							BT816_res.status = BT816_RES_BUSY;
-						}
-						break;
-					}
-
-					if (res[i] == '=')
-					{
-						BT816_res.status = BT816_RES_PAYLOAD;
-						break;
-					}
-				}
-			}
+			set_BT1_BUSY();
 		}
 		else
 		{
-			BT816_res.status = BT816_RES_UNKOWN;
+			set_BT1_FREE();
+		}	
+	}
+	else
+	{
+		if (res_len > 5)
+		{
+			BT816_res[BT1_MODULE].DataLength = res_len;
+			if ((res[0] == 0x0d)&&(res[1] == 0x0a)			\
+				&&(res[res_len-2] == 0x0d)&&(res[res_len-1] == 0x0a))
+			{
+				if (BT816_res[BT1_MODULE].status == BT816_RES_INIT)
+				{
+					BT816_res[BT1_MODULE].status = BT816_RES_INVALID_STATE;
+					for (i = 3; i < res_len-2;i++)
+					{
+
+						if ((res[i] == 'o')&&(res[i+1] == 'k'))
+						{
+							BT816_res[BT1_MODULE].status = BT816_RES_SUCCESS;
+							break;
+						}
+
+						if (res[i] == '=')
+						{
+							BT816_res[BT1_MODULE].status = BT816_RES_PAYLOAD;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				BT816_res[BT1_MODULE].status = BT816_RES_UNKOWN;
+			}
 		}
 	}
+	
         
         return 0;
 }
+#endif
 
-#define EXPECT_RES_FORMAT1_TYPE		1
-#define EXPECT_RES_FORMAT2_TYPE		2
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+int BT816_Channel2_RxISRHandler(unsigned char *res, unsigned int res_len)
+{	
+	int i,len;
+	if (BT2_CONNECT)
+	{
+		//已经处于连接状态，蓝牙模块进入数据透传模式
+		set_BT2_BUSY();
+		ringbuffer_put(&spp_ringbuf[BT2_MODULE],res,res_len);
+		DMA1_Channel6->CNDTR = BT816_RES_BUFFER_LEN;
+		if (ringbuffer_data_len(&spp_ringbuf[BT2_MODULE]) >= RING_BUFF_FULL_TH)
+		{
+			set_BT2_BUSY();
+		}
+		else
+		{
+			set_BT2_FREE();
+		}
+	}
+	else
+	{
+		if (res_len > 5)
+		{
+			BT816_res[BT2_MODULE].DataLength = res_len;
+			if ((res[0] == 0x0d)&&(res[1] == 0x0a)			\
+				&&(res[res_len-2] == 0x0d)&&(res[res_len-1] == 0x0a))
+			{
+				if (BT816_res[BT2_MODULE].status == BT816_RES_INIT)
+				{
+					BT816_res[BT2_MODULE].status = BT816_RES_INVALID_STATE;
+					for (i = 3; i < res_len-2;i++)
+					{
+
+						if ((res[i] == 'o')&&(res[i+1] == 'k'))
+						{
+							BT816_res[BT2_MODULE].status = BT816_RES_SUCCESS;
+							break;
+						}
+
+						if (res[i] == '=')
+						{
+							BT816_res[BT2_MODULE].status = BT816_RES_PAYLOAD;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				BT816_res[BT2_MODULE].status = BT816_RES_UNKOWN;
+			}
+		}
+	}
+
+
+	return 0;
+}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+int BT816_Channel3_RxISRHandler(unsigned char *res, unsigned int res_len)
+{	
+	int i,len;
+	if (BT3_CONNECT)
+	{
+		//已经处于连接状态，蓝牙模块进入数据透传模式
+		set_BT3_BUSY();
+		ringbuffer_put(&spp_ringbuf[BT3_MODULE],res,res_len);
+		DMA1_Channel3->CNDTR = BT816_RES_BUFFER_LEN;
+		if (ringbuffer_data_len(&spp_ringbuf[BT3_MODULE]) >= RING_BUFF_FULL_TH)
+		{
+			set_BT3_BUSY();
+		}
+		else
+		{
+			set_BT3_FREE();
+		}
+	}
+	else
+	{
+		if (res_len > 5)
+		{
+			BT816_res[BT3_MODULE].DataLength = res_len;
+			if ((res[0] == 0x0d)&&(res[1] == 0x0a)			\
+				&&(res[res_len-2] == 0x0d)&&(res[res_len-1] == 0x0a))
+			{
+				if (BT816_res[BT3_MODULE].status == BT816_RES_INIT)
+				{
+					BT816_res[BT3_MODULE].status = BT816_RES_INVALID_STATE;
+					for (i = 3; i < res_len-2;i++)
+					{
+
+						if ((res[i] == 'o')&&(res[i+1] == 'k'))
+						{
+							BT816_res[BT3_MODULE].status = BT816_RES_SUCCESS;
+							break;
+						}
+
+						if (res[i] == '=')
+						{
+							BT816_res[BT3_MODULE].status = BT816_RES_PAYLOAD;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				BT816_res[BT3_MODULE].status = BT816_RES_UNKOWN;
+			}
+		}
+	}
+
+
+	return 0;
+}
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
+int BT816_Channel4_RxISRHandler(unsigned char *res, unsigned int res_len)
+{	
+	int i,len;
+	if (BT4_CONNECT)
+	{
+		//已经处于连接状态，蓝牙模块进入数据透传模式
+		set_BT4_BUSY();
+		ringbuffer_put(&spp_ringbuf[BT4_MODULE],res,res_len);
+		DMA2_Channel3->CNDTR = BT816_RES_BUFFER_LEN;
+		if (ringbuffer_data_len(&spp_ringbuf[BT4_MODULE]) >= RING_BUFF_FULL_TH)
+		{
+			set_BT4_BUSY();
+		}
+		else
+		{
+			set_BT4_FREE();
+		}
+	}
+	else
+	{
+		if (res_len > 5)
+		{
+			BT816_res[BT4_MODULE].DataLength = res_len;
+			if ((res[0] == 0x0d)&&(res[1] == 0x0a)			\
+				&&(res[res_len-2] == 0x0d)&&(res[res_len-1] == 0x0a))
+			{
+				if (BT816_res[BT4_MODULE].status == BT816_RES_INIT)
+				{
+					BT816_res[BT4_MODULE].status = BT816_RES_INVALID_STATE;
+					for (i = 3; i < res_len-2;i++)
+					{
+
+						if ((res[i] == 'o')&&(res[i+1] == 'k'))
+						{
+							BT816_res[BT4_MODULE].status = BT816_RES_SUCCESS;
+							break;
+						}
+
+						if (res[i] == '=')
+						{
+							BT816_res[BT4_MODULE].status = BT816_RES_PAYLOAD;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				BT816_res[BT4_MODULE].status = BT816_RES_UNKOWN;
+			}
+		}
+	}
+
+
+	return 0;
+}
+#endif
+#define EXPECT_RES_FORMAT1_TYPE		1		//设置命令的响应，OK or Error
+#define EXPECT_RES_FORMAT2_TYPE		2		//查询命令的响应，payload
 
 /**
 * @brief  发命令给蓝牙模块BT816S01,并等待响应结果
@@ -370,27 +1104,22 @@ int BT816_RxISRHandler(unsigned char *res, unsigned int res_len)
 *				-3：响应超时
 * @note	等待一个响应帧的命令
 */
-static int BT816_write_cmd(const unsigned char *pData, unsigned int length,unsigned char type)
+static int BT816_write_cmd(unsigned int bt_channel,const unsigned char *pData, unsigned int length,unsigned char type)
 {
 	unsigned int	wait_cnt;
-	send_data_to_BT816S01(pData, length);
-	BT816_reset_resVar();
+	send_data_to_BT(bt_channel,pData, length);
+	BT816_reset_resVar(bt_channel);
 	wait_cnt = 200;
 	while (wait_cnt)
 	{
-		if (((BT816_res.status == BT816_RES_SUCCESS)&&(type == EXPECT_RES_FORMAT1_TYPE)) || ((BT816_res.status == BT816_RES_PAYLOAD)&&(type == EXPECT_RES_FORMAT2_TYPE)))
+		if (((BT816_res[bt_channel].status == BT816_RES_SUCCESS)&&(type == EXPECT_RES_FORMAT1_TYPE)) || ((BT816_res[bt_channel].status == BT816_RES_PAYLOAD)&&(type == EXPECT_RES_FORMAT2_TYPE)))
 		{
 			return 0;
 		}
-		else if (BT816_res.status == BT816_RES_INVALID_STATE || BT816_res.status == BT816_RES_INVALID_SYNTAX || BT816_res.status == BT816_RES_BUSY)
+		else if(BT816_res[bt_channel].status == BT816_RES_INVALID_STATE)
 		{
 			return -1;
 		}
-		else if (BT816_res.status == BT816_RES_UNKOWN)
-		{
-			return -2;
-		}
-
 		//OSTimeDlyHMSM(0,0,0,20);
 		delay_ms(20);
                 wait_cnt--;
@@ -411,18 +1140,48 @@ int BT816_Reset(void)
 	unsigned int	wait_cnt,i,j;
 	unsigned char	stat;
 	int ret;
+
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	//拉低复位信号100ms
+	GPIO_ResetBits(GPIOB, GPIO_Pin_9);
+	delay_ms(100);
+    GPIO_SetBits(GPIOB, GPIO_Pin_9);
+
+	BT816_reset_resVar(BT1_MODULE);
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	//拉低复位信号100ms
+	GPIO_ResetBits(GPIOC, GPIO_Pin_3);
+	delay_ms(100);
+	GPIO_SetBits(GPIOC, GPIO_Pin_3);
+
+	BT816_reset_resVar(BT2_MODULE);
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	//拉低复位信号100ms
+	GPIO_ResetBits(GPIOE, GPIO_Pin_13);
+	delay_ms(100);
+	GPIO_SetBits(GPIOE, GPIO_Pin_13);
+
+	BT816_reset_resVar(BT3_MODULE);
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
 	//拉低复位信号100ms
 	GPIO_ResetBits(GPIOD, GPIO_Pin_1);
-	//OSTimeDlyHMSM(0,0,0,100);
 	delay_ms(100);
-    GPIO_SetBits(GPIOD, GPIO_Pin_1);
+	GPIO_SetBits(GPIOD, GPIO_Pin_1);
 
-	BT816_reset_resVar();
+	BT816_reset_resVar(BT4_MODULE);
+#endif
+#if 0
 	wait_cnt = 20;
 	ret = 0;
 	while (wait_cnt)
 	{
-		if (BT816_res.status == BT816_RES_PAYLOAD)
+		if (BT816_res[].status == BT816_RES_PAYLOAD)
 		{
 			USART_Cmd(UART4, DISABLE);
 			stat = 0;
@@ -500,37 +1259,42 @@ int BT816_Reset(void)
                 wait_cnt--;
                 delay_ms(100);
 	}
+
 	return -1;
+#endif
+
+	delay_ms(1000);
+	return 0;
 }
 
 /*
  * @brief 查询蓝牙模块BT816的版本号
  * @param[out]  unsigned char *ver_buffer  返回查询到的版本号，如果为空表示查询失败
 */
-int BT816_query_version(unsigned char *ver_buffer)
+int BT816_query_version(unsigned int bt_channel,unsigned char *ver_buffer)
 {
 	unsigned char	buffer[21];
 	int		i,ret;
 
 	assert(ver_buffer != 0);
 	ver_buffer[0] = 0;
-	memcpy(buffer,"AT+BDVER=?\x0d\x0a",12);
-	ret = BT816_write_cmd((const unsigned char*)buffer,12,EXPECT_RES_FORMAT2_TYPE);
+	memcpy(buffer,"AT+VER\x0d\x0a",8);
+	ret = BT816_write_cmd(bt_channel,(const unsigned char*)buffer,8,EXPECT_RES_FORMAT2_TYPE);
 	if (ret)
 	{
 		return ret;
 	}
 
-	if (memcmp(&BT816_res.DataBuffer[3],"BDVER",5) == 0)
+	if (memcmp(&BT816_res[bt_channel].DataBuffer[3],"VER=",4) == 0)
 	{
-		for (i = 0; i < ((BT816_res.DataLength-11) > 20)?20:(BT816_res.DataLength-11);i++)
+		for (i = 0; i < ((BT816_res[bt_channel].DataLength-9) > 20)?20:(BT816_res[bt_channel].DataLength-9);i++)
 		{
-			if (BT816_res.DataBuffer[9+i] == 0x0d)
+			if (BT816_res[bt_channel].DataBuffer[7+i] == 0x0d)
 			{
 				break;
 			}
 
-			ver_buffer[i] = BT816_res.DataBuffer[9+i];
+			ver_buffer[i] = BT816_res[bt_channel].DataBuffer[7+i];
 		}
 		ver_buffer[i] = 0;
 		return 0;
@@ -547,31 +1311,31 @@ int BT816_query_version(unsigned char *ver_buffer)
  * @note 从手册暂时没有看到支持的名称的最大长度是多少，所以如果设置的名称太长可能会导致缓冲区溢出
  *       在此接口中将设备名称限定为最长支持20个字节
 */
-int BT816_query_name(unsigned char *name)
+int BT816_query_name(unsigned int bt_channel,unsigned char *name)
 {
 	unsigned char	buffer[15];
 	int		i,ret;
 
 	assert(name != 0);
 	name[0] = 0;
-	memcpy(buffer,"AT+BDNAME=?\x0d\x0a",13);
+	memcpy(buffer,"AT+NAME\x0d\x0a",9);
 
-	ret = BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT2_TYPE);
+	ret = BT816_write_cmd(bt_channel,(const unsigned char*)buffer,9,EXPECT_RES_FORMAT2_TYPE);
 	if (ret)
 	{
 		return ret;
 	}
 
-	if (memcmp(&BT816_res.DataBuffer[3],"BDNAME",6) == 0)
+	if (memcmp(&BT816_res[bt_channel].DataBuffer[3],"NAME",4) == 0)
 	{
-		for (i = 0; i < ((BT816_res.DataLength-12) > 20)?20:(BT816_res.DataLength-12);i++)
+		for (i = 0; i < ((BT816_res[bt_channel].DataLength-10) > 20)?20:(BT816_res[bt_channel].DataLength-10);i++)
 		{
-			if (BT816_res.DataBuffer[10+i] == 0x0d)
+			if (BT816_res[bt_channel].DataBuffer[8+i] == 0x0d)
 			{
 				break;
 			}
 
-			name[i] = BT816_res.DataBuffer[10+i];
+			name[i] = BT816_res[bt_channel].DataBuffer[8+i];
 		}
 		name[i] = 0;
 		return 0;
@@ -585,422 +1349,145 @@ int BT816_query_name(unsigned char *name)
  * @param[in]  unsigned char *name  设置的名称,字符串
  * @return 0: 设置成功		else：设置失败
  * @note 从手册暂时没有看到支持的名称的最大长度是多少，所以如果设置的名称太长可能会设置失败
- *       在此接口中将设备名称限定为最长支持20个字节
+ *       在此接口中将设备名称限定为最长支持22个字节
 */
-int BT816_set_name(unsigned char *name)
+int BT816_set_name(unsigned int bt_channel,unsigned char *name)
 {
 	unsigned char	buffer[33];
 	int		len;
 
 	assert(name != 0);
-	memcpy(buffer,"AT+BDNAME=",10);
+	memcpy(buffer,"AT+NAME=",8);
 	len = strlen((char const*)name);
-	if (len>20)
+	if (len>22)
 	{
-		memcpy(buffer+10,name,20);
+		memcpy(buffer+8,name,22);
 		buffer[30] = 0x0d;
 		buffer[31] = 0x0a;
 		len = 32;
 	}
 	else
 	{
-		memcpy(buffer+10,name,len);
-		buffer[10+len] = 0x0d;
-		buffer[11+len] = 0x0a;
-		len += 12;
+		memcpy(buffer+8,name,len);
+		buffer[8+len] = 0x0d;
+		buffer[9+len] = 0x0a;
+		len += 10;
 	}
 
-	return BT816_write_cmd((const unsigned char*)buffer,len,EXPECT_RES_FORMAT2_TYPE); 
+	return BT816_write_cmd(bt_channel,(const unsigned char*)buffer,len,EXPECT_RES_FORMAT1_TYPE); 
 }
 
-/*
- * @brief 设置蓝牙模块的设备名称
- * @param[in]  unsigned char *name  设置的名称,字符串
- * @return 0: 设置成功		else：设置失败
- * @note 从手册暂时没有看到支持的名称的最大长度是多少，所以如果设置的名称太长可能会设置失败
- *       在此接口中将设备名称限定为最长支持20个字节
-*/
-int BT816_set_baudrate(BT816_BAUDRATE baudrate)
-{
-	unsigned char	buffer[20];
-	int		len;
-
-	memcpy(buffer,"AT+BDBAUD=",10);
-	len = 17;
-	switch(baudrate)
-	{
-	case BAUDRATE_9600:
-		memcpy(buffer+10,"9600",4);
-		buffer[14] = 0x0d;
-		buffer[15] = 0x0a;
-		len = 16;
-		break;
-	case BAUDRATE_19200:
-		memcpy(buffer+10,"19200",5);
-		buffer[15] = 0x0d;
-		buffer[16] = 0x0a;
-		break;
-	case BAUDRATE_38400:
-		memcpy(buffer+10,"38400",5);
-		buffer[15] = 0x0d;
-		buffer[16] = 0x0a;
-		break;
-	case BAUDRATE_43000:
-		memcpy(buffer+10,"43000",5);
-		buffer[15] = 0x0d;
-		buffer[16] = 0x0a;
-		break;
-	case BAUDRATE_57600:
-		memcpy(buffer+10,"57600",5);
-		buffer[15] = 0x0d;
-		buffer[16] = 0x0a;
-		break;
-	case BAUDRATE_115200:
-		memcpy(buffer+10,"115200",6);
-		buffer[16] = 0x0d;
-		buffer[17] = 0x0a;
-		len = 18;
-		break;
-	}
-	return BT816_write_cmd((const unsigned char*)buffer,len,EXPECT_RES_FORMAT2_TYPE);
-}
-
-/*
- * @brief 使蓝牙模块进入配对模式
- * @param[in]      
- * @return 0: 设置成功		else：设置失败
- * @note enter into pair mode will cause disconnection of current mode
-*/
-int BT816_enter_pair_mode(void)
-{
-	unsigned char	buffer[15];
-
-	memcpy(buffer,"AT+BDMODE=2\x0d\x0a",13);
-	return BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT2_TYPE);
-}
-
-/*
- * @brief 设置蓝牙模块的HID键值传输的模式
- * @param[in]  unsigned char mode  蓝牙模块的HID键值传输模式     
- * @return 0: 设置成功		else：设置失败
-*/
-int BT816_set_hid_trans_mode(BT_HID_TRANS_MODE mode)
-{
-	unsigned char	buffer[15];
-
-	memcpy(buffer,"AT+BDTP=",8);
-	if (mode == BT_HID_TRANS_MODE_AT)
-	{
-		buffer[8] = '0';
-	}
-	else
-	{
-		buffer[8] = '1';
-	}
-	buffer[9] = 0x0d;
-	buffer[10] = 0x0a;
-	//return  BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT2_TYPE);
-	return  BT816_write_cmd((const unsigned char*)buffer,11,EXPECT_RES_FORMAT1_TYPE);
-	//实测时发现此命令的响应为:+BDMODE#0,属于format1的响应
-}
-/*
- * @brief 设置蓝牙模块的工作模式(profile = HID、SPP、BLE)
- * @param[in]  unsigned char mode  蓝牙模块的工作模式     
- * @return 0: 设置成功		else：设置失败
-*/
-int BT816_set_profile(BT_PROFILE mode)
-{
-	unsigned char	buffer[15];
-
-	memcpy(buffer,"AT+BDMODE=",10);
-	if (mode == BT_PROFILE_HID)
-	{
-		buffer[10] = '2';
-	}
-	else if (mode == BT_PROFILE_SPP)
-	{
-		buffer[10] = '1';
-	}
-	else
-	{
-		buffer[10] = '3';
-	}
-	buffer[11] = 0x0d;
-	buffer[12] = 0x0a;
-	//return  BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT2_TYPE);
-	return  BT816_write_cmd((const unsigned char*)buffer,13,EXPECT_RES_FORMAT1_TYPE);
-	//实测时发现此命令的响应为:+BDMODE#0,属于format1的响应
-}
 
 /*
  * @brief 查询蓝牙模块HID当前的连接状态  	
  * @return <0 ：发送失败	0: unkown 	1: connected    2： disconnect
  * @note 
 */
-int BT816_hid_status(void)
+int BT816_connect_status(unsigned int bt_channel)
 {
-#if 0
-	unsigned char	buffer[15];
-	int		i,ret;
-
-	memcpy(buffer,"AT+HIDSTAT=?\x0d\x0a",14);
-
-	ret = BT816_write_cmd((const unsigned char*)buffer,14,EXPECT_RES_FORMAT2_TYPE);
-	if (ret)
-	{
-		return ret;
-	}
-
-	if (memcmp(&BT816_res.DataBuffer[3],"HIDSTAT",7) == 0)
-	{
-		if (BT816_res.DataBuffer[11] == '3')
-		{
-			return BT_MODULE_STATUS_CONNECTED;
-		}
-		else
-		{
-			return BT_MODULE_STATUS_DISCONNECT;
-		}
-	}
-
-	return -2;
-#endif
-
 	unsigned int i;
-	if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_8))
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	if (bt_channel == BT1_MODULE)
 	{
-		for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
-		if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_8))
+		if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_7))
 		{
-			return BT_MODULE_STATUS_CONNECTED;
+			for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
+			if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_7))
+			{
+				bt_connect_status |= (1<<BT1_MODULE);
+				return BT_MODULE_STATUS_CONNECTED;
+			}
+			else
+			{
+				bt_connect_status &= ~(1<<BT1_MODULE);
+				return BT_MODULE_STATUS_DISCONNECT;
+			}
 		}
 		else
 		{
+			bt_connect_status &= ~(1<<BT1_MODULE);
 			return BT_MODULE_STATUS_DISCONNECT;
 		}
 	}
-	else
-		return BT_MODULE_STATUS_DISCONNECT;
-
-}
-
-/*
- * @brief 蓝牙模块试图连接最近一次连接过的主机
- * @return 0: 命令响应成功		else：命令响应失败
- * @note 由于此命令可能耗时比较长，所以此接口不等待连接的结果返回即退出
- *       如果需要知道是否连接成功，可以他通过查询状态的接口去获取
-*/
-int BT816_hid_connect_last_host(void)
-{
-	unsigned char	buffer[15];
-
-	memcpy(buffer,"AT+HIDCONN\x0d\x0a",12);
-	return BT816_write_cmd((const unsigned char*)buffer,12,EXPECT_RES_FORMAT1_TYPE);
-}
-
-/*
- * @brief 蓝牙模块试图断开与当前主机的连接
- * @return 0: 命令响应成功		else：命令响应失败
- * @note 由于此命令可能耗时比较长，所以此接口不等待断开的结果返回即退出
- *       如果需要知道是否断开成功，可以他通过查询状态的接口去获取
-*/
-int BT816_hid_disconnect(void)
-{
-	unsigned char	buffer[15];
-
-	memcpy(buffer,"AT+HIDDISC\x0d\x0a",12);
-	return BT816_write_cmd((const unsigned char*)buffer,12,EXPECT_RES_FORMAT1_TYPE);
-}
-
-/*
- * @brief 设置蓝牙模块是否使能IOS soft keyboard
- * @return 0: 设置成功		else：设置失败
-*/
-int BT816_toggle_ioskeypad(void)
-{
-	unsigned char	buffer[15];
-
-	memcpy(buffer,"AT+HIDOSK\x0d\x0a",11);
-	return BT816_write_cmd((const unsigned char*)buffer,11,EXPECT_RES_FORMAT2_TYPE);
-}
-
-
-#define ENTER_KEY             0x82
-#define ESCAPE_KEY            0x83
-#define BACKSPACE_KEY         0x84
-#define TAB_KEY               0x85
-#define SPACE_KEY             0x86
-#define CAPS_LOCK_KEY         0x87
-
-/*
- * @brief 通过蓝牙模块的HID模式发送ASCII字符串
- * @param[in]  unsigned char *str		需要发送的ASCII字符缓冲
- * @param[in]  unsigned int  len	    待发送字符数
- * @return 0: 发送成功		else：发送失败
- * @note   如果要发送的字符串太长，就会被拆包，其实理论上一次可以发送500字节，但是考虑到栈可能会溢出的风险，所以被拆包成40字节短包发送
- *         理论上可能会影响字符串的发送速度
-*/
-int BT816_hid_send(unsigned char *str,unsigned int len)
-{
-#if 1		//AT命令模式下发送键值
-	unsigned char	buffer[60];
-	unsigned char	str_len;
-	unsigned char	*p;
-	int ret;
-
-	p = str;
-	while (len > 40)
-	{
-		memcpy(buffer,"AT+HIDSEND=",11);
-		hex_to_str(40,10,0,buffer+11);
-		buffer[13]=',';
-		memcpy(buffer+14,p,40);
-		buffer[54]=0x0d;
-		buffer[55]=0x0a;
-		ret = BT816_write_cmd((const unsigned char*)buffer,56,EXPECT_RES_FORMAT1_TYPE);
-		if (ret)
-		{
-			return ret;
-		}
-		len -= 40;
-		p += 40;
-	}
-
-	memcpy(buffer,"AT+HIDSEND=",11);
-	str_len = hex_to_str(len+2,10,0,buffer+11);
-	buffer[11+str_len]=',';
-	memcpy(buffer+12+str_len,p,len);
-	buffer[12+str_len+len]=ENTER_KEY;
-
-	buffer[13+str_len+len]=0x0d;
-	buffer[14+str_len+len]=0x0a;
-	ret = BT816_write_cmd((const unsigned char*)buffer,15+str_len+len,EXPECT_RES_FORMAT1_TYPE);
-	return ret;
 #endif
 
-#if 0		//透传模式下发送键值
-	send_data_to_BT816S01(str,len);
-	send_data_to_BT816S01("\x0d\x0a",2);
-	return 0;
-#endif
-}
-
-
-/*
- * @brief 设置蓝牙模块是否使能自动连接特性
- * @param[in]	0: DIABLE		1:ENABLE
- * @return 0: 设置成功		else：设置失败
-*/
-int BT816_set_autocon(unsigned int	enable)
-{
-	unsigned char	buffer[15];
-
-	memcpy(buffer,"AT+HIDACEN=",11);
-	if (enable)
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	if (bt_channel == BT2_MODULE)
 	{
-		buffer[11] = '1';
-	}
-	else
-	{
-		buffer[11] = '0';
-	}
-	buffer[12] = 0x0d;
-	buffer[13] = 0x0a;
-	return  BT816_write_cmd((const unsigned char*)buffer,14,EXPECT_RES_FORMAT1_TYPE);	//实测返回的是format1的response
-}
-
-
-/*
- * @brief 设置蓝牙模块的HID传输延时
- * @param[in]	unsigned int	delay		单位ms
- * @return 0: 设置成功		else：设置失败
-*/
-int BT816_hid_set_delay(unsigned int	delay)
-{
-	unsigned char	buffer[20];
-	int	len;
-
-	memcpy(buffer,"AT+HIDSDLY=",11);
-	len = hex_to_str(delay,10,0,buffer+11);
-	buffer[11+len] = 0x0d;
-	buffer[12+len] = 0x0a;
-	return  BT816_write_cmd((const unsigned char*)buffer,13+len,EXPECT_RES_FORMAT2_TYPE);	//实测返回的是format1的response
-}
-
-/*
- * @brief 使蓝牙模块BT816进入睡眠模式
-*/
-void BT816_enter_sleep(void)
-{
-	GPIO_ResetBits(GPIOB,GPIO_Pin_12);
-	BT816_power_state = SLEEP;
-}
-
-/*
- * @brief 唤醒蓝牙模块BT816
-*/
-void BT816_wakeup(void)
-{
-	if (BT816_power_state == SLEEP)
-	{
-		GPIO_SetBits(GPIOB,GPIO_Pin_12);
-		BT816_power_state = WAKEUP;
-		//OSTimeDlyHMSM(0,0,0,100);
-                delay_ms(100);
-	}
-}
-
-/*
- * @brief 查询蓝牙模块SPP当前的连接状态  	
- * @return <0 ：发送失败	0: unkown 	1: connected    2： disconnect
- * @note 
-*/
-int BT816_spp_status(void)
-{
-#if 0
-	unsigned char	buffer[15];
-	int		i,ret;
-
-	memcpy(buffer,"AT+SPPSTAT=?\x0d\x0a",14);
-
-	ret = BT816_write_cmd((const unsigned char*)buffer,14,EXPECT_RES_FORMAT2_TYPE);
-	if (ret)
-	{
-		return ret;
-	}
-
-	if (memcmp(&BT816_res.DataBuffer[3],"SPPSTAT",7) == 0)
-	{
-		if (BT816_res.DataBuffer[11] == '3')
+		if(GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_2))
 		{
-			return BT_MODULE_STATUS_CONNECTED;
+			for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
+			if(GPIO_ReadInputDataBit(GPIOC,GPIO_Pin_2))
+			{
+				bt_connect_status |= (1<<BT2_MODULE);
+				return BT_MODULE_STATUS_CONNECTED;
+			}
+			else
+			{
+				bt_connect_status &= ~(1<<BT2_MODULE);
+				return BT_MODULE_STATUS_DISCONNECT;
+			}
 		}
 		else
 		{
+			bt_connect_status &= ~(1<<BT2_MODULE);
 			return BT_MODULE_STATUS_DISCONNECT;
 		}
 	}
-
-	return -2;
 #endif
 
-	unsigned int i;
-	if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_8))
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	if (bt_channel == BT3_MODULE)
 	{
-		for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
-		if(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_8))
+		if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_14))
 		{
-			return BT_MODULE_STATUS_CONNECTED;
+			for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
+			if(GPIO_ReadInputDataBit(GPIOE,GPIO_Pin_14))
+			{
+				bt_connect_status |= (1<<BT3_MODULE);
+				return BT_MODULE_STATUS_CONNECTED;
+			}
+			else
+			{
+				bt_connect_status &= ~(1<<BT3_MODULE);
+				return BT_MODULE_STATUS_DISCONNECT;
+			}
 		}
 		else
 		{
+			bt_connect_status &= ~(1<<BT3_MODULE);
 			return BT_MODULE_STATUS_DISCONNECT;
 		}
 	}
-	else
-		return BT_MODULE_STATUS_DISCONNECT;
+#endif
+
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
+	if (bt_channel == BT4_MODULE)
+	{
+		if(GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_3))
+		{
+			for (i=0;i < 2000;i++);		//延时一小段时间，防止是因为抖动造成的
+			if(GPIO_ReadInputDataBit(GPIOD,GPIO_Pin_3))
+			{
+				bt_connect_status |= (1<<BT4_MODULE);
+				return BT_MODULE_STATUS_CONNECTED;
+			}
+			else
+			{
+				bt_connect_status &= ~(1<<BT4_MODULE);
+				return BT_MODULE_STATUS_DISCONNECT;
+			}
+		}
+		else
+		{
+			bt_connect_status &= ~(1<<BT4_MODULE);
+			return BT_MODULE_STATUS_DISCONNECT;
+		}
+	}
+#endif
 
 }
+
 
 /*
  * @brief 蓝牙模块BT816的初始化
@@ -1008,15 +1495,18 @@ int BT816_spp_status(void)
 int BT816_init(void)
 {
 	unsigned char	str[21];
-	int ret;
+	int ret,i;
+	for (i = 0; i < MAX_PT_CHANNEL;i++)
+	{
+		BT816_res[i].DataBuffer = BT816_recbuffer[i];
+		BT816_reset_resVar(i);
+		//初始化一个SPP的环形缓冲区
+		ringbuffer_init(&spp_ringbuf[i],spp_rec_buffer[i],SPP_BUFFER_LEN);
 
-	BT816_res.DataBuffer = BT816_recbuffer;
-	BT816_reset_resVar();
-        //初始化一个SPP的环形缓冲区
-	ringbuffer_init(&spp_ringbuf,spp_rec_buffer,SPP_BUFFER_LEN);
-        
-	BT816_GPIO_config(115200);		//default波特率
-	BT816_NVIC_config();
+		BT816_GPIO_config(i,115200);		//default波特率
+		BT816_NVIC_config(i);
+	}
+
 	ret = BT816_Reset();
 	if(ret < 0)
 	{
@@ -1027,103 +1517,66 @@ int BT816_init(void)
 		}
 	}
 
-#ifdef HID_MODE
-	if ((ret&0x02) == 0x02)
-	{
-		if (BT816_set_profile(BT_PROFILE_HID))
-		{
-			return -2;
-		}
-	}
-
-	if ((ret & 0x01) == 1)
-	{
-		if (BT816_set_hid_trans_mode(BT_HID_TRANS_MODE_AT))
-		{ 
-			return -3;
-		}
-	}
-
-	
-	if (BT816_query_name(str))
-	{
-		return -4;
-	}
-
-	if (memcmp(str,"H520B",5) != 0)
-	{
-		if (BT816_set_name("H520B Device"))
-		{
-			return -5;
-		}
-	}
-	
-	if (BT816_set_autocon(1))
-	{
-		return -6;
-	}
-
-	if(BT816_hid_set_delay(8))
-	{
-		return -7;
-	}
-#else
-
-	if (BT816_query_name(str))
+#if 1
+	if (BT816_query_name(BT1_MODULE,str))
 	{
 		return -4;
 	}
 
 	if (memcmp(str,"HJ Pr",5) != 0)
 	{
-		if (BT816_set_name("HJ Printer"))
+		if (BT816_set_name(BT1_MODULE,"HJ Printer1"))
 		{
 			return -5;
 		}
 	}
 
-	//if (BT816_set_autocon(1))
-	//{
-	//	return -6;
-	//}
-
-	if ((ret&0x02) == 0x02)
+	if (BT816_query_name(BT2_MODULE,str))
 	{
-		if (BT816_set_profile(BT_PROFILE_SPP))
+		return -4;
+	}
+
+	if (memcmp(str,"HJ Pr",5) != 0)
+	{
+		if (BT816_set_name(BT2_MODULE,"HJ Printer2"))
 		{
-			return -2;
+			return -5;
 		}
 	}
 
-
-	if ((ret & 0x01) == 1)
+	if (BT816_query_name(BT3_MODULE,str))
 	{
-		if (BT816_set_hid_trans_mode(BT_HID_TRANS_MODE_AT))
-		{ 
-			return -3;
+		return -4;
+	}
+
+	if (memcmp(str,"HJ Pr",5) != 0)
+	{
+		if (BT816_set_name(BT3_MODULE,"HJ Printer3"))
+		{
+			return -5;
 		}
 	}
 
-	
+	if (BT816_query_name(BT4_MODULE,str))
+	{
+		return -4;
+	}
+
+	if (memcmp(str,"HJ Pr",5) != 0)
+	{
+		if (BT816_set_name(BT4_MODULE,"HJ Printer4"))
+		{
+			return -5;
+		}
+	}
+
 #endif
 
-	BT816_power_state = WAKEUP;
+	RESET_BT1_DMA();
+	RESET_BT2_DMA();
+	RESET_BT3_DMA();
+	RESET_BT4_DMA();
 	return 0;
 }
 
-
-/*
- * @brief 蓝牙模块HID模式发送测试
-*/
-int BT816_hid_send_test(void)
-{
-	unsigned int i;
-	for (i = 0; i < 50;i++)
-	{
-		BT816_hid_send("12345678901234567890",20);
-		delay_ms(150);
-	}
-        
-        return  0;
-}
 #endif
