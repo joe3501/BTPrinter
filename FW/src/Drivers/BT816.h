@@ -65,12 +65,51 @@ typedef enum
 #define BT_MODULE_STATUS_CONNECTED		1
 #define BT_MODULE_STATUS_DISCONNECT		2
 
+
+#define RING_BUFF_FULL_TH		(SPP_BUFFER_LEN-256)	//当ringbuffer中接收到的数据大于此值时，实行流控，通知蓝牙模块不要再传数据下来了，此值待调试确定
+#define RING_BUFF_EMPTY_TH		(SPP_BUFFER_LEN/2)	//当ringbuffer中接收到的数据大于此值时，实行流控，通知蓝牙模块不要再传数据下来了，此值待调试确定
+
+#define     set_BT1_BUSY()	GPIO_SetBits(GPIOB, GPIO_Pin_8)
+#define     set_BT1_FREE()	GPIO_ResetBits(GPIOB, GPIO_Pin_8)
+
+#define     set_BT2_BUSY()	GPIO_SetBits(GPIOC, GPIO_Pin_1)
+#define     set_BT2_FREE()	GPIO_ResetBits(GPIOC, GPIO_Pin_1)
+
+#define     set_BT3_BUSY()	GPIO_SetBits(GPIOE, GPIO_Pin_15)
+#define     set_BT3_FREE()	GPIO_ResetBits(GPIOE, GPIO_Pin_15)
+
+#define     set_BT4_BUSY()	GPIO_SetBits(GPIOD, GPIO_Pin_0)
+#define     set_BT4_FREE()	GPIO_ResetBits(GPIOD, GPIO_Pin_0)
+
+#define     set_BT_FREE(ch)	do{\
+	switch(ch)\
+	{\
+	case BT1_MODULE:\
+		GPIO_ResetBits(GPIOB, GPIO_Pin_8);\
+		break;\
+	case BT2_MODULE:\
+		GPIO_ResetBits(GPIOC, GPIO_Pin_1);\
+		break;\
+	case BT3_MODULE:\
+		GPIO_ResetBits(GPIOE, GPIO_Pin_15);\
+		break;\
+	case BT4_MODULE:\
+		GPIO_ResetBits(GPIOD, GPIO_Pin_0);\
+		break;\
+	default:\
+		break;\
+	}\
+}while(0)
+
+
 int BT816_Reset(void);
 int BT816_init(void);
 int BT816_query_version(unsigned int bt_channel,unsigned char *ver_buffer);
 int BT816_query_name(unsigned int bt_channel,unsigned char *name);
 int BT816_set_name(unsigned int bt_channel,unsigned char *name);
+int BT816_set_pin(unsigned int bt_channel,unsigned char *pin);
 int BT816_connect_status(unsigned int bt_channel);
+void BT816_send_data(unsigned int bt_channel,unsigned char *data,unsigned int len);
 int BT816_Channel1_RxISRHandler(unsigned char *res, unsigned int res_len);
 int BT816_Channel2_RxISRHandler(unsigned char *res, unsigned int res_len);
 int BT816_Channel3_RxISRHandler(unsigned char *res, unsigned int res_len);

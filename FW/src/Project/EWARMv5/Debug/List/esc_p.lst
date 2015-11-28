@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     26/Nov/2015  15:26:55 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     28/Nov/2015  15:18:11 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -84,173 +84,702 @@ E:\BT Printer\FW\src\App\esc_p.c
      46          
      47          ESC_P_STS_T  esc_sts[MAX_PT_CHANNEL];
      48          signed char	 current_channel;		//当前正在处理的通道
-     49          	
-     50          extern void esc_p_init(void)
+     49          
+     50          extern void esc_p_init(unsigned int n)
      51          {
-     52          	uint8_t i,n;
-     53          //----chang
-     54          	for (n = 0; n < MAX_PT_CHANNEL; n++)
-     55          	{
-     56          		esc_sts[n].international_character_set = 0;    // english
-     57          		esc_sts[n].character_code_page = g_param.character_code_page;
-     58          
-     59          		esc_sts[n].prt_on = 0;
-     60          		esc_sts[n].larger = 0;
-     61          #ifdef ASCII9X24
-     62          		esc_sts[n].font_en = FONT_B_WIDTH;	// 字体
-     63          #else
-     64          		esc_sts[n].font_en = FONT_A_WIDTH;	// 字体
-     65          #endif
-     66          		esc_sts[n].font_cn = FONT_CN_A_WIDTH;	// 字体
-     67          		esc_sts[n].bold = 0;		// 粗体
-     68          		esc_sts[n].double_strike=0;//重叠打印
-     69          		esc_sts[n].underline = 0;	// 下划线
-     70          		esc_sts[n].revert = 0;		// 反白显示
-     71          		esc_sts[n].rotate = 0;
-     72          		esc_sts[n].start_dot = 0;
-     73          		esc_sts[n].smoothing_mode = 0;	// 平滑模式
-     74          		esc_sts[n].dot_minrow = ARRAY_SIZE(esc_sts[n].dot[0]);
-     75          		memset(esc_sts[n].dot, 0 ,sizeof(esc_sts[n].dot));
-     76          		for(i=0; i<8; i++)
-     77          		{
-     78          			esc_sts[n].tab[i] = 9+8*i;
-     79          		}
-     80          		esc_sts[n].linespace = 30;
-     81          		esc_sts[n].charspace = 0;
-     82          		esc_sts[n].align = 0;
-     83          		esc_sts[n].leftspace = 0;
-     84          		esc_sts[n].print_width=LineDot;
-     85          		esc_sts[n].upside_down=0;//倒置
-     86          		esc_sts[n].barcode_height = 50;
-     87          		esc_sts[n].barcode_width = 2;
-     88          		esc_sts[n].barcode_leftspace = 0;
-     89          		esc_sts[n].barcode_char_pos = 0;//不显示
-     90          		esc_sts[n].barcode_font = 0;
-     91          		esc_sts[n].userdefine_char = 0;
-     92          		esc_sts[n].asb_mode=0;
+     52          	uint8_t i;
+     53          	//----chang
+     54          
+     55          	esc_sts[n].international_character_set = 0;    // english
+     56          	esc_sts[n].character_code_page = g_param.character_code_page;
+     57          
+     58          	esc_sts[n].prt_on = 0;
+     59          	esc_sts[n].larger = 0;
+     60          #ifdef ASCII9X24
+     61          	esc_sts[n].font_en = FONT_B_WIDTH;	// 字体
+     62          #else
+     63          	esc_sts[n].font_en = FONT_A_WIDTH;	// 字体
+     64          #endif
+     65          	esc_sts[n].font_cn = FONT_CN_A_WIDTH;	// 字体
+     66          	esc_sts[n].bold = 0;		// 粗体
+     67          	esc_sts[n].italic = 0;		// 斜体
+     68          	esc_sts[n].double_strike=0;//重叠打印
+     69          	esc_sts[n].underline = 0;	// 下划线
+     70          	esc_sts[n].revert = 0;		// 反白显示
+     71          	esc_sts[n].rotate = 0;
+     72          	esc_sts[n].start_dot = 0;
+     73          	esc_sts[n].smoothing_mode = 0;	// 平滑模式
+     74          	esc_sts[n].dot_minrow = ARRAY_SIZE(esc_sts[n].dot[0]);
+     75          	memset(esc_sts[n].dot, 0 ,sizeof(esc_sts[n].dot));
+     76          	for(i=0; i<8; i++)
+     77          	{
+     78          		esc_sts[n].tab[i] = 9+8*i;
+     79          	}
+     80          	esc_sts[n].linespace = 30;
+     81          	esc_sts[n].charspace = 0;
+     82          	esc_sts[n].align = 0;
+     83          	esc_sts[n].leftspace = 0;
+     84          	esc_sts[n].print_width=LineDot;
+     85          	esc_sts[n].upside_down=0;//倒置
+     86          	esc_sts[n].barcode_height = 50;
+     87          	esc_sts[n].barcode_width = 2;
+     88          	esc_sts[n].barcode_leftspace = 0;
+     89          	esc_sts[n].barcode_char_pos = 0;//不显示
+     90          	esc_sts[n].barcode_font = 0;
+     91          	esc_sts[n].userdefine_char = 0;
+     92          	esc_sts[n].asb_mode=0;
      93          
-     94          		esc_sts[n].chinese_mode = 1;
-     95          		esc_sts[n].bitmap_flag = 0;
+     94          	esc_sts[n].chinese_mode = 1;
+     95          	esc_sts[n].bitmap_flag = 0;
      96          
-     97          		if(esc_sts[n].status4 == 0)
-     98          		{
-     99          			esc_sts[n].status4=0x12;
-    100          		}
-    101          	}
-    102          
-    103          	current_channel = -1;
-    104          }
-    105          extern esc_init(void)
-    106          {
-    107          	esc_p_init();
-    108          }
-    109          
-    110          extern void esc_p(void)
-    111          {
-    112          	uint8_t cmd;
-    113          
-    114          	switch(cmd=Getchar())
-    115          	{
-    116          		case LF:	// line feed
-    117          			PrintCurrentBuffer(0);
-    118          			break;
-    119          		case CR:      // carry return
-    120          			break;
-    121          		case ESC:		// ESC
-    122          			break;
-    123          		case FS:		// FS
-    124          			break;
-    125          		case GS:		// GS
-    126          			break;
-    127          		case ESC_CAN:
-    128          			break;
-    129          		default:
-    130          			{
-    131          				//----chang
-    132          #if !defined(CHINESE_FONT)||defined (CODEPAGE)
-    133          				if((cmd >= 0x20) && (cmd <= 0xff))
-    134          				{
-    135          					GetEnglishFont(cmd);
-    136          				}
-    137          #else
-    138          				if((cmd >= 0x20) && (cmd <= 0x7f))
-    139          				{
-    140          					GetEnglishFont(cmd);
-    141          				}
-    142          #if defined(GBK) || defined(GB18030)
-    143          				else if ((cmd >= 0x81) && (cmd <= 0xfe))
-    144          				{
-    145          					uint8_t chs[4];
-    146          					chs[0] = cmd;
-    147          					chs[1] = Getchar();
-    148          #if defined(GB18030)
-    149          					if ((chs[1] >= 0x30) && (chs[1] <= 0x39))
-    150          #else
-    151          					if (0)
-    152          #endif
-    153          					{
-    154          						chs[2] = Getchar();
-    155          						chs[3] = Getchar();
-    156          						// GB18030定义的4字节扩展
-    157          						if (((chs[2] >= 0x81) && (chs[2] <= 0xfe)) && ((chs[3] >= 0x30) && (chs[3] <= 0x39)))
-    158          						{
-    159          							GetChineseFont(chs, CHINESE_FONT_GB18030);
-    160          						}
-    161          						else
-    162          						{
-    163          							GetEnglishFont('?');
-    164          							GetEnglishFont('?');
-    165          							GetEnglishFont('?');
-    166          							GetEnglishFont('?');
-    167          						}
-    168          					}
-    169          					// GB13000定义的2字节扩展
-    170          					else if ((chs[1] >= 0x40) && (chs[1] <= 0xfe) && (chs[1] != 0x7f))
-    171          					{
-    172          						GetChineseFont(chs, CHINESE_FONT_GB13000);
-    173          					}
-    174          					else
-    175          					{
-    176          						GetEnglishFont('?');
-    177          						GetEnglishFont('?');
-    178          					}
-    179          				}
-    180          #endif
-    181          #endif
-    182          			}
-    183          
-    184          		}
-    185          }
-    186          //======================================================================================================
-    187          
+     97          	if(esc_sts[n].status4 == 0)
+     98          	{
+     99          		esc_sts[n].status4=0x12;
+    100          	}
+    101          }
+    102          extern esc_init(void)
+    103          {
+    104          	int i;
+    105          	for (i = 0; i < MAX_PT_CHANNEL; i++)
+    106          	{
+    107          		esc_p_init(i);
+    108          	}
+    109          	current_channel = -1;
+    110          }
+    111          
+    112          extern void esc_p(void)
+    113          {
+    114          	uint8_t cmd;
+    115          	uint16_t  i,cnt,off;
+    116          	uint8_t chs[25],n;
+    117                  unsigned char tmp[LineDot/8];
+    118          
+    119          	switch(cmd=Getchar())
+    120          	{
+    121          	case LF:	// line feed
+    122          		PrintCurrentBuffer(0);
+    123          		break;
+    124          	case CR:      // carry return
+    125          		//PrintCurrentBuffer(0);
+    126          		break;
+    127          #if 1
+    128          	case ESC:		// ESC
+    129          		chs[0] = Getchar();
+    130          		switch (chs[0])
+    131          		{
+    132          		case SP:
+    133          			chs[1] = Getchar();
+    134          			//ESC SP n 设置字符右间距    //note  暂时还不理解右间距与字符间距有什么区别，先与字符间距同样处理
+    135          			esc_sts[current_channel].charspace = chs[1];
+    136          			break;
+    137          		case '!':
+    138          			chs[1] = Getchar();
+    139          			//ESC ! n  设置打印机模式
+    140          			//根据n 的值设置字符打印模式
+    141          			//Bit	Off/On	Hex	功   能
+    142          			//0	-	-	暂无定义
+    143          			//1	off	0x00	解除反白模式
+    144          			//	on	0x02	设置反白模式
+    145          			//2	off	0x00	解除斜体模式
+    146          			//	on	0x04	设置斜体模式
+    147          			//3	-	-	暂无定义
+    148          			//4	off	0x00	解除倍高模式
+    149          			//	on	0x10	设置倍高模式
+    150          			//5	off	0x00	解除倍宽模式
+    151          			//	on	0x20	设置倍宽模式
+    152          			//6	-	-	暂无定义
+    153          			//7	off	0x00	解除下划线模式
+    154          			//	on	0x80	设置下划线模式
+    155          			esc_sts[current_channel].revert = ((chs[1]&(1<<1))?1:0);
+    156          			esc_sts[current_channel].italic = ((chs[1]&(1<<2))?1:0);
+    157          			esc_sts[current_channel].larger |= ((chs[1]&(1<<4))?1:0);
+    158          			esc_sts[current_channel].larger |= ((chs[1]&(1<<5))?1:0)<<4;
+    159          			esc_sts[current_channel].underline |= (((chs[1]&(1<<7))?1:0)|0x80);
+    160          			break;
+    161          		case '$':
+    162          			//ESC $ nl nh  设置绝对打印位置
+    163          			chs[1] = Getchar();
+    164          			chs[2] = Getchar();
+    165          			if (((chs[2]<<8)|chs[1]) < LineDot)
+    166          			{
+    167          				esc_sts[current_channel].start_dot = ((chs[2]<<8)|chs[1]);
+    168          			}
+    169          			break;
+    170          		case 0x2D:
+    171          			//ESC - n	选择/取消下划线模式  低半字节的低2位表示下划线宽度  0： 不改变  1：一点行   2:2点行
+    172          			//								 高半字节的低2位表示是否需要下划线  0： 取消  else: 选择
+    173          			chs[1] = Getchar();
+    174          			if ((chs[1] == 0)|| (chs[1] == 1) || (chs[1] == 2) || (chs[1] == 48)|| (chs[1] == 49) || (chs[1] == 50))
+    175          			{
+    176          				if(chs[1]&0x03)
+    177          				{
+    178          					esc_sts[current_channel].underline &= ~0x03;
+    179          					esc_sts[current_channel].underline |= (chs[1]&0x03);
+    180          				}
+    181          
+    182          				if (chs[1]&0x30)
+    183          				{
+    184          					esc_sts[current_channel].underline |= 0x80;
+    185          				}
+    186          				else
+    187          				{
+    188          					esc_sts[current_channel].underline &= ~0x80;
+    189          				}
+    190          			}
+    191          			break;
+    192          		case '2':
+    193          			//ESC 2   设置默认行间距
+    194          			esc_sts[current_channel].linespace = 30;	//此数据是否是默认的3.75mm间距还有待测试！！！
+    195          			break;
+    196          		case '3':
+    197          			//ESC 3 n  设置默认行间距
+    198          			chs[1] = Getchar();
+    199          			esc_sts[current_channel].linespace = chs[1];
+    200          			break;
+    201          		case '@':
+    202          			//ESC @  初始化打印机
+    203          			esc_p_init(current_channel);
+    204          			PrintBufToZero();
+    205          		case 'D':
+    206          			//ESC D n1....nk NULL 设置横向跳格位置
+    207          			memset(esc_sts[current_channel].tab,0,8);
+    208          			for (i = 0;i < 8;i++)
+    209          			{
+    210          				chs[1+i] = Getchar();
+    211          				if (chs[1+i] == 0)
+    212          				{
+    213          					break;
+    214          				}
+    215          				else
+    216          				{
+    217          					if (i == 0)
+    218          					{
+    219          						esc_sts[current_channel].tab[i] = chs[1+i];
+    220          					}
+    221          					else
+    222          					{
+    223          						if (chs[1+i] > chs[i])
+    224          						{
+    225          							esc_sts[current_channel].tab[i] = chs[1+i];
+    226          						}
+    227          					}	
+    228          				}
+    229          			}
+    230          
+    231          			if (i == 8)
+    232          			{
+    233          				chs[1+i] = Getchar();	//0
+    234          			}
+    235          
+    236          			break;
+    237          		case 'J':
+    238          			//ESC J n 打印并走纸
+    239          			chs[1] = Getchar();
+    240          			PrintCurrentBuffer(0);
+    241          			TPFeedLine(chs[1]);
+    242          			esc_sts[current_channel].start_dot = 0;
+    243          			break;
+    244          		case 'a':
+    245          			//ESC a n  选择对齐方式
+    246          			/*n的取值与对齐方式对应关系如下：
+    247          			n		对齐方式
+    248          			0，48	左对齐
+    249          			1，49	中间对齐
+    250          			2，50	右对齐*/
+    251          			chs[1] = Getchar();
+    252          			if ((chs[1] == 0)|| (chs[1] == 1) || (chs[1] == 2) || (chs[1] == 48) || (chs[1] == 49) || (chs[1] == 50))
+    253          			{
+    254          				esc_sts[current_channel].align = chs[1]&0x03;
+    255          			}
+    256          			break;
+    257          		case 'c':
+    258          			//ESC c 5 n 允许/禁止按键
+    259          			chs[1] = Getchar();
+    260          			if (chs[1] == '5')
+    261          			{
+    262          				chs[2] = Getchar();
+    263          				//@todo.... 设置按键禁止标志位
+    264          
+    265          			}
+    266          			break;
+    267          		case 'd':
+    268          			//ESC d n 打印并向前走纸n 行
+    269          			chs[1] = Getchar();
+    270          			esc_sts[current_channel].start_dot = 0;
+    271          			PrintCurrentBuffer(0);
+    272          			TPFeedLine(chs[1]);
+    273          			break;
+    274          		case 'p':
+    275          			//ESC p m t1 t2 产生钱箱控制脉冲
+    276          			/*输出由t1 和t2 设定的钱箱开启脉冲到由m 指定的引脚：
+    277          			m	
+    278          			0,48		钱箱插座的引脚2
+    279          			1,49		钱箱插座的引脚5
+    280          			钱箱开启脉冲高电平时间为[t1*2ms],低电平时间为[t2*2ms]
+    281          			如果t2<t1,低电平时间为[t1*2ms]*/
+    282          			chs[1] = Getchar();
+    283          			if ((chs[1] == 0)||(chs[1] == 1)||(chs[1] == 48)||(chs[1] == 49))
+    284          			{
+    285          				chs[2] = Getchar();
+    286          				chs[3] = Getchar();
+    287          				//@todo...., 产生控制钱箱的脉冲
+    288          
+    289          			}
+    290          			break;
+    291          		case 0x27:
+    292          			//ESC ’ml mh l1 h1 l2 h2 l3 h3 … li hi…  打印曲线
+    293          			//ml+mh*256表示这一行需要打印的点数，后面跟的（li+hi*256）是此行内需要打印的点的位置
+    294          			//实际上通过此指令可以打印位图
+    295          			chs[1] = Getchar();
+    296          			chs[2] = Getchar();
+    297          			cnt = chs[2]<<8;
+    298          			cnt |= chs[1];
+    299          			memset(tmp,0,sizeof(tmp));
+    300          			if (cnt<=LineDot)
+    301          			{
+    302          				for (i = 0; i < cnt;i++)
+    303          				{
+    304          					chs[1] = Getchar();
+    305          					chs[2] = Getchar();
+    306          					off = chs[2]<<8;
+    307          					off |= chs[1];
+    308          					tmp[off/8] |= (1<<(off%8)); 
+    309          				}
+    310          				TPPrintLine(tmp);
+    311          			}
+    312          			break;
+    313          		case '{':
+    314          			//ESC { n 打开/关闭颠倒打印模式
+    315          			chs[1] = Getchar();
+    316          			if (chs[1]&0x01)
+    317          			{
+    318          				esc_sts[current_channel].rotate = CIR_TWO_NINETY_DEGREE;
+    319          			}
+    320          			else
+    321          			{
+    322          				esc_sts[current_channel].rotate = ANTITYPE;
+    323          			}
+    324          			
+    325          		default:
+    326          			break;
+    327          		}
+    328          		break;
+    329          	case DC2:
+    330          		//uint8_t chs[5];
+    331          		chs[0] = cmd;
+    332          		chs[1] = Getchar();
+    333          		if (chs[1] == '~')
+    334          		{
+    335          			chs[2] = Getchar();
+    336          			//DC2 ~ n设定打印浓度...
+    337          			//@todo.....
+    338          		}
+    339          		else if (chs[1] == 'm')
+    340          		{
+    341          			chs[2] = Getchar();
+    342          			chs[3] = Getchar();
+    343          			chs[4] = Getchar();
+    344          			//DC2 m s x y黑标位置检测
+    345          			//@todo......
+    346          		}
+    347          		break;
+    348          	case DC3:
+    349          		//uint8_t chs[25];
+    350          		chs[0] = Getchar();
+    351          		switch(chs[0])
+    352          		{
+    353          		case 'A':
+    354          			chs[1] = Getchar();
+    355          			if (chs[1] == 'Q')
+    356          			{
+    357          				//DC3 A Q n d1 ... dn			设置蓝牙名称
+    358          				chs[2] = Getchar();
+    359          				if (chs[2] < 16)
+    360          				{
+    361          					for (i = 0; i < chs[2]; i++)
+    362          					{
+    363          						chs[6+i] = Getchar();
+    364          					}
+    365          					chs[6+i] = 0;
+    366          
+    367          					if (BT816_set_name(current_channel,&chs[6]) == 0)
+    368          					{
+    369          						memcpy(chs,"+NAME=",6);
+    370          						chs[6+i] = ',';
+    371          						chs[7+i] = 'O';
+    372          						chs[8+i] = 'K';
+    373          						chs[9+i] = 0;
+    374          
+    375          						PrintCurrentBuffer(0);	//先将缓冲区的内容打印出来，再打印设置字符串
+    376          
+    377          						memset(tmp,0,LineDot/8);
+    378          						strcpy(tmp,chs);
+    379          						TPPrintLine(tmp);
+    380          						TPFeedLine(4);
+    381          					}
+    382          				}
+    383          			}
+    384          			else if (chs[1] == 'W')
+    385          			{
+    386          				//DC3 A W n d1 ... dn			设置蓝牙PIN
+    387          				chs[2] = Getchar();
+    388          				if (chs[2] < 8)
+    389          				{
+    390          					for (i = 0; i < chs[2]; i++)
+    391          					{
+    392          						chs[5+i] = Getchar();
+    393          					}
+    394          					chs[5+i] = 0;
+    395          
+    396          					if (BT816_set_pin(current_channel,&chs[5]) == 0)
+    397          					{
+    398          						memcpy(chs,"+PIN=",5);
+    399          						chs[5+i] = ',';
+    400          						chs[6+i] = 'O';
+    401          						chs[7+i] = 'K';
+    402          						chs[8+i] = 0;
+    403          
+    404          						PrintCurrentBuffer(0);	//先将缓冲区的内容打印出来，再打印设置字符串
+    405          
+    406          						memset(tmp,0,LineDot/8);
+    407          						strcpy(tmp,chs);
+    408          						TPPrintLine(tmp);
+    409          						TPFeedLine(4);
+    410          					}
+    411          				}
+    412          			}
+    413          			else if (chs[1] == 'a')
+    414          			{
+    415          				chs[2] = Getchar();
+    416          				//DC3 A a n设置蓝牙传输速率
+    417          				//@todo....
+    418          
+    419          			}
+    420          			break;
+    421          		case 'B':
+    422          			chs[1] = Getchar();
+    423          			if (chs[1] == 'R')
+    424          			{
+    425          				chs[2] = Getchar();
+    426          				//DC3 B R n  设定串口波特率
+    427          				//@todo......
+    428          			}
+    429          			break;
+    430          		case 'r':
+    431          			//DC3  r  返回8个字节的产品ID
+    432          			BT816_send_data(current_channel,"HJ_BTPr1",8);
+    433          			break;
+    434          		case 's':
+    435          			//DC3 s  查询打印机状态
+    436          			//返回1个字节
+    437          			//	n=0打印机有值    n=4打印机缺纸  n=8准备打印      
+    438          			//	n='L' 电压过低(5.0Volt 以下)       n='O' 电压过高(9.5Volt 以上)
+    439          			//@todo...
+    440          			//BT816_send_data(current_channel,&esc_sts[current_channel].status4,1);
+    441          			break;
+    442          		case 'L':
+    443          			chs[1] = Getchar();
+    444          			chs[2] = Getchar();
+    445          			//DC3 L x y  设置字符间距和行间距，默认0
+    446          			if (chs[1]<128)
+    447          			{
+    448          				esc_sts[current_channel].charspace = chs[1];
+    449          			}
+    450          			if (chs[2]<128)
+    451          			{
+    452          				esc_sts[current_channel].linespace = chs[2];
+    453          			}
+    454          			break;
+    455          		}
+    456          		break;
+    457          	case FS:		// FS
+    458          		chs[0] = Getchar();
+    459          		if (chs[0] == 'p')
+    460          		{
+    461          			//FS  p  n  m 打印下载到FLASH 中的位图
+    462          			//@todo....
+    463          		}
+    464          		else if (chs[0] == 'q')
+    465          		{
+    466          			//FS q n [xL xH yL yH d1...dk]1...[xL xH yL yH d1...dk]n 定义Flash 位图
+    467          			//@todo....
+    468          		}
+    469          		break;
+    470          	case GS:		// GS
+    471          		chs[0] = Getchar();
+    472          		switch(chs[0])
+    473          		{
+    474          		case 0x0c:
+    475          			//GS FF  走纸到黑标
+    476          			//@todo....
+    477          
+    478          			break;
+    479          		case '!':
+    480          			//GS ! n 选择字符大小
+    481          			chs[1]=Getchar();
+    482          			esc_sts[current_channel].larger |= ((chs[1]&(1<<4))?1:0);
+    483          			esc_sts[current_channel].larger |= ((chs[1]&(1<<5))?1:0)<<4;
+    484          			if (chs[1]&0x0f)
+    485          			{
+    486          				esc_sts[current_channel].larger |= 0x01;		//暂时只支持2倍高
+    487          			}
+    488          			else
+    489          			{
+    490          				esc_sts[current_channel].larger &= ~0x01;		
+    491          			}
+    492          			if (chs[1]&0xf0)
+    493          			{
+    494          				esc_sts[current_channel].larger |= (0x01<<4);	//暂时支持2倍宽
+    495          			}
+    496          			else
+    497          			{
+    498          				esc_sts[current_channel].larger &= ~(0x01<<4);	
+    499          			}
+    500          			break;
+    501          		case '*':
+    502          			//GS * x y d1...d(x × y × 8) 定义下载位图,此位图下载到RAM区域
+    503          			//@todo....
+    504          			break;
+    505          		case 0x2f:
+    506          			//GS  /  m 打印下载到RAM中的位图
+    507          			//@todo....
+    508          			break;
+    509          		case 'B':
+    510          			//GS  B  n 选择/ 取消黑白反显打印模式
+    511          			chs[1] = Getchar();
+    512          			esc_sts[current_channel].revert = (chs[1]&0x01);
+    513          			break;
+    514          		case 'H':
+    515          			//GS  H  n 选择HRI 字符的打印位置
+    516          			chs[1] = Getchar();
+    517          			//@todo.....  设置HRI字符的打印位置
+    518          			break;
+    519          		case 'L':
+    520          			//GS  L  nL  nH 设置左边距
+    521          			chs[1] = Getchar();
+    522          			chs[2] = Getchar();
+    523          			esc_sts[current_channel].leftspace = chs[2];
+    524          			esc_sts[current_channel].leftspace <<= 8;
+    525          			esc_sts[current_channel].leftspace |= chs[1];
+    526          			break;
+    527          		case 'h':
+    528          			//GS  h  n 选择条码高度
+    529          			chs[1] = Getchar();
+    530          			//@todo...   设置条码打印的高度
+    531          			break;
+    532          		case 'k':
+    533          			//①GS k m d1...dk NUL②GS k m n d1...dn 打印条码
+    534          			//@todo....   打印条码
+    535          			chs[1] = Getchar();
+    536          			if (chs[1] <= 6)
+    537          			{
+    538          				//第①种命令
+    539          				if ((chs[1] == 0)||(chs[1] == 1))
+    540          				{
+    541          					for (i = 0; i < 12;i++)
+    542          					{
+    543          						//todo.... 接收到的数据待处理！！！
+    544          						Getchar();
+    545          					}
+    546          				}
+    547          				else if (chs[1] == 2)
+    548          				{
+    549          					for (i = 0; i < 13;i++)
+    550          					{
+    551          						//todo.... 接收到的数据待处理！！！
+    552          						Getchar();
+    553          					}
+    554          				}
+    555          				else if (chs[1] == 3)
+    556          				{
+    557          					for (i = 0; i < 8;i++)
+    558          					{
+    559          						//todo.... 接收到的数据待处理！！！
+    560          						Getchar();
+    561          					}
+    562          				}
+    563          				else
+    564          				{
+    565          					//todo....
+    566          					do 
+    567          					{
+    568          						if (Getchar() == 0)
+    569          						{
+    570          							break;
+    571          						}
+    572          					} while (1);
+    573          				}
+    574          			}
+    575          			else if ((chs[1]>=65)&&(chs[1]<=73))
+    576          			{
+    577          				//第②种命令
+    578          				n = Getchar();
+    579          				if ((chs[1] == 65)||(chs[1] == 66))
+    580          				{
+    581          					n = 12;
+    582          				}
+    583          				else if (chs[1] == 67)
+    584          				{
+    585          					n = 13;
+    586          				}
+    587          				else if (chs[1] == 68)
+    588          				{
+    589          					n = 8;
+    590          				}
+    591          
+    592          				for (i = 0; i < n; i++)
+    593          				{
+    594          					//@todo....
+    595          					Getchar();
+    596          				}
+    597          			}
+    598          			break;
+    599          		case 'v':
+    600          			//GS v 0 m xL xH yL yH d1...dk 打印光栅位图
+    601          			//@todo....
+    602          			chs[1] = Getchar();
+    603          			if (chs[1] == '0')
+    604          			{
+    605          				chs[2] = Getchar();
+    606          				if ((chs[2]<=3)||((chs[2]>=48)&&(chs[2]<=51)))
+    607          				{
+    608          					chs[3] = Getchar();
+    609          					chs[4] = Getchar();
+    610          					chs[5] = Getchar();
+    611          					chs[6] = Getchar();
+    612          
+    613          					for (i = 0; i<((chs[4]*256+chs[3])*(chs[6]*256+chs[5]));i++)
+    614          					{
+    615          						//@todo....保存光栅位图并打印
+    616          						Getchar();
+    617          					}
+    618          				}
+    619          			}
+    620          			break;
+    621          		case 'w':
+    622          			//GS w n 设置条码宽度
+    623          			chs[1] = Getchar();
+    624          			//@todo....
+    625          			break;
+    626          		case 'N':
+    627          			//GS N m e nH nL d1...dn 打印QR二维码
+    628          			//@todo....
+    629          			chs[1] = Getchar();
+    630          			chs[2] = Getchar();
+    631          			chs[3] = Getchar();
+    632          			chs[4] = Getchar();
+    633          			for (i = 0;i<(chs[4]*256+chs[3]);i++)
+    634          			{
+    635          				//@todo....
+    636          				Getchar();
+    637          			}
+    638          			break;
+    639          		case 'j':
+    640          			//GS j m 即时打印条码位置
+    641          			chs[1] = Getchar();
+    642          			//@todo....
+    643          			break;
+    644          		}
+    645          		break;
+    646          #endif
+    647          	case ESC_CAN:
+    648          		break;
+    649          	default:
+    650          		{
+    651          			//----chang
+    652          #if !defined(CHINESE_FONT)||defined (CODEPAGE)
+    653          			if((cmd >= 0x20) && (cmd <= 0xff))
+    654          			{
+    655          				GetEnglishFont(cmd);
+    656          			}
+    657          #else
+    658          			if((cmd >= 0x20) && (cmd <= 0x7f))
+    659          			{
+    660          				GetEnglishFont(cmd);
+    661          			}
+    662          #if defined(GBK) || defined(GB18030)
+    663          			else if ((cmd >= 0x81) && (cmd <= 0xfe))
+    664          			{
+    665          				uint8_t chs[4];
+    666          				chs[0] = cmd;
+    667          				chs[1] = Getchar();
+    668          #if defined(GB18030)
+    669          				if ((chs[1] >= 0x30) && (chs[1] <= 0x39))
+    670          #else
+    671          				if (0)
+    672          #endif
+    673          				{
+    674          					chs[2] = Getchar();
+    675          					chs[3] = Getchar();
+    676          					// GB18030定义的4字节扩展
+    677          					if (((chs[2] >= 0x81) && (chs[2] <= 0xfe)) && ((chs[3] >= 0x30) && (chs[3] <= 0x39)))
+    678          					{
+    679          						GetChineseFont(chs, CHINESE_FONT_GB18030);
+    680          					}
+    681          					else
+    682          					{
+    683          						GetEnglishFont('?');
+    684          						GetEnglishFont('?');
+    685          						GetEnglishFont('?');
+    686          						GetEnglishFont('?');
+    687          					}
+    688          				}
+    689          				// GB13000定义的2字节扩展
+    690          				else if ((chs[1] >= 0x40) && (chs[1] <= 0xfe) && (chs[1] != 0x7f))
+    691          				{
+    692          					GetChineseFont(chs, CHINESE_FONT_GB13000);
+    693          				}
+    694          				else
+    695          				{
+    696          					GetEnglishFont('?');
+    697          					GetEnglishFont('?');
+    698          				}
+    699          			}
+    700          #endif
+    701          #endif
+    702          		}
+    703          
+    704          	}
+    705          }
+    706          //======================================================================================================
+    707          
 
    Maximum stack usage in bytes:
 
      Function   .cstack
      --------   -------
      esc_init        8
-     esc_p           8
+     esc_p         104
      esc_p_init      8
+     memcpy          8
      memset          8
 
 
    Section sizes:
 
-     Function/Label  Bytes
-     --------------  -----
-     memset             20
-     esc_sts         14024
-     current_channel     1
-     esc_p_init        628
-     esc_init            8
-     esc_p             146
+     Function/Label         Bytes
+     --------------         -----
+     memcpy                    14
+     memset                    20
+     esc_sts                14032
+     current_channel            1
+     esc_p_init               548
+     esc_init                  28
+     esc_p                   3360
+     ??DataTable33              4
+     ??DataTable34              4
+     ?<Constant "+NAME=">       8
+     ?<Constant "+PIN=">        8
+     ?<Constant "HJ_BTPr1">    12
 
  
- 14 025 bytes in section .bss
-    802 bytes in section .text
+ 14 033 bytes in section .bss
+     28 bytes in section .rodata
+  3 978 bytes in section .text
  
-    782 bytes of CODE memory (+ 20 bytes shared)
- 14 025 bytes of DATA memory
+  3 944 bytes of CODE  memory (+ 34 bytes shared)
+     28 bytes of CONST memory
+ 14 033 bytes of DATA  memory
 
 Errors: none
-Warnings: 1
+Warnings: 5

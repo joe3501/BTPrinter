@@ -277,11 +277,16 @@ uint8_t TPPaperReady(void)
 	}
 
 }
-
+extern unsigned int	isr_debug;
+extern unsigned int	isr_cnt;
 //================================================================================================
 void SysTick_IRQ_Handle(void)
 {
 	int i;
+	if (isr_debug==1)
+	{
+		isr_cnt++;
+	}
 	KeyScanProc();
 	TPBMSNSDetect();
 	TPPaperSNSDetect( PAPERSNS());

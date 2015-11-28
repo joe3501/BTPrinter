@@ -61,7 +61,6 @@ unsigned char	BT816_recbuffer[MAX_PT_CHANNEL][BT816_RES_BUFFER_LEN];
 unsigned char		spp_rec_buffer[MAX_PT_CHANNEL][SPP_BUFFER_LEN];
 struct ringbuffer	spp_ringbuf[MAX_PT_CHANNEL];
 
-#define RING_BUFF_FULL_TH		(SPP_BUFFER_LEN-256)	//当ringbuffer中接收到的数据大于此值时，实行流控，通知蓝牙模块不要再传数据下来了，此值待调试确定
 
 static	unsigned char  bt_connect_status;
 
@@ -69,18 +68,9 @@ static	unsigned char  bt_connect_status;
 #define		BT2_CONNECT		(bt_connect_status&(1<<BT2_MODULE))
 #define		BT3_CONNECT		(bt_connect_status&(1<<BT3_MODULE))
 #define		BT4_CONNECT		(bt_connect_status&(1<<BT4_MODULE))
+#define		BT_CONNECT(ch)		(bt_connect_status&(1<<(ch)))
 
-#define     set_BT1_BUSY()	GPIO_SetBits(GPIOB, GPIO_Pin_8)
-#define     set_BT1_FREE()	GPIO_ResetBits(GPIOB, GPIO_Pin_8)
 
-#define     set_BT2_BUSY()	GPIO_SetBits(GPIOC, GPIO_Pin_1)
-#define     set_BT2_FREE()	GPIO_ResetBits(GPIOC, GPIO_Pin_1)
-
-#define     set_BT3_BUSY()	GPIO_SetBits(GPIOE, GPIO_Pin_15)
-#define     set_BT3_FREE()	GPIO_ResetBits(GPIOE, GPIO_Pin_15)
-
-#define     set_BT4_BUSY()	GPIO_SetBits(GPIOD, GPIO_Pin_0)
-#define     set_BT4_FREE()	GPIO_ResetBits(GPIOD, GPIO_Pin_0)
 
 #define	RESET_BT1_DMA()		do{	\
 							DMA_Cmd(DMA1_Channel5,DISABLE);\
@@ -846,6 +836,8 @@ static void BT816_reset_resVar(unsigned int bt_channel)
 #endif
 }
 
+extern unsigned int	isr_debug;
+extern unsigned int	isr_cnt;
 
 /**
 * @brief 处理host收到BT816的数据
@@ -857,6 +849,10 @@ static void BT816_reset_resVar(unsigned int bt_channel)
 int BT816_Channel1_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
+	if (isr_debug)
+	{
+		isr_cnt++;
+	}
 	if (BT1_CONNECT)
 	{
 		//已经处于连接状态，蓝牙模块进入数据透传模式
@@ -916,6 +912,11 @@ int BT816_Channel1_RxISRHandler(unsigned char *res, unsigned int res_len)
 int BT816_Channel2_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
+
+	if (isr_debug)
+	{
+		isr_cnt++;
+	}
 	if (BT2_CONNECT)
 	{
 		//已经处于连接状态，蓝牙模块进入数据透传模式
@@ -975,6 +976,10 @@ int BT816_Channel2_RxISRHandler(unsigned char *res, unsigned int res_len)
 int BT816_Channel3_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
+	if (isr_debug)
+	{
+		isr_cnt++;
+	}
 	if (BT3_CONNECT)
 	{
 		//已经处于连接状态，蓝牙模块进入数据透传模式
@@ -1034,6 +1039,10 @@ int BT816_Channel3_RxISRHandler(unsigned char *res, unsigned int res_len)
 int BT816_Channel4_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
+	if (isr_debug)
+	{
+		isr_cnt++;
+	}
 	if (BT4_CONNECT)
 	{
 		//已经处于连接状态，蓝牙模块进入数据透传模式
@@ -1377,11 +1386,44 @@ int BT816_set_name(unsigned int bt_channel,unsigned char *name)
 	return BT816_write_cmd(bt_channel,(const unsigned char*)buffer,len,EXPECT_RES_FORMAT1_TYPE); 
 }
 
+/*
+ * @brief 设置蓝牙模块的PIN
+ * @param[in]  unsigned char *name  设置的PIN,字符串
+ * @return 0: 设置成功		else：设置失败
+ * @note 从手册暂时没有看到支持的PIN的最大长度是多少，所以如果设置的PIN太长可能会设置失败
+ *       在此接口中将设备名称限定为最长支持8个字节
+*/
+int BT816_set_pin(unsigned int bt_channel,unsigned char *pin)
+{
+	unsigned char	buffer[33];
+	int		len;
+
+	assert(pin != 0);
+	memcpy(buffer,"AT+PIN=",7);
+	len = strlen((char const*)pin);
+	if (len>8)
+	{
+		memcpy(buffer+7,pin,8);
+		buffer[15] = 0x0d;
+		buffer[16] = 0x0a;
+		len = 17;
+	}
+	else
+	{
+		memcpy(buffer+7,pin,len);
+		buffer[7+len] = 0x0d;
+		buffer[8+len] = 0x0a;
+		len += 9;
+	}
+
+	return BT816_write_cmd(bt_channel,(const unsigned char*)buffer,len,EXPECT_RES_FORMAT1_TYPE); 
+}
+
 
 /*
  * @brief 查询蓝牙模块HID当前的连接状态  	
  * @return <0 ：发送失败	0: unkown 	1: connected    2： disconnect
- * @note 
+ * @note 此函数需要被不断轮询才能正确反应各个模块的连接状态
 */
 int BT816_connect_status(unsigned int bt_channel)
 {
@@ -1488,6 +1530,16 @@ int BT816_connect_status(unsigned int bt_channel)
 
 }
 
+/*
+ * @brief 通过蓝牙模块的透传模式发送数据到蓝牙主机
+*/
+void BT816_send_data(unsigned int bt_channel,unsigned char *data,unsigned int len)
+{
+	if (BT_CONNECT(bt_channel))
+	{
+		send_data_to_BT(bt_channel,data,len);
+	}
+}
 
 /*
  * @brief 蓝牙模块BT816的初始化

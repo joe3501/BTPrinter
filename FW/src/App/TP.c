@@ -13,6 +13,9 @@
 #include <string.h>
 #include <stdio.h>
 
+unsigned int		isr_debug;
+unsigned int		isr_cnt;
+
 extern   void NVIC_DisableIRQ(unsigned char	irq_channel);
 extern   void NVIC_EnableIRQ(unsigned char	irq_channel);
 #define Half_Step
@@ -207,6 +210,8 @@ void TPInit(void)
 	TIM_TimeBaseInitTypeDef						TIM_TimeBaseStructure;
 	NVIC_InitTypeDef							NVIC_InitStructure;
 
+	isr_debug = 0;
+	isr_cnt = 0;
 	//PRN_STROBE0 -- PC.4   PRN_STROBE1 -- PC.5
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOE, ENABLE);
 
@@ -1279,9 +1284,11 @@ extern void TPISRProc(void)
 
 void TIM3_IRQ_Handle(void)
 {
+	isr_debug = 1;
     PRN_POWER_DISCHARGE();
     PRN_POWER_CHARGE();
     TPISRProc();
+	isr_debug = 0;
 }
 
 extern void TPSetSpeed(uint8_t speed)
@@ -1510,6 +1517,7 @@ extern void TPPrintTestPage(void)
     uint32_t len,i;
     char buf[64];
 
+	current_channel = 0;
      PrintBufToZero();
     len = snprintf(buf, sizeof(buf),  "\n");
     TPPrintAsciiLine(buf,len);

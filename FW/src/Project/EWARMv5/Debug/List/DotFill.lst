@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     26/Nov/2015  15:26:54 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     28/Nov/2015  15:18:10 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -386,9 +386,9 @@ E:\BT Printer\FW\src\App\DotFill.c
      DotBufFillToPrn       542
      BufFillToPrn          220
      BufFillToPrn_0        134
-     PrintCurrentBuffer    130
-     PrintCurrentBuffer_0  130
-     DotFillToBuf         1118
+     PrintCurrentBuffer    128
+     PrintCurrentBuffer_0  128
+     DotFillToBuf         1116
      PictureDotFillToBuf   458
      ??DataTable24           4
      ??DataTable123          4
@@ -397,9 +397,9 @@ E:\BT Printer\FW\src\App\DotFill.c
 
  
      2 bytes in section .bss
- 2 782 bytes in section .text
+ 2 776 bytes in section .text
  
- 2 748 bytes of CODE memory (+ 34 bytes shared)
+ 2 742 bytes of CODE memory (+ 34 bytes shared)
      2 bytes of DATA memory
 
 Errors: none

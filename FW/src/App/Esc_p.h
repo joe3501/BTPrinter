@@ -65,10 +65,11 @@ typedef struct
 	uint8_t character_code_page;					// 代码页
 
 	uint8_t prt_on;		// 是否启动打印机
-	uint8_t larger;		// 放大倍数
+	uint8_t larger;		// 放大倍数				//低4位表示倍高   高4位表示倍宽
 	uint8_t font_en;		// 西文字体
 	uint8_t font_cn;		// 中文字体
 	uint8_t bold;			// 粗体
+	uint8_t italic;			// 斜体
 	uint8_t double_strike;//重叠打印
 	uint8_t underline;	// 下划线
 	uint8_t revert;		// 反白显示
@@ -104,7 +105,6 @@ typedef struct
    uint16_t page_H;
    uint16_t asb_mode;
    uint8_t bitmap_flag;
-
 }ESC_P_STS_T;
 
 extern  ESC_P_STS_T  esc_sts[];
@@ -128,7 +128,7 @@ extern signed char	 current_channel;		//当前正在处理的通道
 
 //======================================================================================================
 extern void esc_p(void);
-extern void esc_p_init(void);
+extern void esc_p_init(unsigned int n);
 extern esc_init(void);
 void Printf_Bitmap (uint8_t n,uint8_t mode);
 
