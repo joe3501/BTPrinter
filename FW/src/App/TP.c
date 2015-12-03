@@ -123,12 +123,10 @@ enum
 //PC.4
 #define STROBE_0_ON()     do{ \
 	GPIOC->BSRR = GPIO_Pin_4; \
-	GPIOB->BSRR = GPIO_Pin_5; \
 	}while(0)
 
 #define STROBE_0_OFF()    do{ \
 	GPIOC->BRR = GPIO_Pin_4; \
-	GPIOB->BRR = GPIO_Pin_5; \
         }while(0)
 
 //PC.5
@@ -310,7 +308,7 @@ extern void WakeUpTP_MODE1(void)
 
 static void TPForwardStep(int direction)
 {
-	trip4();
+	//trip4();
     PRN_POWER_DISCHARGE();
 #if defined(PT486) || defined(PT487)||defined(PT48D)||defined(PT1043)|| defined(PT48G)
 #ifdef Half_Step
@@ -877,7 +875,7 @@ static void TPIntSetPreIdle(void)
 
 static void TPIntSetIdle(void)
 {
-	trip3();
+	//trip3();
 	STROBE_0_OFF(); 	// stop heat
 	STROBE_1_OFF(); 	// stop heat
 	DISABLE_TIMER_INTERRUPT();				// disable interrupt
@@ -1316,7 +1314,7 @@ extern void TPISRProc(void)
 
 void TIM3_IRQ_Handle(void)
 {
-	trip1();
+	//trip1();
 	//TIM3->CR1 &= ~0x0001;
     PRN_POWER_DISCHARGE();
     PRN_POWER_CHARGE();
