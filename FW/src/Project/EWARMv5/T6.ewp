@@ -1625,7 +1625,7 @@
       <name>$PROJ_DIR$\..\..\App\record_mod.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\App\res_spi.c</name>
+      <name>$PROJ_DIR$\..\..\App\res_spi_new.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\App\Terminal_Para_m.c</name>

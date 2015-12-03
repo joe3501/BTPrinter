@@ -73,6 +73,7 @@
     <ClCompile Include="..\..\..\App\record_mod.c" />
     <ClCompile Include="..\..\..\App\rec_ecc.c" />
     <ClCompile Include="..\..\..\App\res_spi.c" />
+    <ClCompile Include="..\..\..\App\res_spi_new.c" />
     <ClCompile Include="..\..\..\App\Terminal_Para_m.c" />
     <ClCompile Include="..\..\..\App\ThermalDetect.c" />
     <ClCompile Include="..\..\..\App\TP.c" />

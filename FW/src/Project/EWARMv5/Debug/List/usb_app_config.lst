@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     25/Nov/2015  17:16:32 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:20 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -110,7 +110,7 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
      71          {
      72          	NVIC_InitTypeDef NVIC_InitStructure;
      73          
-     74          	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+     74          	//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
      75          
      76          	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN_RX0_IRQChannel;
      77          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
@@ -352,7 +352,7 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
      g_mass_storage_device_type    1
      g_usb_type                    1
      usb_SetClock                 28
-     usb_Interrupts_Config        72
+     usb_Interrupts_Config        64
      usb_Cable_Config              2
      usb_device_init              40
      usb_SendData                 10
@@ -360,9 +360,9 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
 
  
    2 bytes in section .bss
- 256 bytes in section .text
+ 248 bytes in section .text
  
- 256 bytes of CODE memory
+ 248 bytes of CODE memory
    2 bytes of DATA memory
 
 Errors: none

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     25/Nov/2015  17:16:21 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:38:08 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -254,7 +254,7 @@ E:\BT Printer\FW\src\FatFs\diskio.c
     216            //            return RES_ERROR;
     217          		//}
     218          		//res = spi_flash_rpage(sector, count, (unsigned char*)buff);
-    219          	if ((sector >= 1024*1024*3/512) || ((sector+count) > 1024*1024*3/512))
+    219          	if ((sector >= FAT_FLASH_SIZE/512) || ((sector+count) > FAT_FLASH_SIZE/512))
     220          	{
     221          		return RES_ERROR; 
     222          	}
@@ -321,7 +321,7 @@ E:\BT Printer\FW\src\FatFs\diskio.c
     283          	//}
     284          	//else if(SPI_FLASH == drv)
     285          	{
-    286          		if ((sector >= 1024*1024*3/512) || ((sector+count) > 1024*1024*3/512))
+    286          		if ((sector >= FAT_FLASH_SIZE/512) || ((sector+count) > FAT_FLASH_SIZE/512))
     287          		{
     288          			return RES_ERROR; 
     289          		}

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     28/Nov/2015  15:18:11 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     02/Dec/2015  10:22:06 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -239,7 +239,7 @@ E:\BT Printer\FW\src\App\esc_p.c
     201          		case '@':
     202          			//ESC @  初始化打印机
     203          			esc_p_init(current_channel);
-    204          			PrintBufToZero();
+    204          			//PrintBufToZero();		//这条命令挺奇葩的，小度掌柜经常卡住就是这个原因，不需要清除打印缓冲区
     205          		case 'D':
     206          			//ESC D n1....nk NULL 设置横向跳格位置
     207          			memset(esc_sts[current_channel].tab,0,8);
@@ -765,7 +765,7 @@ E:\BT Printer\FW\src\App\esc_p.c
      current_channel            1
      esc_p_init               548
      esc_init                  28
-     esc_p                   3360
+     esc_p                   3356
      ??DataTable33              4
      ??DataTable34              4
      ?<Constant "+NAME=">       8
@@ -775,9 +775,9 @@ E:\BT Printer\FW\src\App\esc_p.c
  
  14 033 bytes in section .bss
      28 bytes in section .rodata
-  3 978 bytes in section .text
+  3 974 bytes in section .text
  
-  3 944 bytes of CODE  memory (+ 34 bytes shared)
+  3 940 bytes of CODE  memory (+ 34 bytes shared)
      28 bytes of CONST memory
  14 033 bytes of DATA  memory
 

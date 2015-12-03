@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     25/Nov/2015  17:16:21 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:25 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -122,7 +122,7 @@ E:\BT Printer\FW\src\Drivers\TimeBase.c
      83          	/* Enable the TIM2 Interrupt */
      84          	NVIC_InitStructure.NVIC_IRQChannel			= TIM2_IRQChannel;
      85          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-     86          	//NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 1;
+     86          	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 7;
      87          	NVIC_InitStructure.NVIC_IRQChannelCmd		= ENABLE;
      88          	NVIC_Init(&NVIC_InitStructure);
      89          
@@ -470,7 +470,7 @@ E:\BT Printer\FW\src\Drivers\TimeBase.c
      --------------                             -----
      delay_us                                     24
      delay_ms                                     26
-     TimeBase_Init                               110
+     TimeBase_Init                               116
      v_timer_list                                  8
      start_timer                                 104
      check_vtimer_handle                          24
@@ -491,9 +491,9 @@ E:\BT Printer\FW\src\Drivers\TimeBase.c
  
   12 bytes in section .bss
   52 bytes in section .rodata
- 714 bytes in section .text
+ 720 bytes in section .text
  
- 714 bytes of CODE  memory
+ 720 bytes of CODE  memory
   52 bytes of CONST memory
   12 bytes of DATA  memory
 

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     25/Nov/2015  17:16:22 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:38:09 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -147,7 +147,7 @@ E:\BT Printer\FW\src\usb_lib\mass_mal.c
     108          		}
     109          		else if (g_mass_storage_device_type == MASSTORAGE_DEVICE_TYPE_SPI_FLASH)
     110          		{
-    111          			if ((Memory_Offset >= 1024*1024*3)||((Memory_Offset+Transfer_Length)>1024*1024*3))
+    111          			if ((Memory_Offset >= FAT_FLASH_SIZE)||((Memory_Offset+Transfer_Length)>FAT_FLASH_SIZE))
     112          			{
     113          				return MAL_FAIL;
     114          			}
@@ -229,7 +229,7 @@ E:\BT Printer\FW\src\usb_lib\mass_mal.c
     190          				return MAL_FAIL;
     191          			}
     192          
-    193          			if ((Memory_Offset >= 1024*1024*3)||((Memory_Offset+Transfer_Length)>1024*1024*3))
+    193          			if ((Memory_Offset >= FAT_FLASH_SIZE)||((Memory_Offset+Transfer_Length)>FAT_FLASH_SIZE))
     194          			{
     195          				return MAL_FAIL;
     196          			}

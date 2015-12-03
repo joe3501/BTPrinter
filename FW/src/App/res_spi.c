@@ -325,7 +325,6 @@ void font_data_read(unsigned char font_type,unsigned char *c,unsigned char *pBuf
 	int						offset,len1,len2;
 	unsigned char			*pData;
 	//unsigned char			*pOrg;
-
 	//if ((font_type != FNT_CHN_16_16)&&(font_type != FNT_CHN_24_24))
 	//{
 	//	return;
@@ -369,5 +368,7 @@ void font_data_read(unsigned char font_type,unsigned char *c,unsigned char *pBuf
 			memcpy(pBuf,pData,size);
 		}
 	}//12
+
+	//memset(pBuf,0x01,size);
 
 }

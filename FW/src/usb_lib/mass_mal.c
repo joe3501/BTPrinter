@@ -108,7 +108,7 @@ u16 MAL_Write(u8 lun, u32 Memory_Offset, u32 *Writebuff, u16 Transfer_Length)
 		}
 		else if (g_mass_storage_device_type == MASSTORAGE_DEVICE_TYPE_SPI_FLASH)
 		{
-			if ((Memory_Offset >= 1024*1024*3)||((Memory_Offset+Transfer_Length)>1024*1024*3))
+			if ((Memory_Offset >= FAT_FLASH_SIZE)||((Memory_Offset+Transfer_Length)>FAT_FLASH_SIZE))
 			{
 				return MAL_FAIL;
 			}
@@ -190,7 +190,7 @@ u16 MAL_Read(u8 lun, u32 Memory_Offset, u32 *Readbuff, u16 Transfer_Length)
 				return MAL_FAIL;
 			}
 
-			if ((Memory_Offset >= 1024*1024*3)||((Memory_Offset+Transfer_Length)>1024*1024*3))
+			if ((Memory_Offset >= FAT_FLASH_SIZE)||((Memory_Offset+Transfer_Length)>FAT_FLASH_SIZE))
 			{
 				return MAL_FAIL;
 			}

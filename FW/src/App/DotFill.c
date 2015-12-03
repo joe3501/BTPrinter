@@ -6,6 +6,8 @@
 
 uint16_t max_start_col=0;
 //======================================================================================================
+//@此函数可以稍微优化一点，打印的纵向和横向放大在构造打印数据时已经处理了，此处可以不需要考虑放大的处理
+//当然此处的处理方法更节省RAM空间！！！
 extern void DotBufFillToPrn(uint8_t *buf, uint16_t max_col, uint16_t max_rowbyte, uint16_t min_row, uint16_t max_row, uint8_t ratio_width, uint8_t ratio_height)
 {
  //  DotBufFillToPrn(&esc_sts[current_channel].dot[0][0], esc_sts[current_channel].start_dot, ARRAY_SIZE(esc_sts[current_channel].dot[0]), esc_sts[current_channel].dot_minrow, ARRAY_SIZE(esc_sts[current_channel].dot[0]), 1, 1);

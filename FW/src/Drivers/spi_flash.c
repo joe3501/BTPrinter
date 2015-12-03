@@ -163,11 +163,11 @@ int spi_flash_init(void)
 			pSPIFLASHID->Capacity == spi_flash_id.Capacity )
 		{
 			flasize	= pSPIFLASHID->FlashSize;
-			if (flasize > 3*1024*1024)
+			if (flasize == 8*1024*1024)
 			{
-				//flasize -= 1024*1024;		//将最后3M的空间划分给FAT文件系统管理
-				recmod_flasize = flasize - 3*1024*1024;
-				fatfs_sector_offset = recmod_flasize/512;
+				//flasize -= 1024*1024;
+				recmod_flasize = PARAM_FLASH_SIZE;
+				fatfs_sector_offset = FAT_START_SECT/512;
 			}
 			else
 			{
@@ -743,7 +743,7 @@ int spi_flash_wait_for_write_end(void)
 int get_spi_flash_capacity(void)
 {
 	//return flasize/512;
-	return (3*1024*1024)/512;			//只开放3M的空间给到FAT文件系统使用，SPI FLASH的实际容量还是由flasize指明
+	return FAT_FLASH_SIZE/512;			//只开放2M的空间给到FAT文件系统使用，SPI FLASH的实际容量还是由flasize指明
 }
 
 //将缓存的数据写入SPI FLASH
@@ -818,7 +818,7 @@ int spi_flash_write(unsigned int sector_offset,unsigned char *pBuffer,unsigned i
 	return 0;
 }
 
-//此函数一次写1或者多个Sector（512字节）的数据
+//此函数一次读1或者多个Sector（512字节）的数据
 int spi_flash_read(unsigned int sector_offset,unsigned char *pBuffer,unsigned int sector_cnt)
 {
 	int i;//,tmp;

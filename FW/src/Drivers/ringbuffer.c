@@ -27,6 +27,7 @@
 #include "basic_fun.h"
 #include <string.h>
 
+
 void ringbuffer_init(struct ringbuffer *rb,
                         uint8_t           *pool,
                         int32_t            size)
@@ -273,6 +274,8 @@ size_t ringbuffer_getchar(struct ringbuffer *rb, uint8_t *ch)
     {
         rb->read_index++;
     }
+
+	
 
     return 1;
 }

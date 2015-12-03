@@ -18,7 +18,7 @@ uint16_t		AD_Value[10][2];		//分别存放缺纸检测的AD值和温度检测的AD值
 
 
 #define AD_BLACKMARK_HIGH  (0X0200UL)
-#define AD_BLACKMARK_LOW   (0X0050UL)
+#define AD_BLACKMARK_LOW   (0X0080UL)
 #define PAPER_AD_LTHRESHOLD  (AD_BLACKMARK_LOW)
 
 
@@ -106,7 +106,7 @@ void TPPaperSNSInit(void)
 	//配置SYSTICK定时器，缺纸检测等任务在SYSTICK定时器的中断处理程序中周期的调用执行
 	SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK_Div8);	//9M的tick频率
 	SysTick_SetReload(90000);			//中断频率为10ms
-	NVIC_SystemHandlerPriorityConfig(SystemHandler_SysTick,3,0);
+	NVIC_SystemHandlerPriorityConfig(SystemHandler_SysTick,1,4);
 	SysTick_ITConfig(ENABLE);
 	SysTick_CounterCmd(DISABLE);
 
@@ -277,16 +277,11 @@ uint8_t TPPaperReady(void)
 	}
 
 }
-extern unsigned int	isr_debug;
-extern unsigned int	isr_cnt;
+
 //================================================================================================
 void SysTick_IRQ_Handle(void)
 {
 	int i;
-	if (isr_debug==1)
-	{
-		isr_cnt++;
-	}
 	KeyScanProc();
 	TPBMSNSDetect();
 	TPPaperSNSDetect( PAPERSNS());

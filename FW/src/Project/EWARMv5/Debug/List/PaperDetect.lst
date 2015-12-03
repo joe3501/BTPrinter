@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     28/Nov/2015  15:50:41 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     02/Dec/2015  10:22:05 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -57,7 +57,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
      18          
      19          
      20          #define AD_BLACKMARK_HIGH  (0X0200UL)
-     21          #define AD_BLACKMARK_LOW   (0X0050UL)
+     21          #define AD_BLACKMARK_LOW   (0X0080UL)
      22          #define PAPER_AD_LTHRESHOLD  (AD_BLACKMARK_LOW)
      23          
      24          
@@ -145,7 +145,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     106          	//配置SYSTICK定时器，缺纸检测等任务在SYSTICK定时器的中断处理程序中周期的调用执行
     107          	SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK_Div8);	//9M的tick频率
     108          	SysTick_SetReload(90000);			//中断频率为10ms
-    109          	NVIC_SystemHandlerPriorityConfig(SystemHandler_SysTick,3,0);
+    109          	NVIC_SystemHandlerPriorityConfig(SystemHandler_SysTick,1,4);
     110          	SysTick_ITConfig(ENABLE);
     111          	SysTick_CounterCmd(DISABLE);
     112          
@@ -316,38 +316,33 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     277          	}
     278          
     279          }
-    280          extern unsigned int	isr_debug;
-    281          extern unsigned int	isr_cnt;
-    282          //================================================================================================
-    283          void SysTick_IRQ_Handle(void)
-    284          {
-    285          	int i;
-    286          	if (isr_debug==1)
-    287          	{
-    288          		isr_cnt++;
-    289          	}
-    290          	KeyScanProc();
-    291          	TPBMSNSDetect();
-    292          	TPPaperSNSDetect( PAPERSNS());
-    293          	for (i = 0; i < MAX_PT_CHANNEL;i++)
-    294          	{
-    295          		BT816_connect_status(i);
-    296          	}
-    297          #ifdef HW_VER_LCD
-    298          	//LCD_Refresh();
-    299          #else
-    300          	//LedScanProc();
+    280          
+    281          //================================================================================================
+    282          void SysTick_IRQ_Handle(void)
+    283          {
+    284          	int i;
+    285          	KeyScanProc();
+    286          	TPBMSNSDetect();
+    287          	TPPaperSNSDetect( PAPERSNS());
+    288          	for (i = 0; i < MAX_PT_CHANNEL;i++)
+    289          	{
+    290          		BT816_connect_status(i);
+    291          	}
+    292          #ifdef HW_VER_LCD
+    293          	//LCD_Refresh();
+    294          #else
+    295          	//LedScanProc();
+    296          
+    297          #endif
+    298          	return;
+    299          }
+    300          
     301          
-    302          #endif
-    303          	return;
-    304          }
+    302          
+    303          
+    304          
     305          
     306          
-    307          
-    308          
-    309          
-    310          
-    311          
 
    Maximum stack usage in bytes:
 
@@ -379,16 +374,16 @@ E:\BT Printer\FW\src\App\PaperDetect.c
      TPPrinterMark        18
      TPPrinterReady       20
      TPPaperReady         20
-     SysTick_IRQ_Handle  132
+     SysTick_IRQ_Handle  104
      ??DataTable23         4
      ??DataTable70         4
      ??DataTable80         4
 
  
     44 bytes in section .bss
- 1 312 bytes in section .text
+ 1 284 bytes in section .text
  
- 1 312 bytes of CODE memory
+ 1 284 bytes of CODE memory
     44 bytes of DATA memory
 
 Errors: none

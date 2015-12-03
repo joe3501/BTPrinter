@@ -242,6 +242,9 @@
     <ClCompile Include="..\..\..\App\res_spi.c">
       <Filter>源文件\app</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\App\res_spi_new.c">
+      <Filter>源文件\app</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Lib\inc\cortexm3_macro.h">

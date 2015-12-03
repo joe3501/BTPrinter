@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     28/Nov/2015  15:18:12 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     30/Nov/2015  17:52:09 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -363,7 +363,7 @@ E:\BT Printer\FW\src\App\res_spi.c
     325          	int						offset,len1,len2;
     326          	unsigned char			*pData;
     327          	//unsigned char			*pOrg;
-    328          
+    328          #if 0
     329          	//if ((font_type != FNT_CHN_16_16)&&(font_type != FNT_CHN_24_24))
     330          	//{
     331          	//	return;
@@ -407,15 +407,18 @@ E:\BT Printer\FW\src\App\res_spi.c
     369          			memcpy(pBuf,pData,size);
     370          		}
     371          	}//12
-    372          
-    373          }
+    372          #endif
+    373          
+    374          	memset(pBuf,0x01,size);
+    375          
+    376          }
 
    Maximum stack usage in bytes:
 
      Function       .cstack
      --------       -------
-     font_data_read     24
-     memcpy              8
+     font_data_read      8
+     memset              8
      read_resdata       16
      res_init           16
      res_loadres        16
@@ -425,42 +428,40 @@ E:\BT Printer\FW\src\App\res_spi.c
 
    Section sizes:
 
-     Function/Label                             Bytes
-     --------------                             -----
-     memcpy                                       14
-     fonta_en                                   3456
-     fontb_en                                   1536
-     fontc_en                                     28
-     FontList                                     32
-     dwPictureLBA                                  4
-     res_buffer                                  512
-     resource_file                               548
-     fs                                          560
-     res_loadres                                 100
-     setup_font                                   26
-     setup_picture                                 6
-     res_init                                    268
-     read_resdata                                136
-     font_data_read                              200
-     ??DataTable11                                 4
-     ??DataTable35                                 4
-     ??DataTable36                                 4
-     ??DataTable37                                 4
-     ??DataTable38                                 4
-     ??DataTable39                                 4
-     ?<Constant "/resdata.bin">                   16
-     ?<Constant "font_type == FNT_CHN_...">       60
-     ?<Constant "E:\\BT Printer\\FW\\src\\...">   36
+     Function/Label             Bytes
+     --------------             -----
+     memset                       20
+     fonta_en                   3456
+     fontb_en                   1536
+     fontc_en                     28
+     FontList                     32
+     dwPictureLBA                  4
+     res_buffer                  512
+     resource_file               548
+     fs                          560
+     res_loadres                 100
+     setup_font                   26
+     setup_picture                 6
+     res_init                    268
+     read_resdata                136
+     font_data_read               14
+     ??DataTable10                 4
+     ??DataTable11                 4
+     ??DataTable35                 4
+     ??DataTable36                 4
+     ??DataTable37                 4
+     ??DataTable38                 4
+     ?<Constant "/resdata.bin">   16
 
  
  1 624 bytes in section .bss
     32 bytes in section .data
- 5 132 bytes in section .rodata
-   774 bytes in section .text
+ 5 036 bytes in section .rodata
+   594 bytes in section .text
  
-   760 bytes of CODE  memory (+ 14 bytes shared)
- 5 132 bytes of CONST memory
+   574 bytes of CODE  memory (+ 20 bytes shared)
+ 5 036 bytes of CONST memory
  1 656 bytes of DATA  memory
 
 Errors: none
-Warnings: none
+Warnings: 5

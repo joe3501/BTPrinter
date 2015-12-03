@@ -83,7 +83,7 @@ void TimeBase_Init(void)
 	/* Enable the TIM2 Interrupt */
 	NVIC_InitStructure.NVIC_IRQChannel			= TIM2_IRQChannel;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-	//NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 1;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 7;
 	NVIC_InitStructure.NVIC_IRQChannelCmd		= ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 

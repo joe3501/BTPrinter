@@ -33,6 +33,10 @@
 // SLEEPDEEP bit mask
 #define SysCtrl_SLEEPDEEP_Set		((u32)0x00000004)
 
+#ifdef DEBUG_VER
+unsigned short	debug_buffer[8000];
+unsigned int	debug_cnt;
+#endif
 
 
 /* Global variables ---------------------------------------------------------*/
@@ -108,6 +112,8 @@ int main(void)
 	/* NVIC Configuration *******************************************************/
 	NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0);
 #endif
+
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);		//定义整个系统的优先级分组为Group1，1位抢占优先级（2个级别的中断嵌套）	3位响应优先级
 	
 	// Clear SLEEPDEEP bit of Cortex System Control Register
 	*(vu32 *) SCB_SysCtrl &= ~SysCtrl_SLEEPDEEP_Set;
@@ -115,10 +121,13 @@ int main(void)
 	Unconfigure_All();
 	// 数据串口(调试口)初始化
 	data_uart_init();
-        
+       
         //while(1);
 
 #ifdef DEBUG_VER
+	memset(debug_buffer,0,8000*2);
+	debug_cnt = 0;
+
 	printf("BTPrinter startup...\r\n");
 	if (HSEStartUpStatus == SUCCESS)
 	{
@@ -178,6 +187,7 @@ int main(void)
 
 	
 	//检查系统的字库资源是否正确
+	res_upgrade();
 	ret = res_init();
 
 	if ((key_state == 2) || (ret!=0))	//开机时长按进纸键或者检测到系统的字库资源不正确时，进入U盘模式

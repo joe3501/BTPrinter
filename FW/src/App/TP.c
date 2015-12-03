@@ -13,8 +13,10 @@
 #include <string.h>
 #include <stdio.h>
 
-unsigned int		isr_debug;
-unsigned int		isr_cnt;
+#ifdef DEBUG_VER
+extern unsigned short debug_buffer[];
+extern unsigned int debug_cnt;
+#endif
 
 extern   void NVIC_DisableIRQ(unsigned char	irq_channel);
 extern   void NVIC_EnableIRQ(unsigned char	irq_channel);
@@ -46,6 +48,7 @@ enum
 
 
 #define TP_MAX_HEAT_DOT		(64)		// 每次最多能够加热的点数，必须大等于8
+//#define TP_MAX_HEAT_DOT		(48)		// 每次最多能够加热的点数，必须大等于8
 
 #define TpMinWaitTime	(TIMER1_MS_TO_CNT(0.100))
 
@@ -120,11 +123,13 @@ enum
 //PC.4
 #define STROBE_0_ON()     do{ \
 	GPIOC->BSRR = GPIO_Pin_4; \
+	GPIOB->BSRR = GPIO_Pin_5; \
 	}while(0)
 
 #define STROBE_0_OFF()    do{ \
 	GPIOC->BRR = GPIO_Pin_4; \
-	}while(0)
+	GPIOB->BRR = GPIO_Pin_5; \
+        }while(0)
 
 //PC.5
 #define STROBE_1_ON()     do{ \
@@ -210,8 +215,6 @@ void TPInit(void)
 	TIM_TimeBaseInitTypeDef						TIM_TimeBaseStructure;
 	NVIC_InitTypeDef							NVIC_InitStructure;
 
-	isr_debug = 0;
-	isr_cnt = 0;
 	//PRN_STROBE0 -- PC.4   PRN_STROBE1 -- PC.5
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOE, ENABLE);
 
@@ -249,12 +252,13 @@ void TPInit(void)
 
 	/* set the TIM3 Interrupt */
 	NVIC_InitStructure.NVIC_IRQChannel			= TIM3_IRQChannel;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 1;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;		//中断优先级最高
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 0;
 	NVIC_InitStructure.NVIC_IRQChannelCmd		= DISABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
 	TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
+	TIM_ARRPreloadConfig(TIM3,ENABLE);
 	TIM_Cmd(TIM3,ENABLE);
 
 
@@ -306,7 +310,7 @@ extern void WakeUpTP_MODE1(void)
 
 static void TPForwardStep(int direction)
 {
-
+	trip4();
     PRN_POWER_DISCHARGE();
 #if defined(PT486) || defined(PT487)||defined(PT48D)||defined(PT1043)|| defined(PT48G)
 #ifdef Half_Step
@@ -735,6 +739,13 @@ static uint32_t TPHeatDotsAdj(uint32_t tm,uint16_t dots)
 	   90, 92, 93, 94, 95, 96,//24-48
 	   97, 98,100,100,        //48-64
 	};
+	#elif (TP_MAX_HEAT_DOT == 48)
+	const uint8_t dot_ratio_tbl[TP_MAX_HEAT_DOT/4]=
+	{
+		70, 78, 86, 88,//0-24
+		90, 93, 95, 96,//24-48
+		97, 98,100,100,        //48-64
+	};
 	#else
 	#error("No define dot_ratio_tbl");
 	#endif
@@ -827,7 +838,8 @@ static uint16_t TPGetStepTime(void)
 
 static void TPSetTimeCnt(uint16_t tm)
 {
-    TIM3->ARR = tm;
+	TIM3->ARR = tm;
+	TIM3->EGR = TIM_EventSource_Update;		//这个很重要，软件产生一次更新事件，才能将当前设置的溢出值更新到它的影子寄存器！！！（此问题折磨了2天之久）
 	//printf("current tm=%d(us)\r\n",TIMER1_CNT_TO_MS(tm));		//for debug
 }
 
@@ -856,6 +868,7 @@ static uint8_t TPFeedStep(void)
 
 static void TPIntSetPreIdle(void)
 {
+	//trip4();
 	STROBE_0_OFF(); 	// stop heat
 	STROBE_1_OFF(); 	// stop heat
 	tp.feedmax = 60*1;		// 每1ms中断一次
@@ -864,6 +877,7 @@ static void TPIntSetPreIdle(void)
 
 static void TPIntSetIdle(void)
 {
+	trip3();
 	STROBE_0_OFF(); 	// stop heat
 	STROBE_1_OFF(); 	// stop heat
 	DISABLE_TIMER_INTERRUPT();				// disable interrupt
@@ -1001,6 +1015,20 @@ static uint8_t TPCheckBuf(void)
 		{
 		case TP_CMD_PRINT_DOTLINE:
 			TPDataShiftCntProc(0);		// 计算第一个加热行
+#ifdef DEBUG_VER
+			//debug_buffer[debug_cnt] = tp.heat;
+			//debug_cnt++;
+			//debug_buffer[debug_cnt] = tp.heat_max_cnt;
+			//debug_cnt++;
+			//debug_buffer[debug_cnt] = tp.feed_time[0];
+			//debug_cnt++;
+			//debug_buffer[debug_cnt] = tp.feed_time[1];
+			//debug_cnt++;
+			//debug_buffer[debug_cnt] = tp.feed_time[2];
+			//debug_cnt++;
+			//debug_buffer[debug_cnt] = tp.feed_time[3];
+			//debug_cnt++;
+#endif
 			if(tp.heat_cnt < tp.heat_max_cnt)//本行还有数据需要加热
 			{
 				TPDataDMAShiftToPrn();		// 开始送数据到打印机
@@ -1070,6 +1098,7 @@ static uint8_t TPCheckBuf(void)
 
 extern void TPISRProc(void)
 {
+	GPIOB->BSRR = GPIO_Pin_4; 
 	switch (tp.state)
 	{
 	case TPSTATE_START: 	// start
@@ -1093,10 +1122,10 @@ extern void TPISRProc(void)
 		{
 			if(tp.feed_time[tp.feed_step] > tp.heat_remain)	// 当前步进的时间足够加热
 			{
-				TPSetTimeCnt(tp.heat_remain);	// 加热
-				tp.feed_time[tp.feed_step] -= tp.heat_remain;
-				tp.heat_remain = 0;
-				tp.state = TPSTATE_HEAT_WITHOUT_FEED;
+					TPSetTimeCnt(tp.heat_remain);	// 加热
+					tp.feed_time[tp.feed_step] -= tp.heat_remain;
+					tp.heat_remain = 0;
+					tp.state = TPSTATE_HEAT_WITHOUT_FEED;
 			}
 			else			// 时间不够或者刚好，先加热剩余时间//如果时间不够则走一步后继续跳入上一个if,刚好则跳入else
 			{
@@ -1135,6 +1164,8 @@ extern void TPISRProc(void)
 			}
 			else	// no any data need to print//本行加热次数完成
 			{
+				//trip2();
+//strobe_off:
 				STROBE_0_OFF(); 	// stop heat
 				STROBE_1_OFF(); 	// stop heat
 				TPSetTimeCnt(tp.feed_time[tp.feed_step]);   // 停止加热时间//最后一次加热会出现这种情况，加热次数完成还有剩余步进时间
@@ -1279,16 +1310,18 @@ extern void TPISRProc(void)
 		TPIntSetIdle();
 		break;
 	}
+	GPIOB->BRR = GPIO_Pin_4; 
 }
 
 
 void TIM3_IRQ_Handle(void)
 {
-	isr_debug = 1;
+	trip1();
+	//TIM3->CR1 &= ~0x0001;
     PRN_POWER_DISCHARGE();
     PRN_POWER_CHARGE();
     TPISRProc();
-	isr_debug = 0;
+	//TIM3->CR1 |= 0x0001;
 }
 
 extern void TPSetSpeed(uint8_t speed)
@@ -1517,12 +1550,14 @@ extern void TPPrintTestPage(void)
     uint32_t len,i;
     char buf[64];
 
+	debug_cnt = 0;
 	current_channel = 0;
      PrintBufToZero();
     len = snprintf(buf, sizeof(buf),  "\n");
     TPPrintAsciiLine(buf,len);
+#if 1
 #if defined(PT486)
-    len = snprintf(buf, sizeof(buf), "System: PT486MB2\n");
+    len = snprintf(buf, sizeof(buf), "System: HJ_PT486_KT100\n");
 #elif defined(PT488)
     len = snprintf(buf, sizeof(buf), "System: PT488_1MB1\n");
 #elif defined(PT48D)
@@ -1547,14 +1582,29 @@ extern void TPPrintTestPage(void)
     len = snprintf(buf, sizeof(buf),  "\n");
     TPPrintAsciiLine(buf,len);
 
-    len = snprintf(buf, sizeof(buf),  "[Uart Configure]\n");
-    TPPrintAsciiLine(buf,len);
+    //len = snprintf(buf, sizeof(buf),  "[Uart Configure]\n");
+    //TPPrintAsciiLine(buf,len);
 
-    len = snprintf(buf, sizeof(buf),  "baudrate : %ld\n", 115200);
-    TPPrintAsciiLine(buf,len);
+    //len = snprintf(buf, sizeof(buf),  "baudrate : %ld\n", 115200);
+    //TPPrintAsciiLine(buf,len);
 
-    len = snprintf(buf, sizeof(buf),  "flow ctrl : HW Flow Control\n");
-    TPPrintAsciiLine(buf,len);
+    //len = snprintf(buf, sizeof(buf),  "flow ctrl : HW Flow Control\n");
+    //TPPrintAsciiLine(buf,len);
+
+	len = snprintf(buf, sizeof(buf),  "[BT Module config]\n");
+	TPPrintAsciiLine(buf,len);
+
+	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_PT_CHANNEL);
+	TPPrintAsciiLine(buf,len);
+
+	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n",MAX_PT_CHANNEL);
+	TPPrintAsciiLine(buf,len);
+
+	for (i = 0;i<MAX_PT_CHANNEL;i++)
+	{
+		len = snprintf(buf, sizeof(buf),  "BT Module(%d):|HJ Printer%d | 0000\n",i+1,i+1);
+		TPPrintAsciiLine(buf,len);
+	}
 
     len = snprintf(buf, sizeof(buf),  "\n");
     TPPrintAsciiLine(buf,len);
@@ -1566,12 +1616,12 @@ extern void TPPrintTestPage(void)
     TPPrintAsciiLine(buf,len);
 
 
-    if(esc_sts[current_channel].font_en == FONT_A_WIDTH)
+    //if(esc_sts[current_channel].font_en == FONT_A_WIDTH)
     {
     len = snprintf(buf, sizeof(buf),  " 0  SYSTEM 12x24\n");
     TPPrintAsciiLine(buf,len);
     }
-    else
+    //else
     {
 	#if defined(FONTB_ASCII9X24)
 	len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 9x24\n");
@@ -1580,6 +1630,12 @@ extern void TPPrintTestPage(void)
 	#endif
     TPPrintAsciiLine(buf,len);
     }
+	len = snprintf(buf, sizeof(buf),  " 2  GBK 24x24\n");
+	TPPrintAsciiLine(buf,len);
+
+	len = snprintf(buf, sizeof(buf),  " 3  GBK 16x16\n");
+	TPPrintAsciiLine(buf,len);
+
     len = snprintf(buf, sizeof(buf),  "\n");
     TPPrintAsciiLine(buf,len);
 
@@ -1590,15 +1646,20 @@ extern void TPPrintTestPage(void)
     {
         PrintBufPushBytes(i);
     }
+	len = snprintf(buf, sizeof(buf),  "\n\n");
+	TPPrintAsciiLine(buf,len);
 
-    len = snprintf(buf, sizeof(buf),  "\n\n");
-    TPPrintAsciiLine(buf,len);
+	len = snprintf(buf, sizeof(buf),  "[GBK Samples]\n");
+	TPPrintAsciiLine(buf,len);
+
+	len = snprintf(buf, sizeof(buf),  "中文字库测试：简体字 繁體字\n");
+	TPPrintAsciiLine(buf,len);
+	len = snprintf(buf, sizeof(buf),  "\n");
+	TPPrintAsciiLine(buf,len);
 
     len = snprintf(buf, sizeof(buf),  "Selftest Finished.\n");
     TPPrintAsciiLine(buf,len);
-
-	len = snprintf(buf, sizeof(buf),  "科豆.哈哈haha.\n");
-	TPPrintAsciiLine(buf,len);
+#endif
 
     len = snprintf(buf, sizeof(buf),  "\n\n\n\n\n");
     TPPrintAsciiLine(buf,len);
@@ -1638,10 +1699,11 @@ void test_motor(void)
 		while(delay--);
 	}
 
-	while (1)
+	while (cnt)
 	{
 		TPForwardStep(1);
 		delay_ms(1);
+                cnt--;
 	}
 	MOTOR_PWR_OFF();
 }

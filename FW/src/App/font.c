@@ -7,6 +7,7 @@
 #include "DotFill.h"
 #include "basic_fun.h"
 #include <string.h>
+#include "stm32f10x_lib.h"
 // #define FONT_BYTE_SWAP
 //======================================================================================================
 //#define MAX_GBK_ADDR                0x183870

@@ -201,7 +201,7 @@ extern void esc_p(void)
 		case '@':
 			//ESC @  初始化打印机
 			esc_p_init(current_channel);
-			PrintBufToZero();
+			//PrintBufToZero();		//这条命令挺奇葩的，小度掌柜经常卡住就是这个原因，不需要清除打印缓冲区
 		case 'D':
 			//ESC D n1....nk NULL 设置横向跳格位置
 			memset(esc_sts[current_channel].tab,0,8);

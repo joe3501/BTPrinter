@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     25/Nov/2015  17:16:23 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:38:10 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -202,11 +202,11 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
     163          			pSPIFLASHID->Capacity == spi_flash_id.Capacity )
     164          		{
     165          			flasize	= pSPIFLASHID->FlashSize;
-    166          			if (flasize > 3*1024*1024)
+    166          			if (flasize == 8*1024*1024)
     167          			{
-    168          				//flasize -= 1024*1024;		//将最后3M的空间划分给FAT文件系统管理
-    169          				recmod_flasize = flasize - 3*1024*1024;
-    170          				fatfs_sector_offset = recmod_flasize/512;
+    168          				//flasize -= 1024*1024;
+    169          				recmod_flasize = PARAM_FLASH_SIZE;
+    170          				fatfs_sector_offset = FAT_START_SECT/512;
     171          			}
     172          			else
     173          			{
@@ -782,7 +782,7 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
     743          int get_spi_flash_capacity(void)
     744          {
     745          	//return flasize/512;
-    746          	return (3*1024*1024)/512;			//只开放3M的空间给到FAT文件系统使用，SPI FLASH的实际容量还是由flasize指明
+    746          	return FAT_FLASH_SIZE/512;			//只开放2M的空间给到FAT文件系统使用，SPI FLASH的实际容量还是由flasize指明
     747          }
     748          
     749          //将缓存的数据写入SPI FLASH
@@ -857,7 +857,7 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
     818          	return 0;
     819          }
     820          
-    821          //此函数一次写1或者多个Sector（512字节）的数据
+    821          //此函数一次读1或者多个Sector（512字节）的数据
     822          int spi_flash_read(unsigned int sector_offset,unsigned char *pBuffer,unsigned int sector_cnt)
     823          {
     824          	int i;//,tmp;
@@ -933,7 +933,7 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
      current_cache_block             4
      recmod_flasize                  4
      fatfs_sector_offset             4
-     spi_flash_init                396
+     spi_flash_init                388
      spi_flash_close                40
      spi_flash_valid                34
      spi_flash_erasesector          68
@@ -954,19 +954,19 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
      spi_flash_post_write          108
      spi_flash_write               196
      spi_flash_read                136
-     ??DataTable15                   4
-     ??DataTable37                   4
-     ??DataTable42                   4
+     ??DataTable14                   4
+     ??DataTable36                   4
+     ??DataTable41                   4
+     ??DataTable59                   4
      ??DataTable60                   4
      ??DataTable61                   4
-     ??DataTable62                   4
 
  
  4 113 bytes in section .bss
     64 bytes in section .rodata
- 2 332 bytes in section .text
+ 2 324 bytes in section .text
  
- 2 298 bytes of CODE  memory (+ 34 bytes shared)
+ 2 290 bytes of CODE  memory (+ 34 bytes shared)
     64 bytes of CONST memory
  4 113 bytes of DATA  memory
 

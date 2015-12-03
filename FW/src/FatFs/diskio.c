@@ -216,7 +216,7 @@ DRESULT disk_read (
   //            return RES_ERROR;
 		//}
 		//res = spi_flash_rpage(sector, count, (unsigned char*)buff);
-	if ((sector >= 1024*1024*3/512) || ((sector+count) > 1024*1024*3/512))
+	if ((sector >= FAT_FLASH_SIZE/512) || ((sector+count) > FAT_FLASH_SIZE/512))
 	{
 		return RES_ERROR; 
 	}
@@ -283,7 +283,7 @@ DRESULT disk_write (
 	//}
 	//else if(SPI_FLASH == drv)
 	{
-		if ((sector >= 1024*1024*3/512) || ((sector+count) > 1024*1024*3/512))
+		if ((sector >= FAT_FLASH_SIZE/512) || ((sector+count) > FAT_FLASH_SIZE/512))
 		{
 			return RES_ERROR; 
 		}

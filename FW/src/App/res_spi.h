@@ -20,6 +20,7 @@ typedef struct {
 
 extern	TFontInfo FontList[];
 
+int res_upgrade(void);
 int res_init(void);
 unsigned char *read_resdata(unsigned int dwLBA);
 void font_data_read(unsigned char font_type,unsigned char *c,unsigned char *pBuf,unsigned int size);

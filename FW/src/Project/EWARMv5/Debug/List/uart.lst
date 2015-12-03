@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     28/Nov/2015  15:18:09 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     03/Dec/2015  17:32:45 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -64,103 +64,117 @@ E:\BT Printer\FW\src\App\uart.c
      27          #include "uart.h"
      28          #include "stm32f10x_systick.h"
      29          #include "stm32f10x_lib.h"
-     30          #define		CHANNEL_TIMEOUT_TH		100		//当某一个串口通道在100ms内没有接收到数据时，认为此通道打印任务结束，此数据待调试	
+     30          #define		CHANNEL_TIMEOUT_TH		200		//当某一个串口通道在100ms内没有接收到数据时，认为此通道打印任务结束，此数据待调试	
      31          
-     32          /******************************************************************************
-     33          **Function name:  Getchar
-     34          **
-     35          **Description:  Get a char from the uart 0 port
-     36          **
-     37          **parameters: none
-     38          **Returned value:
-     39          **
-     40          ******************************************************************************/
-     41          extern uint8_t Getchar(void)        //接收数据
-     42          {
-     43          	uint8_t c;
-     44          	unsigned int	i,delay;
-     45          	static unsigned int timeout;
-     46          	while(1)
-     47          	{
-     48          		event_proc();
-     49          
-     50          		if (current_channel == -1)
-     51          		{
-     52          			//还未进入打印通道的打印会话过程
-     53          			for (i = 0; i < MAX_PT_CHANNEL;i++)
-     54          			{
-     55          				if (ringbuffer_getchar(&spp_ringbuf[i],&c))
-     56          				{
-     57          					current_channel = i;
-     58          					return c;
-     59          				}
-     60          			}
-     61          		}
-     62          		else
-     63          		{
-     64          			//已经进入某一个打印通道的打印会话过程
-     65          			if (ringbuffer_getchar(&spp_ringbuf[current_channel],&c))
-     66          			{
-     67          				timeout = 0;
-     68          				if (ringbuffer_data_len(&spp_ringbuf[current_channel]) < RING_BUFF_EMPTY_TH)
-     69          				{
-     70          					set_BT_FREE(current_channel);
-     71          				}
-     72          				return c;
-     73          			}
-     74          			else
-     75          			{
-     76          				delay = SysTick_GetCounter();
-     77          				if (timeout == 0)
-     78          				{
-     79          					timeout = delay;
-     80          				}
-     81          				else
-     82          				{
-     83          					if (delay > timeout)
-     84          					{
-     85          						delay = delay-timeout;
-     86          					}
-     87          					else
-     88          					{
-     89          						delay += 0xffffffff-timeout;
-     90          					}
-     91          
-     92          					if (delay > (CHANNEL_TIMEOUT_TH/10))	//systick是10ms计数的
-     93          					{
-     94          						PrintBufToZero();
-     95          						current_channel = -1;
-     96          					}
-     97          				}
-     98          			}
-     99          		}
-    100          		
-    101          	}
-    102          
-    103          }
-    104          
-    105           extern uint8_t PrintBufGetchar(uint8_t *ch)
-    106           {
-    107          	return ringbuffer_getchar(&spp_ringbuf[current_channel],ch);
-    108           }
-    109          
-    110           extern void PrintBufPushBytes(uint8_t c)
-    111           {
-    112                ringbuffer_putchar(&spp_ringbuf[current_channel],c);
-    113           }
-    114          
-    115          //======================================================================================================
-    116          extern void PrintBufPushLine( uint8_t *p, uint32_t len)
-    117          {
-    118          	ringbuffer_put(&spp_ringbuf[current_channel],p,len);
-    119          }
-    120          extern void PrintBufToZero(void)
-    121          {
-    122               ringbuffer_reset(&spp_ringbuf[current_channel]);
-    123          }
-    124          /******************************************************************************
-    125          **                            End Of File
-    126          ******************************************************************************/
+     32          #ifdef DEBUG_VER
+     33          extern unsigned short debug_buffer[];
+     34          extern unsigned int debug_cnt;
+     35          #endif
+     36          /******************************************************************************
+     37          **Function name:  Getchar
+     38          **
+     39          **Description:  Get a char from the uart 0 port
+     40          **
+     41          **parameters: none
+     42          **Returned value:
+     43          **
+     44          ******************************************************************************/
+     45          extern uint8_t Getchar(void)        //接收数据
+     46          {
+     47          	uint8_t c;
+     48          	unsigned int	i,delay;
+     49          	static unsigned int timeout;
+     50          	while(1)
+     51          	{
+     52          		event_proc();
+     53          
+     54          		if (current_channel == -1)
+     55          		{
+     56          			//还未进入打印通道的打印会话过程
+     57          			for (i = 0; i < MAX_PT_CHANNEL;i++)
+     58          			{
+     59          				if (ringbuffer_getchar(&spp_ringbuf[i],&c))
+     60          				{
+     61          					current_channel = i;
+     62          //#ifdef DEBUG_VER
+     63          //					debug_buffer[0] = c;
+     64          //					debug_cnt = 1;
+     65          //#endif
+     66          					return c;
+     67          				}
+     68          			}
+     69          		}
+     70          		else
+     71          		{
+     72          			//已经进入某一个打印通道的打印会话过程
+     73          			if (ringbuffer_getchar(&spp_ringbuf[current_channel],&c))
+     74          			{
+     75          				timeout = 0;
+     76          				if (ringbuffer_data_len(&spp_ringbuf[current_channel]) < RING_BUFF_EMPTY_TH)
+     77          				{
+     78          					set_BT_FREE(current_channel);
+     79          				}
+     80          //#ifdef DEBUG_VER
+     81          //				debug_buffer[debug_cnt] = c;
+     82          //				debug_cnt++;
+     83          //#endif
+     84          				return c;
+     85          			}
+     86          			else
+     87          			{
+     88          				delay = SysTick_GetCounter();
+     89          				if (timeout == 0)
+     90          				{
+     91          					timeout = delay;
+     92          				}
+     93          				else
+     94          				{
+     95          					if (delay > timeout)
+     96          					{
+     97          						delay = delay-timeout;
+     98          					}
+     99          					else
+    100          					{
+    101          						delay += 0xffffffff-timeout;
+    102          					}
+    103          
+    104          					if (delay > (CHANNEL_TIMEOUT_TH/10))	//systick是10ms计数的
+    105          					{
+    106          						PrintBufToZero();
+    107          						current_channel = -1;
+    108          						//debug_cnt = 0;
+    109          					}
+    110          				}
+    111          			}
+    112          		}
+    113          		
+    114          	}
+    115          
+    116          }
+    117          
+    118           extern uint8_t PrintBufGetchar(uint8_t *ch)
+    119           {
+    120          	return ringbuffer_getchar(&spp_ringbuf[current_channel],ch);
+    121           }
+    122          
+    123           extern void PrintBufPushBytes(uint8_t c)
+    124           {
+    125                ringbuffer_putchar(&spp_ringbuf[current_channel],c);
+    126           }
+    127          
+    128          //======================================================================================================
+    129          extern void PrintBufPushLine( uint8_t *p, uint32_t len)
+    130          {
+    131          	ringbuffer_put(&spp_ringbuf[current_channel],p,len);
+    132          }
+    133          extern void PrintBufToZero(void)
+    134          {
+    135               ringbuffer_reset(&spp_ringbuf[current_channel]);
+    136          	 set_BT_FREE(current_channel);
+    137          }
+    138          /******************************************************************************
+    139          **                            End Of File
+    140          ******************************************************************************/
 
    Maximum stack usage in bytes:
 
@@ -181,20 +195,25 @@ E:\BT Printer\FW\src\App\uart.c
      --------------      -----
      ringbuffer_status     40
      ringbuffer_data_len   68
-     Getchar              264
+     Getchar              260
      timeout                4
      PrintBufGetchar       24
      PrintBufPushBytes     24
      PrintBufPushLine      24
-     PrintBufToZero        20
-     ??DataTable15          4
-     ??DataTable16          4
+     PrintBufToZero        98
+     ??DataTable22          4
+     ??DataTable23          4
+     ??DataTable24          4
+     ??DataTable26          4
+     ??DataTable27          4
+     ??DataTable28          4
+     ??DataTable29          4
 
  
    4 bytes in section .bss
- 472 bytes in section .text
+ 566 bytes in section .text
  
- 472 bytes of CODE memory
+ 566 bytes of CODE memory
    4 bytes of DATA memory
 
 Errors: none

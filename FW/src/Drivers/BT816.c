@@ -24,7 +24,10 @@
 #include "TimeBase.h"
 
 //#define	BT816_DEBUG
-
+#ifdef DEBUG_VER
+extern unsigned short debug_buffer[];
+extern unsigned int debug_cnt;
+#endif
 
 #define BT816_RES_INIT				0x00
 
@@ -105,6 +108,21 @@ static void BT816_GPIO_config(unsigned int bt_channel,unsigned int baudrate)
 	GPIO_InitTypeDef				GPIO_InitStructure;
 	USART_InitTypeDef				USART_InitStructure;
 	DMA_InitTypeDef					DMA_InitStructure;
+
+	//for debug trip
+	//RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOB , ENABLE);
+	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable , ENABLE);
+
+	//trip1	PB.6  trip2  PB.5  trip3  PB.4  trip4  PB.3
+	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6;
+	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
+	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_SetBits(GPIOB, GPIO_Pin_3);
+	GPIO_ResetBits(GPIOB, GPIO_Pin_4);
+	GPIO_ResetBits(GPIOB, GPIO_Pin_5);
+	GPIO_SetBits(GPIOB, GPIO_Pin_6);
 
 #if(BT_MODULE_CONFIG & USE_BT1_MODULE)
 	if (bt_channel == BT1_MODULE)
@@ -549,17 +567,17 @@ static void BT816_NVIC_config(unsigned int bt_channel)
 		USART_ITConfig(USART1,USART_IT_IDLE,ENABLE);    
 
 		//配置UART4中断  
-		NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+		//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 		NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQChannel;               //通道设置为串口2中断    
-		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
-		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;       //中断占先等级1    
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;              //中断响应优先级0    
 		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
 		NVIC_Init(&NVIC_InitStructure);  
 
 		/* Enable the DMA1 Channel4 Interrupt */
 		NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel4_IRQChannel;
-		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
 		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 		NVIC_Init(&NVIC_InitStructure);
 
@@ -577,17 +595,17 @@ static void BT816_NVIC_config(unsigned int bt_channel)
 		USART_ITConfig(USART2,USART_IT_IDLE,ENABLE);    
 
 		//配置USART2中断  
-		NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+		//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 		NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQChannel;               //通道设置为串口2中断    
-		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
-		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;       //中断占先等级1    
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;              //中断响应优先级0    
 		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
 		NVIC_Init(&NVIC_InitStructure);  
 
 		/* Enable the DMA1 Channel7 Interrupt */
 		NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel7_IRQChannel;
-		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
 		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 		NVIC_Init(&NVIC_InitStructure);
 
@@ -605,17 +623,17 @@ static void BT816_NVIC_config(unsigned int bt_channel)
 		USART_ITConfig(USART3,USART_IT_IDLE,ENABLE);    
 
 		//配置USART3中断  
-		NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+		//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 		NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQChannel;               //通道设置为串口2中断    
-		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
-		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;       //中断占先等级1    
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;              //中断响应优先级0    
 		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
 		NVIC_Init(&NVIC_InitStructure);  
 
 		/* Enable the DMA1 Channel2 Interrupt */
 		NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel2_IRQChannel;
-		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
 		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 		NVIC_Init(&NVIC_InitStructure);
 
@@ -633,17 +651,17 @@ static void BT816_NVIC_config(unsigned int bt_channel)
 		USART_ITConfig(UART4,USART_IT_IDLE,ENABLE);    
 
 		//配置UART4中断  
-		NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+		//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 		NVIC_InitStructure.NVIC_IRQChannel = UART4_IRQChannel;               //通道设置为串口2中断    
-		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;       //中断占先等级0    
-		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 6;              //中断响应优先级0    
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;       //中断占先等级1    
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;              //中断响应优先级0    
 		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                 //打开中断    
 		NVIC_Init(&NVIC_InitStructure);  
 
 		/* Enable the DMA2 Channel5 Interrupt */
 		NVIC_InitStructure.NVIC_IRQChannel = DMA2_Channel4_5_IRQChannel;
-		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-		//NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+		NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
 		NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 		NVIC_Init(&NVIC_InitStructure);
 
@@ -836,8 +854,6 @@ static void BT816_reset_resVar(unsigned int bt_channel)
 #endif
 }
 
-extern unsigned int	isr_debug;
-extern unsigned int	isr_cnt;
 
 /**
 * @brief 处理host收到BT816的数据
@@ -849,15 +865,15 @@ extern unsigned int	isr_cnt;
 int BT816_Channel1_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
-	if (isr_debug)
-	{
-		isr_cnt++;
-	}
 	if (BT1_CONNECT)
 	{
 		//已经处于连接状态，蓝牙模块进入数据透传模式
 		set_BT1_BUSY();
 		ringbuffer_put(&spp_ringbuf[BT1_MODULE],res,res_len);
+#ifdef DEBUG_VER
+		//memcpy(debug_buffer+debug_cnt,res,res_len);
+		//debug_cnt += res_len;
+#endif
 		DMA1_Channel5->CNDTR = BT816_RES_BUFFER_LEN;
 		if (ringbuffer_data_len(&spp_ringbuf[BT1_MODULE]) >= RING_BUFF_FULL_TH)
 		{
@@ -913,10 +929,6 @@ int BT816_Channel2_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
 
-	if (isr_debug)
-	{
-		isr_cnt++;
-	}
 	if (BT2_CONNECT)
 	{
 		//已经处于连接状态，蓝牙模块进入数据透传模式
@@ -976,10 +988,6 @@ int BT816_Channel2_RxISRHandler(unsigned char *res, unsigned int res_len)
 int BT816_Channel3_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
-	if (isr_debug)
-	{
-		isr_cnt++;
-	}
 	if (BT3_CONNECT)
 	{
 		//已经处于连接状态，蓝牙模块进入数据透传模式
@@ -1039,10 +1047,7 @@ int BT816_Channel3_RxISRHandler(unsigned char *res, unsigned int res_len)
 int BT816_Channel4_RxISRHandler(unsigned char *res, unsigned int res_len)
 {	
 	int i,len;
-	if (isr_debug)
-	{
-		isr_cnt++;
-	}
+
 	if (BT4_CONNECT)
 	{
 		//已经处于连接状态，蓝牙模块进入数据透传模式
@@ -1624,6 +1629,7 @@ int BT816_init(void)
 
 #endif
 
+	memset(spp_rec_buffer,0,MAX_PT_CHANNEL*SPP_BUFFER_LEN);
 	RESET_BT1_DMA();
 	RESET_BT2_DMA();
 	RESET_BT3_DMA();

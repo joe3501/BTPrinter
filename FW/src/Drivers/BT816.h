@@ -27,8 +27,25 @@
 #define		BT3_MODULE			(BT2_MODULE+SUPPORT_BT(USE_BT2_MODULE))
 #define		BT4_MODULE			(BT3_MODULE+SUPPORT_BT(USE_BT3_MODULE))
 	
+#define		trip1()	do{\
+	GPIO_ResetBits(GPIOB, GPIO_Pin_6);\
+	GPIO_SetBits(GPIOB, GPIO_Pin_6);\
+}while(0)
 
+#define		trip2()	do{\
+	GPIO_ResetBits(GPIOB, GPIO_Pin_5);\
+	GPIO_SetBits(GPIOB, GPIO_Pin_5);\
+}while(0)
 
+#define		trip3()	do{\
+	GPIO_ResetBits(GPIOB, GPIO_Pin_4);\
+	GPIO_SetBits(GPIOB, GPIO_Pin_4);\
+}while(0)
+
+#define		trip4()	do{\
+	GPIO_ResetBits(GPIOB, GPIO_Pin_3);\
+	GPIO_SetBits(GPIOB, GPIO_Pin_3);\
+}while(0)
 
 extern unsigned char	BT816_recbuffer[MAX_PT_CHANNEL][BT816_RES_BUFFER_LEN];
 extern struct ringbuffer	spp_ringbuf[MAX_PT_CHANNEL];
@@ -69,8 +86,15 @@ typedef enum
 #define RING_BUFF_FULL_TH		(SPP_BUFFER_LEN-256)	//当ringbuffer中接收到的数据大于此值时，实行流控，通知蓝牙模块不要再传数据下来了，此值待调试确定
 #define RING_BUFF_EMPTY_TH		(SPP_BUFFER_LEN/2)	//当ringbuffer中接收到的数据大于此值时，实行流控，通知蓝牙模块不要再传数据下来了，此值待调试确定
 
-#define     set_BT1_BUSY()	GPIO_SetBits(GPIOB, GPIO_Pin_8)
-#define     set_BT1_FREE()	GPIO_ResetBits(GPIOB, GPIO_Pin_8)
+#define     set_BT1_BUSY()	do{\
+	GPIO_SetBits(GPIOB, GPIO_Pin_8);\
+	esc_sts[BT1_MODULE].prt_on |= 0x80;\
+	}while(0)
+
+#define     set_BT1_FREE()	do{\
+	GPIO_ResetBits(GPIOB, GPIO_Pin_8);\
+	esc_sts[BT1_MODULE].prt_on &= ~0x80;\
+	}while(0)
 
 #define     set_BT2_BUSY()	GPIO_SetBits(GPIOC, GPIO_Pin_1)
 #define     set_BT2_FREE()	GPIO_ResetBits(GPIOC, GPIO_Pin_1)
@@ -86,6 +110,7 @@ typedef enum
 	{\
 	case BT1_MODULE:\
 		GPIO_ResetBits(GPIOB, GPIO_Pin_8);\
+		esc_sts[BT1_MODULE].prt_on &= ~0x80;\
 		break;\
 	case BT2_MODULE:\
 		GPIO_ResetBits(GPIOC, GPIO_Pin_1);\

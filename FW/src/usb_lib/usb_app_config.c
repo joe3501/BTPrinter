@@ -71,7 +71,7 @@ static void usb_Interrupts_Config(void)
 {
 	NVIC_InitTypeDef NVIC_InitStructure;
 
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+	//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 
 	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN_RX0_IRQChannel;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
