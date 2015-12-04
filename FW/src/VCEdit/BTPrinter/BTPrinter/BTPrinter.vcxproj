@@ -63,6 +63,7 @@
     <ClCompile Include="..\..\..\App\basic_fun.c" />
     <ClCompile Include="..\..\..\App\DotFill.c" />
     <ClCompile Include="..\..\..\App\esc_p.c" />
+    <ClCompile Include="..\..\..\App\ESC_POS_test.c" />
     <ClCompile Include="..\..\..\App\Event.c" />
     <ClCompile Include="..\..\..\App\font.c" />
     <ClCompile Include="..\..\..\App\JMemory.c" />
@@ -139,6 +140,7 @@
     <ClInclude Include="..\..\..\App\config.h" />
     <ClInclude Include="..\..\..\App\DotFill.h" />
     <ClInclude Include="..\..\..\App\Esc_p.h" />
+    <ClInclude Include="..\..\..\App\ESC_POS_test.h" />
     <ClInclude Include="..\..\..\App\Event.h" />
     <ClInclude Include="..\..\..\App\font.h" />
     <ClInclude Include="..\..\..\App\font8x16.h" />

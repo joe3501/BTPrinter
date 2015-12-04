@@ -1,0 +1,363 @@
+###############################################################################
+#                                                                             #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     04/Dec/2015  18:50:23 #
+# Copyright 1999-2009 IAR Systems AB.                                         #
+#                                                                             #
+#    Cpu mode     =  thumb                                                    #
+#    Endian       =  little                                                   #
+#    Source file  =  E:\BT Printer\FW\src\App\ESC_POS_test.c                  #
+#    Command line =  "E:\BT Printer\FW\src\App\ESC_POS_test.c" -D DEBUG_VER   #
+#                    -lcN "E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\"  #
+#                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
+#                    --no_cse --no_unroll --no_inline --no_code_motion        #
+#                    --no_tbaa --no_clustering --no_scheduling --debug        #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
+#                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
+#                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" -I   #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC-C #
+#                    PU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS #
+#                    \uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \uCOS\uCOS-II\Ports\" -I "E:\BT                          #
+#                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
+#                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
+#                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
+#                    \usb_lib\" -I "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\" -Ol                              #
+#    List file    =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\List\ESC_POS_ #
+#                    test.lst                                                 #
+#    Object file  =  E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\ESC_POS_t #
+#                    est.o                                                    #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+E:\BT Printer\FW\src\App\ESC_POS_test.c
+      1          /**
+      2          * @file ESC_POS_test.c
+      3          * @brief 测试ESC/POS指令集的兼容性
+      4          * @version V0.0.1
+      5          * @author kent.zhou
+      6          * @date 2015年12月4日
+      7          * @copy
+      8          *
+      9          * 此代码为深圳合杰电子有限公司项目代码，任何人及公司未经许可不得复制传播，或用于
+     10          * 本公司以外的项目。本司保留一切追究权利。
+     11          *
+     12          * <h1><center>&copy; COPYRIGHT 2015 heroje</center></h1>
+     13          *
+     14          */
+     15          #ifdef DEBUG_VER
+     16          #include "Type.h"
+     17          #include "ESC_POS_test.h"
+     18          #include "TP.h"
+     19          #include "pic.h"
+     20          #include "esc_p.h"
+     21          #include "res_spi.h"
+     22          
+     23          extern unsigned int					dwPictureLBA;
+     24          /*
+     25           * @brief: 测试ESC开始的命令集
+     26           */
+     27          void ESC_POS_test_esc(void)
+     28          {
+     29          
+     30              uint32_t len,i;
+     31              char buf[64];
+     32          
+     33          	//debug_cnt = 0;
+     34          	current_channel = 0;
+     35               PrintBufToZero();
+     36              len = snprintf(buf, sizeof(buf),  "\n");
+     37              TPPrintAsciiLine(buf,len);
+     38              TPPrintAsciiLine(buf,len);
+     39          
+     40          	//ESC @  初始化打印机,先用默认设置打印一行数据
+     41              len = snprintf(buf, sizeof(buf), "\x1b@1234567890测试\n");
+     42              TPPrintAsciiLine(buf,len);
+     43          
+     44          	//ESC SP n -- 改变右行间距  ESC ! n -- 修改打印模式
+     45          	len = snprintf(buf, sizeof(buf), "\x1b\x20\x10\x1b!\xff 1234567890测试\n");
+     46              TPPrintAsciiLine(buf,len);
+     47          
+     48          	//ESC $ nl nh  设置绝对打印位置 //ESC - n	选择/取消下划线模式  低半字节的低2位表示下划线宽度  0： 不改变  1：一点行   2:2点行
+     49          								    //								 高半字节的低2位表示是否需要下划线  0： 取消  else: 选择
+     50          	len = snprintf(buf, sizeof(buf), "\x1b@\x1b$\x20\x01\x1b-\x12 1234567890测试\n");
+     51              TPPrintAsciiLine(buf,len);
+     52          
+     53          	//ESC 3 n  设置行间距   //ESC J n 打印并走纸
+     54          	len = snprintf(buf, sizeof(buf), "\x1b@\x1b\x33\x40 123456\x1bJ\x05 7890测试\n");
+     55              TPPrintAsciiLine(buf,len);
+     56          
+     57          	//ESC 2  设置默认行间距   //ESC a n  选择对齐方式
+     58          	len = snprintf(buf, sizeof(buf), "\x1b\x32\x1b\x61\x02 1234567890测试\n");
+     59              TPPrintAsciiLine(buf,len);
+     60          	len = snprintf(buf, sizeof(buf), "\x1b\x61\x01 1234567890测试\n");
+     61              TPPrintAsciiLine(buf,len);
+     62          	len = snprintf(buf, sizeof(buf), "\x1b\x61\x30 1234567890测试\n");
+     63              TPPrintAsciiLine(buf,len);
+     64          
+     65          	////ESC d n 打印并向前走纸n 行 //ESC { n 打开/关闭颠倒打印模式
+     66          	len = snprintf(buf, sizeof(buf), "\x1b{\x01 1212345\x1b\x64\x08\x1b{\x30 67890测试\n");
+     67              TPPrintAsciiLine(buf,len);
+     68          
+     69          	//ESC M n
+     70          	len = snprintf(buf, sizeof(buf), "\x1bM\x01 121234567890测试\n\x1b@");
+     71              TPPrintAsciiLine(buf,len);
+     72          
+     73              len = snprintf(buf, sizeof(buf),  "\n\n\n\n\n");
+     74              TPPrintAsciiLine(buf,len);
+     75          }
+     76          
+     77          
+     78          static unsigned char	line_buffer[LineDot/8];
+     79          static unsigned char	line_offset;
+     80          extern uint8_t const Byte2DotNumTbl[];
+     81          void print_CharLine(void)
+     82          {
+     83          	unsigned char	tmp[2*LineDot+4];
+     84          	unsigned int	i,j,k,cnt,pos;
+     85          	
+     86          	for(i = 0,cnt = 0; i < LineDot/8;i++)
+     87          	{
+     88          		cnt +=  Byte2DotNumTbl[line_buffer[i]];
+     89          	}
+     90          
+     91          	tmp[0] = 0x1b;
+     92          	tmp[1] = 0x27;
+     93          
+     94          	tmp[2] = (cnt&0xff);
+     95          	tmp[3] = (cnt>>8)&0xff;
+     96          
+     97          	for(i = 0,k = 4; i < LineDot/8;i++)
+     98          	{
+     99          		for(j=0; j<8; j++)
+    100          		{
+    101          			if(line_buffer[i] & 0x80)
+    102          			{
+    103          				pos = esc_sts[current_channel].leftspace+i*8+j;
+    104          				tmp[k++]=(pos&0xff);
+    105          				tmp[k++]=(pos>>8)&0xff;
+    106          			}
+    107          			line_buffer[i] <<= 1;
+    108          		}	
+    109          	}
+    110          	TPPrintAsciiLine(tmp,k);
+    111          }
+    112          
+    113          /**
+    114          * @brief 将单色的BMP图片打印出来
+    115          */
+    116          static void print_PictureStreem(unsigned int dwLBA, unsigned int offset)
+    117          {
+    118          	unsigned char					*pData, *pOrg;
+    119          	unsigned short					w, h;
+    120          	int								i, j;
+    121          	//unsigned short					lcd_x,lcd_y;
+    122          	unsigned int					data_offset,remain;
+    123          	unsigned char					tmp[26];
+    124          
+    125          
+    126          	//lcd_x							= esc_sts[current_channel].leftspace;
+    127          	//lcd_y							= y;
+    128          
+    129          	// pOrg   res_buffer起始地址
+    130          	// pData  工作指针
+    131          	pOrg							= read_resdata(dwLBA);
+    132          
+    133          	if(pOrg == (unsigned char*)0)
+    134          		return;
+    135          
+    136          	pData						= pOrg + offset;
+    137          
+    138          	if ((pData+26) >= (pOrg + 0x200))
+    139          	{
+    140          		remain = pOrg + 0x200 - pData;
+    141          		memcpy(tmp,pData,remain);
+    142          
+    143          		dwLBA++;
+    144          		pOrg							= read_resdata(dwLBA);
+    145          		pData = pOrg;
+    146          		memcpy(tmp+remain,pData,26-remain);
+    147          
+    148          		if ((*tmp != 'B')||(*(tmp+1) != 'M'))
+    149          		{
+    150          			return;		//有些BMP图片文件的标志字节并不是BM
+    151          		}
+    152          
+    153          		data_offset = *(unsigned short*)(tmp+10);
+    154          
+    155          		w							= *(unsigned int*)(tmp+18);
+    156          		h							= *(unsigned int*)(tmp+22);
+    157          
+    158          		pData						+= data_offset - remain;
+    159          	}
+    160          
+    161          	else
+    162          	{
+    163          		if ((*pData != 'B')||(*(pData+1) != 'M'))
+    164          		{
+    165          			return;		//有些BMP图片文件的标志字节并不是BM
+    166          		}
+    167          
+    168          		data_offset = *(unsigned short*)(pData+10);	//真正的位图数据的起始地址
+    169          
+    170          		w							= *(unsigned int*)(pData+18);
+    171          		h							= *(unsigned int*)(pData+22);
+    172          
+    173          		pData						+= data_offset;
+    174          	}
+    175          
+    176          	pOrg						+= 0x200;
+    177          	if (pData > pOrg)
+    178          	{
+    179          		data_offset = pData - pOrg;
+    180          		dwLBA ++;
+    181          		pOrg							= read_resdata(dwLBA);
+    182          		pData = pOrg + data_offset;
+    183          		pOrg += 0x200;
+    184          	}
+    185          
+    186          	i							= w;
+    187          	//j							= lcd_x;
+    188          
+    189          	for(;h>0; h--)
+    190          	{
+    191          		line_offset = 0;
+    192          		memset(line_buffer,0,LineDot/8);
+    193          		while(w>0)
+    194          		{
+    195          lop:
+    196          			//print_PushChar(*pData);
+    197          			if(line_offset <  LineDot/8)
+    198          			{
+    199          				line_buffer[line_offset] = *pData;
+    200          				line_offset++;
+    201          			}
+    202          
+    203          			pData				++;
+    204          			w -= 8;
+    205          			if(pData >= pOrg)
+    206          			{
+    207          				dwLBA++;
+    208          				pData			= read_resdata(dwLBA);
+    209          				goto lop;
+    210          			}
+    211          		}
+    212          		//lcd_y++;
+    213          		w						= i;		// 恢复宽度
+    214          		if((w/8)%4)
+    215          		{
+    216          			pData += 4 - ((w/8)%4);		//由于BMP一行数据是4字节对齐，所以需要处理  
+    217          		}
+    218          		
+    219          		print_CharLine();
+    220          	}
+    221          }
+    222          
+    223          /**
+    224          * @brief 根据图片ID，在指定位置上显示图片
+    225          * @param[in] int x,y 输出的坐标
+    226          * @param[in] unsigned int PicID 图片ID
+    227          */
+    228          void print_PictureOut(unsigned int PicID)
+    229          {
+    230          	unsigned int					*pIDArray;
+    231          	unsigned int					pic_address, pic_sector;
+    232          	//volatile int	temp;
+    233          
+    234          
+    235          	if(dwPictureLBA == 0)
+    236          	{
+    237          		// 图片装载失败
+    238          		return;
+    239          	}
+    240          
+    241          	dwPictureLBA +=1;
+    242          	// 装入ID数组,每个ID占4字节,所以通过基址dwPictureLBA,加上ID的偏移得到该ID地址
+    243          	// 所在的扇区
+    244          	pIDArray						= (unsigned int*)read_resdata(dwPictureLBA + (PicID*4)/512);
+    245          	if(pIDArray)
+    246          	{
+    247          		pIDArray					+= PicID % 128;
+    248          	}
+    249          
+    250          	// 取得地址
+    251          	pic_address						= *pIDArray;
+    252          	if (pic_address)
+    253          	{
+    254          		pic_sector						= dwPictureLBA + (pic_address / 512);	// 数据所在的
+    255          		pic_address						&= (512-1);								// 扇区内的偏移值
+    256          
+    257          		print_PictureStreem(pic_sector, pic_address);
+    258          	}
+    259          }
+    260          
+    261          /*
+    262           * @brief: 测试ESC打印曲线命令,通过此命令打印一个BMP图案
+    263           */
+    264          void ESC_POS_test_esc_special(void)
+    265          {
+    266          	current_channel = 0;
+    267               PrintBufToZero();
+    268          
+    269          
+    270          	//ESC ’ml mh l1 h1 l2 h2 l3 h3 … li hi…  打印曲线
+    271          			//ml+mh*256表示这一行需要打印的点数，后面跟的（li+hi*256）是此行内需要打印的点的位置
+    272          			//实际上通过此指令可以打印位图
+    273          
+    274          	print_PictureOut(PIC_LOGO);
+    275          }
+    276          #endif
+
+   Maximum stack usage in bytes:
+
+     Function                 .cstack
+     --------                 -------
+     ESC_POS_test_esc             72
+     ESC_POS_test_esc_special      8
+     print_CharLine              784
+     print_PictureOut              8
+     print_PictureStreem          64
+
+
+   Section sizes:
+
+     Function/Label                                 Bytes
+     --------------                                 -----
+     ESC_POS_test_esc                                292
+     line_buffer                                      48
+     line_offset                                       1
+     print_CharLine                                  152
+     print_PictureStreem                             336
+     print_PictureOut                                 84
+     ESC_POS_test_esc_special                         20
+     ??DataTable7                                      4
+     ??DataTable8                                      4
+     ?<Constant "\n">                                  2
+     ?<Constant "\033@1234567890\262\342\312\324\n"   20
+     ?<Constant "\033 \020\033!\377 1234567890\262\   24
+     ?<Constant "\033@\033$ \001\033-\022 123456789   28
+     ?<Constant "\033@\0333@ 123456\033J\005 7890\2   28
+     ?<Constant "\0332\033a\002 1234567890\262\342\   24
+     ?<Constant "\033a\001 1234567890\262\342\312\3   20
+     ?<Constant "\033a0 1234567890\262\342\312\324\   20
+     ?<Constant "\033{\001 1212345\033d\b\033{0 678   32
+     ?<Constant "\033M\001 121234567890\262\342\312   24
+     ?<Constant "\n\n\n\n\n">                          8
+
+ 
+  49 bytes in section .bss
+ 230 bytes in section .rodata
+ 892 bytes in section .text
+ 
+ 892 bytes of CODE  memory
+ 230 bytes of CONST memory
+  49 bytes of DATA  memory
+
+Errors: none
+Warnings: 8

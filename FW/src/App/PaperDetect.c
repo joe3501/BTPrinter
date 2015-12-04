@@ -18,7 +18,7 @@ uint16_t		AD_Value[10][2];		//分别存放缺纸检测的AD值和温度检测的AD值
 
 
 #define AD_BLACKMARK_HIGH  (0X0200UL)
-#define AD_BLACKMARK_LOW   (0X0080UL)
+#define AD_BLACKMARK_LOW   (0X0130UL)
 #define PAPER_AD_LTHRESHOLD  (AD_BLACKMARK_LOW)
 
 
@@ -196,7 +196,7 @@ void TPPaperSNSDetect(uint8_t c)//488?????,486?????
 		if((printersts & (1 << 0)) == 0)		// previous paper out
 		{
 			printersts |= (1<<0);  //xxx1
-			papercnt = 5;	// 50ms
+			papercnt = 2;	// 20ms
 		}
 		else if(papercnt)
 		{
@@ -217,7 +217,7 @@ void TPPaperSNSDetect(uint8_t c)//488?????,486?????
 		if(printersts & (1 << 0))	// previous paper in
 		{
 			printersts &= ~(1<<0);  //xxx0
-			papercnt = 5;	// 50ms
+			papercnt = 2;	// 20ms
 		}
 		else if(papercnt)
 		{
@@ -260,6 +260,21 @@ uint8_t TPPrinterReady(void)
 	else
     {
 	    return FALSE;
+	}
+
+}
+
+uint8_t TPPrinterReady_ext(void)
+{
+	// return TRUE;
+
+	if(PAPERSNS())
+	{
+		return FALSE;
+	}
+	else
+	{
+		return TRUE;
 	}
 
 }

@@ -3,6 +3,7 @@
 #include "TP.h"
 #include "basic_fun.h"
 #include "Esc_p.h"
+#include "ESC_POS_test.h"
 
 
 //======================================================================================================
@@ -53,7 +54,9 @@ extern void event_proc(void)
 	{
 	//-----------------------------------------------------------------
 	case evtKeyDownFeed:
-		TPPrintTestPage();
+		//ESC_POS_test_esc();
+		ESC_POS_test_esc_special();
+		//TPPrintTestPage();
 		//TPFeedStart();
 		//TPSelfTest2();
 		break;

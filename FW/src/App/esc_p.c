@@ -7,6 +7,7 @@
 #include <assert.h>
 #include "Font.h"
 #include "uart.h"
+#include "TP.h"
 //======================================================================================================
 //======================================================================================================
 //======================================================================================================
@@ -202,6 +203,7 @@ extern void esc_p(void)
 			//ESC @  初始化打印机
 			esc_p_init(current_channel);
 			//PrintBufToZero();		//这条命令挺奇葩的，小度掌柜经常卡住就是这个原因，不需要清除打印缓冲区
+			break;
 		case 'D':
 			//ESC D n1....nk NULL 设置横向跳格位置
 			memset(esc_sts[current_channel].tab,0,8);
@@ -255,13 +257,19 @@ extern void esc_p(void)
 			}
 			break;
 		case 'c':
-			//ESC c 5 n 允许/禁止按键
 			chs[1] = Getchar();
 			if (chs[1] == '5')
 			{
+				//ESC c 5 n 允许/禁止按键
 				chs[2] = Getchar();
 				//@todo.... 设置按键禁止标志位
 
+			}
+			else if (chs[1] =='3')
+			{
+				//ESC c 3 n Select paper sensor(s) to output paper-end signal
+				chs[2] = Getchar();
+				//@todo...
 			}
 			break;
 		case 'd':
@@ -270,6 +278,24 @@ extern void esc_p(void)
 			esc_sts[current_channel].start_dot = 0;
 			PrintCurrentBuffer(0);
 			TPFeedLine(chs[1]);
+			break;
+		case 'e':
+			//ESC e n Print and reverse feed n lines
+			chs[1] = Getchar();
+			esc_sts[current_channel].start_dot = 0;
+			PrintCurrentBuffer(0);
+			//TPFeedLine(chs[1]);
+			//@todo...反向走纸
+			break;
+		case 'r':
+			//ESC r n		Select printing color
+			chs[1] = Getchar();
+			//@not support
+			break;
+		case 't':
+			//ESC t n		Select character code table
+			chs[1] = Getchar();
+			//@not support
 			break;
 		case 'p':
 			//ESC p m t1 t2 产生钱箱控制脉冲
@@ -321,7 +347,35 @@ extern void esc_p(void)
 			{
 				esc_sts[current_channel].rotate = ANTITYPE;
 			}
-			
+			break;
+		case 'E':
+			chs[1] = Getchar();
+			//ESC E n
+			//@todo....
+			break;
+		case 'G':
+			chs[1] = Getchar();
+			//ESC G n
+			//@todo....
+			break;
+		case 'M':
+			chs[1] = Getchar();
+			//ESC M n
+			//if ((chs[1] == 0)|| (chs[1] == 1) || (chs[1] == 2) || (chs[1] == 48) || (chs[1] == 49) || (chs[1] == 50))
+			if ((chs[1] == 0)|| (chs[1] == 1)|| (chs[1] == 48) || (chs[1] == 49))
+			{
+				if (chs[1]&0x01)
+				{
+					esc_sts[current_channel].font_en = FONT_B_WIDTH;
+					esc_sts[current_channel].font_cn = FONT_CN_B_WIDTH;
+				}
+				else
+				{
+					esc_sts[current_channel].font_en = FONT_A_WIDTH;
+					esc_sts[current_channel].font_cn = FONT_CN_A_WIDTH;
+				}
+			}
+			break;
 		default:
 			break;
 		}
@@ -376,7 +430,7 @@ extern void esc_p(void)
 
 						memset(tmp,0,LineDot/8);
 						strcpy(tmp,chs);
-						TPPrintLine(tmp);
+						TPPrintAsciiLine(tmp,LineDot/8);
 						TPFeedLine(4);
 					}
 				}
@@ -405,7 +459,7 @@ extern void esc_p(void)
 
 						memset(tmp,0,LineDot/8);
 						strcpy(tmp,chs);
-						TPPrintLine(tmp);
+						TPPrintAsciiLine(tmp,LineDot/8);
 						TPFeedLine(4);
 					}
 				}
@@ -640,6 +694,19 @@ extern void esc_p(void)
 			//GS j m 即时打印条码位置
 			chs[1] = Getchar();
 			//@todo....
+			break;
+		case 'V':
+			//GS V m (n)  Select cut mode and cut paper
+			chs[1] = Getchar();
+			if ((chs[1] == 0) || (chs[1] == 1) || (chs[1] == 48) || (chs[1] == 49))
+			{
+				//not support
+			}
+			else if ((chs[1] == 65)||(chs[1] == 66))
+			{
+				chs[2] = Getchar();
+				//not support
+			}
 			break;
 		}
 		break;

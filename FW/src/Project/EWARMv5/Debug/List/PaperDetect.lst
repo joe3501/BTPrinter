@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     02/Dec/2015  10:22:05 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     04/Dec/2015  13:10:08 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -57,7 +57,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
      18          
      19          
      20          #define AD_BLACKMARK_HIGH  (0X0200UL)
-     21          #define AD_BLACKMARK_LOW   (0X0080UL)
+     21          #define AD_BLACKMARK_LOW   (0X0130UL)
      22          #define PAPER_AD_LTHRESHOLD  (AD_BLACKMARK_LOW)
      23          
      24          
@@ -235,7 +235,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     196          		if((printersts & (1 << 0)) == 0)		// previous paper out
     197          		{
     198          			printersts |= (1<<0);  //xxx1
-    199          			papercnt = 5;	// 50ms
+    199          			papercnt = 2;	// 20ms
     200          		}
     201          		else if(papercnt)
     202          		{
@@ -256,7 +256,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     217          		if(printersts & (1 << 0))	// previous paper in
     218          		{
     219          			printersts &= ~(1<<0);  //xxx0
-    220          			papercnt = 5;	// 50ms
+    220          			papercnt = 2;	// 20ms
     221          		}
     222          		else if(papercnt)
     223          		{
@@ -303,46 +303,61 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     264          
     265          }
     266          
-    267          uint8_t TPPaperReady(void)
-    268           {
-    269          
-    270          	if(printersts & PAPER_READY)
-    271          	{
-    272          		return TRUE;
-    273          	}
-    274          	else
-    275              {
-    276          	    return FALSE;
-    277          	}
-    278          
-    279          }
-    280          
-    281          //================================================================================================
-    282          void SysTick_IRQ_Handle(void)
-    283          {
-    284          	int i;
-    285          	KeyScanProc();
-    286          	TPBMSNSDetect();
-    287          	TPPaperSNSDetect( PAPERSNS());
-    288          	for (i = 0; i < MAX_PT_CHANNEL;i++)
-    289          	{
-    290          		BT816_connect_status(i);
-    291          	}
-    292          #ifdef HW_VER_LCD
-    293          	//LCD_Refresh();
-    294          #else
-    295          	//LedScanProc();
-    296          
-    297          #endif
-    298          	return;
-    299          }
-    300          
-    301          
-    302          
-    303          
-    304          
-    305          
-    306          
+    267          uint8_t TPPrinterReady_ext(void)
+    268          {
+    269          	// return TRUE;
+    270          
+    271          	if(PAPERSNS())
+    272          	{
+    273          		return FALSE;
+    274          	}
+    275          	else
+    276          	{
+    277          		return TRUE;
+    278          	}
+    279          
+    280          }
+    281          
+    282          uint8_t TPPaperReady(void)
+    283           {
+    284          
+    285          	if(printersts & PAPER_READY)
+    286          	{
+    287          		return TRUE;
+    288          	}
+    289          	else
+    290              {
+    291          	    return FALSE;
+    292          	}
+    293          
+    294          }
+    295          
+    296          //================================================================================================
+    297          void SysTick_IRQ_Handle(void)
+    298          {
+    299          	int i;
+    300          	KeyScanProc();
+    301          	TPBMSNSDetect();
+    302          	TPPaperSNSDetect( PAPERSNS());
+    303          	for (i = 0; i < MAX_PT_CHANNEL;i++)
+    304          	{
+    305          		BT816_connect_status(i);
+    306          	}
+    307          #ifdef HW_VER_LCD
+    308          	//LCD_Refresh();
+    309          #else
+    310          	//LedScanProc();
+    311          
+    312          #endif
+    313          	return;
+    314          }
+    315          
+    316          
+    317          
+    318          
+    319          
+    320          
+    321          
 
    Maximum stack usage in bytes:
 
@@ -356,6 +371,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
      TPPaperSNSInit         72
      TPPrinterMark           0
      TPPrinterReady          0
+     TPPrinterReady_ext      0
 
 
    Section sizes:
@@ -368,22 +384,23 @@ E:\BT Printer\FW\src\App\PaperDetect.c
      bm_cnt                1
      AD_Value             40
      TPPaperSNSInit      376
-     PaperStartSns       230
+     PaperStartSns       240
      TPBMSNSDetect       324
      TPPaperSNSDetect    180
      TPPrinterMark        18
      TPPrinterReady       20
+     TPPrinterReady_ext   82
      TPPaperReady         20
-     SysTick_IRQ_Handle  104
+     SysTick_IRQ_Handle  106
      ??DataTable23         4
-     ??DataTable70         4
      ??DataTable80         4
+     ??DataTable90         4
 
  
     44 bytes in section .bss
- 1 284 bytes in section .text
+ 1 378 bytes in section .text
  
- 1 284 bytes of CODE memory
+ 1 378 bytes of CODE memory
     44 bytes of DATA memory
 
 Errors: none

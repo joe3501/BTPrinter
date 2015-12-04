@@ -245,6 +245,9 @@
     <ClCompile Include="..\..\..\App\res_spi_new.c">
       <Filter>源文件\app</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\App\ESC_POS_test.c">
+      <Filter>源文件\app</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Lib\inc\cortexm3_macro.h">
@@ -494,6 +497,9 @@
       <Filter>源文件\fatfs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\App\res_spi.h">
+      <Filter>源文件\app</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\App\ESC_POS_test.h">
       <Filter>源文件\app</Filter>
     </ClInclude>
   </ItemGroup>

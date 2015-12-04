@@ -1610,6 +1610,9 @@
       <name>$PROJ_DIR$\..\..\App\esc_p.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\App\ESC_POS_test.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\App\Event.c</name>
     </file>
     <file>

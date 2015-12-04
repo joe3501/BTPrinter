@@ -200,6 +200,25 @@ typedef struct
 static TP_T tp;
 static uint8_t TP_dot[16][LineDot/8+1];		// 增加一个控制位
 
+uint8_t const Byte2DotNumTbl[] =
+{
+	0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,
+	1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
+	1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
+	2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+	1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
+	2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+	2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+	3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+	1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
+	2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+	2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+	3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+	2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
+	3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+	3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
+	4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8
+};
 
 extern uint8_t clr_all_dot=0;
 
@@ -897,25 +916,6 @@ uint16_t MaxHeatDotsAdj(uint16_t dots)
 
 static void TPDataShiftCntProc(uint8_t strobe_cnt)
 {
-	static uint8_t const Byte2DotNumTbl[] =
-	{
-		0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,
-		1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
-		1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
-		2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
-		1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
-		2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
-		2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
-		3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
-		1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,
-		2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
-		2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
-		3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
-		2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,
-		3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
-		3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,
-		4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8
-	};
 	uint8_t c;			// 当前字节
 	uint8_t dot;		// 当前字节的点数
 	uint8_t heat_cnt;	// 分开几次加热
@@ -1001,7 +1001,8 @@ static uint8_t TPCheckBuf(void)
 	uint8_t ret;
 	uint16_t feedmax;
 
-   if(TPPrinterReady() !=  TRUE )
+   //if(TPPrinterReady_ext() !=  TRUE )
+	if(TPPrinterReady() !=  TRUE )
    {
     	 TPIntSetIdle();
 	     ret = 0;
@@ -1526,7 +1527,7 @@ extern uint8_t IsPrintBufEmpty(void)
 		return 1;
 	}
 }
-static void TPPrintAsciiLine(char *buf, uint32_t len)
+void TPPrintAsciiLine(char *buf, uint32_t len)
 {
    PrintBufPushLine((uint8_t *)buf, len);
 }
@@ -1548,7 +1549,7 @@ extern void TPPrintTestPage(void)
     uint32_t len,i;
     char buf[64];
 
-	debug_cnt = 0;
+	//debug_cnt = 0;
 	current_channel = 0;
      PrintBufToZero();
     len = snprintf(buf, sizeof(buf),  "\n");

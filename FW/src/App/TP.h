@@ -22,6 +22,7 @@ extern void TPFeed(int8_t direction);
 extern void TPFeedStop(void);
 extern void TPFeedLine(uint16_t line);
 extern void TPPrintLine(uint8_t  *dot);
+extern void TPPrintAsciiLine(char *buf, uint32_t len);
 extern void TPFeedStart(void);
 extern void TPFeedStop(void);
 extern uint8_t TPPrinterReady(void);

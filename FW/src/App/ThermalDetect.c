@@ -2,6 +2,11 @@
 #include "ThermalDetect.h"
 #include "PaperDetect.h"
 
+#ifdef DEBUG_VER
+extern unsigned short debug_buffer[];
+extern unsigned int debug_cnt;
+#endif
+
 #define TEMP_SNS_VALUE		((AD_Value[0][TEMP_SNS_OFFSET]+AD_Value[1][TEMP_SNS_OFFSET]+AD_Value[2][TEMP_SNS_OFFSET]+AD_Value[3][TEMP_SNS_OFFSET]\
 	+AD_Value[4][TEMP_SNS_OFFSET]+AD_Value[5][TEMP_SNS_OFFSET]+AD_Value[6][TEMP_SNS_OFFSET]+AD_Value[7][TEMP_SNS_OFFSET]\
 	+AD_Value[8][TEMP_SNS_OFFSET]+AD_Value[9][TEMP_SNS_OFFSET])/10)
@@ -56,6 +61,11 @@ int16_t TranRtoDegree(uint32_t res)
     {
         degree = 5*(i+1) - ((res-restbl[i+1])*5)/(restbl[i]-restbl[i+1]) - 40;
     }
+
+#ifdef DEBUG_VER
+	debug_buffer[debug_cnt] = degree;
+	debug_cnt++;
+#endif
 
     return (degree);
 }

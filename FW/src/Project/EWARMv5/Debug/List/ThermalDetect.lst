@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:23 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     04/Dec/2015  12:04:08 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -41,69 +41,79 @@ E:\BT Printer\FW\src\App\ThermalDetect.c
       2          #include "ThermalDetect.h"
       3          #include "PaperDetect.h"
       4          
-      5          #define TEMP_SNS_VALUE		((AD_Value[0][TEMP_SNS_OFFSET]+AD_Value[1][TEMP_SNS_OFFSET]+AD_Value[2][TEMP_SNS_OFFSET]+AD_Value[3][TEMP_SNS_OFFSET]\
-      6          	+AD_Value[4][TEMP_SNS_OFFSET]+AD_Value[5][TEMP_SNS_OFFSET]+AD_Value[6][TEMP_SNS_OFFSET]+AD_Value[7][TEMP_SNS_OFFSET]\
-      7          	+AD_Value[8][TEMP_SNS_OFFSET]+AD_Value[9][TEMP_SNS_OFFSET])/10)
-      8          
-      9          /*
-     10          函数    把读取到的AD值，根据上拉或下拉电阻计算对应内部的电阻值
-     11          输入    ad:     读取到的ad值,单位:100欧姆
-     12                  uRes:   外部上拉电阻值
-     13                  dRes:   外部下拉电阻值
-     14          */
-     15          uint32_t TranVtoR(uint32_t ad,uint32_t adMax,uint32_t uRes,uint32_t dRes)
-     16          {
-     17              if (uRes)
-     18              {   // 上拉电阻
-     19                  if (ad >= adMax)
-     20                      return (ad*uRes);
-     21                  else
-     22                      return ((ad*uRes)/(adMax-ad));
-     23              }
-     24              else
-     25              {   // 下拉电阻
-     26                  if (ad == 0) ad = 1;
-     27                  return ((adMax-ad)*dRes/ad);
+      5          #ifdef DEBUG_VER
+      6          extern unsigned short debug_buffer[];
+      7          extern unsigned int debug_cnt;
+      8          #endif
+      9          
+     10          #define TEMP_SNS_VALUE		((AD_Value[0][TEMP_SNS_OFFSET]+AD_Value[1][TEMP_SNS_OFFSET]+AD_Value[2][TEMP_SNS_OFFSET]+AD_Value[3][TEMP_SNS_OFFSET]\
+     11          	+AD_Value[4][TEMP_SNS_OFFSET]+AD_Value[5][TEMP_SNS_OFFSET]+AD_Value[6][TEMP_SNS_OFFSET]+AD_Value[7][TEMP_SNS_OFFSET]\
+     12          	+AD_Value[8][TEMP_SNS_OFFSET]+AD_Value[9][TEMP_SNS_OFFSET])/10)
+     13          
+     14          /*
+     15          函数    把读取到的AD值，根据上拉或下拉电阻计算对应内部的电阻值
+     16          输入    ad:     读取到的ad值,单位:100欧姆
+     17                  uRes:   外部上拉电阻值
+     18                  dRes:   外部下拉电阻值
+     19          */
+     20          uint32_t TranVtoR(uint32_t ad,uint32_t adMax,uint32_t uRes,uint32_t dRes)
+     21          {
+     22              if (uRes)
+     23              {   // 上拉电阻
+     24                  if (ad >= adMax)
+     25                      return (ad*uRes);
+     26                  else
+     27                      return ((ad*uRes)/(adMax-ad));
      28              }
-     29          }
-     30          
-     31          /*
-     32          函数    把热敏机芯的热敏电阻值转换为对应温度
-     33          输入    res     热敏电阻值，单位:100欧姆
-     34          */
-     35          const uint16_t restbl[25] = {8430,6230,4660,3520,2690,2080,
-     36                                  1610,1240, 968, 757, 595, 471,
-     37                                   375, 300, 242, 196, 159, 131,
-     38                                   108,  89,  74,  62,  52,  44,37};
-     39          int16_t TranRtoDegree(uint32_t res)
-     40          {
-     41              uint16_t i;
-     42              int16_t degree;
-     43          
-     44              // 热敏电阻对应温度表 -40 --> 75,间隔5度
-     45              i = 0;
-     46              while(i < 24)
-     47              {
-     48                  if (res >= restbl[i+1]) break;
-     49                  i++;
-     50              }
-     51              if (i >= 24)
-     52              {   // 超过80度
-     53                  degree = ((restbl[24]-res)*5)/(restbl[23]-restbl[24]) + 80;
-     54              }
-     55              else
-     56              {
-     57                  degree = 5*(i+1) - ((res-restbl[i+1])*5)/(restbl[i]-restbl[i+1]) - 40;
-     58              }
-     59          
-     60              return (degree);
-     61          }
-     62          
-     63          int16_t  TPHTemperature(void)
-     64          {
-     65              return TranRtoDegree(TranVtoR(TEMP_SNS_VALUE,0xfff,300,0));
-     66          }
-     67          
+     29              else
+     30              {   // 下拉电阻
+     31                  if (ad == 0) ad = 1;
+     32                  return ((adMax-ad)*dRes/ad);
+     33              }
+     34          }
+     35          
+     36          /*
+     37          函数    把热敏机芯的热敏电阻值转换为对应温度
+     38          输入    res     热敏电阻值，单位:100欧姆
+     39          */
+     40          const uint16_t restbl[25] = {8430,6230,4660,3520,2690,2080,
+     41                                  1610,1240, 968, 757, 595, 471,
+     42                                   375, 300, 242, 196, 159, 131,
+     43                                   108,  89,  74,  62,  52,  44,37};
+     44          int16_t TranRtoDegree(uint32_t res)
+     45          {
+     46              uint16_t i;
+     47              int16_t degree;
+     48          
+     49              // 热敏电阻对应温度表 -40 --> 75,间隔5度
+     50              i = 0;
+     51              while(i < 24)
+     52              {
+     53                  if (res >= restbl[i+1]) break;
+     54                  i++;
+     55              }
+     56              if (i >= 24)
+     57              {   // 超过80度
+     58                  degree = ((restbl[24]-res)*5)/(restbl[23]-restbl[24]) + 80;
+     59              }
+     60              else
+     61              {
+     62                  degree = 5*(i+1) - ((res-restbl[i+1])*5)/(restbl[i]-restbl[i+1]) - 40;
+     63              }
+     64          
+     65          #ifdef DEBUG_VER
+     66          	debug_buffer[debug_cnt] = degree;
+     67          	debug_cnt++;
+     68          #endif
+     69          
+     70              return (degree);
+     71          }
+     72          
+     73          int16_t  TPHTemperature(void)
+     74          {
+     75              return TranRtoDegree(TranVtoR(TEMP_SNS_VALUE,0xfff,300,0));
+     76          }
+     77          
 
    Maximum stack usage in bytes:
 
@@ -120,14 +130,14 @@ E:\BT Printer\FW\src\App\ThermalDetect.c
      -------------- -----
      TranVtoR         42
      restbl           52
-     TranRtoDegree   132
+     TranRtoDegree   160
      TPHTemperature   92
 
  
   52 bytes in section .rodata
- 266 bytes in section .text
+ 294 bytes in section .text
  
- 266 bytes of CODE  memory
+ 294 bytes of CODE  memory
   52 bytes of CONST memory
 
 Errors: none
