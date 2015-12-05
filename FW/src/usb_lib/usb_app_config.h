@@ -51,7 +51,7 @@ extern unsigned char	g_send_buff[];
 
 extern unsigned char				g_usb_type;
 
-void usb_Cable_Config (unsigned char NewState);
+bool usb_cable_insert (void);
 void usb_device_init(unsigned char device_type);
 void usb_SendData(unsigned char *pData, int length);
 void usb_Get_SerialNum(void);

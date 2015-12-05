@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     04/Dec/2015  18:22:03 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:45:22 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -93,13 +93,13 @@ E:\BT Printer\FW\src\App\Event.c
      55          	//-----------------------------------------------------------------
      56          	case evtKeyDownFeed:
      57          		//ESC_POS_test_esc();
-     58          		ESC_POS_test_esc_special();
+     58          		//ESC_POS_test_esc_special();
      59          		//TPPrintTestPage();
-     60          		//TPFeedStart();
+     60          		TPFeedStart();
      61          		//TPSelfTest2();
      62          		break;
      63          	case evtKeyUpFeed:
-     64          		//TPFeedStop();
+     64          		TPFeedStop();
      65          		break;
      66          	case evtKeyDownHold500msMode:
      67                  break;
@@ -172,16 +172,16 @@ E:\BT Printer\FW\src\App\Event.c
      event_init       12
      event_post       26
      event_pend       42
-     event_proc      208
+     event_proc      212
      ??DataTable5      4
      ??DataTable8      4
      ??DataTable10     4
 
  
   66 bytes in section .bss
- 300 bytes in section .text
+ 304 bytes in section .text
  
- 300 bytes of CODE memory
+ 304 bytes of CODE memory
   66 bytes of DATA memory
 
 Errors: none

@@ -87,12 +87,12 @@ static void usb_Interrupts_Config(void)
 }
 
 /*******************************************************************************
-* Function Name  : USB_Cable_Config
-* Description    : Software Connection/Disconnection of USB Cable
+* Function Name  : usb_cable_insert
+* Description    : detect the USB Cable wether insert
 * Input          : None.
-* Return         : Status
+* Return         : false: not insert true: insert  
 *******************************************************************************/
-void usb_Cable_Config (unsigned char NewState)
+bool usb_cable_insert (void)
 {
 	//@todo....
 }

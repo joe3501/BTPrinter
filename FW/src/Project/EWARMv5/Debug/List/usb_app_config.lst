@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:20 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:45:22 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -126,12 +126,12 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
      87          }
      88          
      89          /*******************************************************************************
-     90          * Function Name  : USB_Cable_Config
-     91          * Description    : Software Connection/Disconnection of USB Cable
+     90          * Function Name  : usb_cable_insert
+     91          * Description    : detect the USB Cable wether insert
      92          * Input          : None.
-     93          * Return         : Status
+     93          * Return         : false: not insert true: insert  
      94          *******************************************************************************/
-     95          void usb_Cable_Config (unsigned char NewState)
+     95          bool usb_cable_insert (void)
      96          {
      97          	//@todo....
      98          }
@@ -337,11 +337,11 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
 
      Function              .cstack
      --------              -------
-     usb_Cable_Config           0
      usb_Get_SerialNum          8
      usb_Interrupts_Config      8
      usb_SendData               8
      usb_SetClock               8
+     usb_cable_insert           0
      usb_device_init            8
 
 
@@ -353,7 +353,7 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
      g_usb_type                    1
      usb_SetClock                 28
      usb_Interrupts_Config        64
-     usb_Cable_Config              2
+     usb_cable_insert              2
      usb_device_init              40
      usb_SendData                 10
      usb_Get_SerialNum           104
@@ -366,4 +366,4 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
    2 bytes of DATA memory
 
 Errors: none
-Warnings: 1
+Warnings: 2

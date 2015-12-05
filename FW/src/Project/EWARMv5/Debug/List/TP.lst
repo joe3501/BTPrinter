@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     04/Dec/2015  17:34:24 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  11:06:19 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -1398,7 +1398,7 @@ E:\BT Printer\FW\src\App\TP.c
    1361                  TPSetSpeed(17);
    1362               #else
    1363          	  	#if defined(HIGH_8V_PRINT)
-   1364          		TPSetSpeed(6);
+   1364          		TPSetSpeed(4);
    1365          		#else
    1366                  TPSetSpeed(10);//10
    1367                  #endif
@@ -1859,9 +1859,9 @@ E:\BT Printer\FW\src\App\TP.c
      ?<Constant "System: HJ_PT486_KT100\n">           24
      ?<Constant "Firmware:%d.%02d.%02d \n">           24
      ?<Constant "Build date: %s\n">                   16
-     ?<Constant "Dec  4 2015">                        12
+     ?<Constant "Dec  5 2015">                        12
      ?<Constant "Build time: %s\n">                   16
-     ?<Constant "17:34:24">                           12
+     ?<Constant "11:06:19">                           12
      ?<Constant "[BT Module config]\n">               20
      ?<Constant "%d BT Module Support\n">             24
      ?<Constant "    Seq      |    Nam...">           36

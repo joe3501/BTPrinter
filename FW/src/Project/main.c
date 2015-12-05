@@ -26,6 +26,7 @@
 #include "Terminal_para.h"
 #include "usb_app_config.h"
 #include "res_spi.h"
+#include "Event.h"
 /* Private define ------------------------------------------------------------*/
 
 // Cortex System Control register address
@@ -71,7 +72,7 @@ void enter_u_disk_mode(void)
 	int key_state = 0;
 	g_mass_storage_device_type = MASSTORAGE_DEVICE_TYPE_SPI_FLASH;
 	usb_device_init(USB_MASSSTORAGE);
-	usb_Cable_Config(ENABLE);
+	//usb_Cable_Config(ENABLE);
 	
 	while(1)
 	{
@@ -86,7 +87,7 @@ void enter_u_disk_mode(void)
 		}
 		if( key_state == 20)		//退出USB模式，系统复位
 		{
-			usb_Cable_Config(DISABLE);
+			//usb_Cable_Config(DISABLE);
 			NVIC_SETFAULTMASK();
 			NVIC_GenerateSystemReset();
 		}
@@ -185,15 +186,30 @@ int main(void)
 		}
 	}
 
+	event_init();
 	
 	//检查系统的字库资源是否正确
 	res_upgrade();
 	ret = res_init();
-
-	if ((key_state == 2) || (ret!=0))	//开机时长按进纸键或者检测到系统的字库资源不正确时，进入U盘模式
+	if (ret != 0)
 	{
 		enter_u_disk_mode();
 	}
+	else
+	{
+		if (key_state == 2)
+		{
+			if (usb_cable_insert())
+			{
+				enter_u_disk_mode();
+			}
+			else
+			{
+				event_post(evtKeyDownHold2000msMode);
+			}
+		}
+	}
+
 	//初始化热敏打印头的控制IO及定时器
 	print_head_init();
 

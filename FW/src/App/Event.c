@@ -55,13 +55,13 @@ extern void event_proc(void)
 	//-----------------------------------------------------------------
 	case evtKeyDownFeed:
 		//ESC_POS_test_esc();
-		ESC_POS_test_esc_special();
+		//ESC_POS_test_esc_special();
 		//TPPrintTestPage();
-		//TPFeedStart();
+		TPFeedStart();
 		//TPSelfTest2();
 		break;
 	case evtKeyUpFeed:
-		//TPFeedStop();
+		TPFeedStop();
 		break;
 	case evtKeyDownHold500msMode:
         break;

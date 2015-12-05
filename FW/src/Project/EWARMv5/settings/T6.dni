@@ -11,7 +11,7 @@ ActionState=1
 Enabled=0
 ShowSource=1
 [DebugChecksum]
-Checksum=-1730527270
+Checksum=-920915380
 [DisAssemblyWindow]
 NumStates=_ 1
 State 1=_ 1
@@ -96,5 +96,5 @@ Bp8=_ "STD_CODE" "{E:\H520B\FW\src\App\record_m.c}.583.2@1" 0 0 0 0 "" 0 "" 0
 Bp9=_ "STD_CODE" "{E:\BT Printer\FW\src\App\DotFill.c}.119.3@1" 0 0 0 0 "" 0 "" 0
 Bp10=_ "EMUL_DATA" "0x20000DF0@1296" 0 0 0 116 0 "" 0 ""
 Bp11=_ "EMUL_DATA" "0x20000DF0@1296" 0 0 0 116 0 "" 0 ""
-Bp12=_ "STD_CODE" "{E:\BT Printer\FW\src\App\esc_p.c}.277.13@1" 1 0 0 0 "" 0 "" 0
+Bp12=_ "STD_CODE" "{E:\BT Printer\FW\src\App\esc_p.c}.277.13@1" 0 0 0 0 "" 0 "" 0
 Count=13
