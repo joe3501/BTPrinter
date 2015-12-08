@@ -25,6 +25,7 @@
 #include "usb_lib.h"
 #include "usb_pwr.h"
 #include "usb_desc.h"
+#include "uart.h"
 
 
 #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
@@ -100,58 +101,19 @@ bool usb_cable_insert (void)
 
 /**
 * @brief 设备的初始化
-* @note
+* @param[in] #define USB_VIRTUAL_PORT		1	//虚拟串口
+*			 #define USB_KEYBOARD			2	//USB键盘
+*			 #define USB_MASSSTORAGE		3	//大容量存储设备
+*			 #define USB_PRINTER			4	//USB打印机设备
+* @note 函数调用者保证device_type确实是已经实现的USB类
 */
 void usb_device_init(unsigned char device_type)
 {
-#if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_VIRTUAL_COMM_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
-	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_KEYBOARD)&&(device_type != USB_MASSSTORAGE))
+	if (device_type == USB_PRINTER)
 	{
-		return;
+		memset(spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],0,SPP_BUFFER_LEN);
+		ringbuffer_init(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],SPP_BUFFER_LEN);
 	}
-#endif
-
-#if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_VIRTUAL_COMM_DEVICE))
-	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_KEYBOARD))
-	{
-		return;
-	}
-#endif
-
-#if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
-	if ((device_type != USB_KEYBOARD)&&(device_type != USB_MASSSTORAGE))
-	{
-		return;
-	}
-#endif
-
-#if(USB_DEVICE_CONFIG == (_USE_USB_VIRTUAL_COMM_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
-	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_MASSSTORAGE))
-	{
-		return;
-	}
-#endif
-
-#if(USB_DEVICE_CONFIG ==  _USE_USB_MASS_STOARGE_DEVICE)
-	if (device_type != USB_MASSSTORAGE)
-	{
-		return;
-	}
-#endif
-
-#if(USB_DEVICE_CONFIG == _USE_USB_KEYBOARD_DEVICE)
-	if (device_type != USB_KEYBOARD)
-	{
-		return;
-	}
-#endif
-
-#if(USB_DEVICE_CONFIG == _USE_USB_VIRTUAL_COMM_DEVICE)
-	if (device_type != USB_VIRTUAL_PORT)
-	{
-		return;
-	}
-#endif
 
 	if (g_usb_type != device_type)
 	{

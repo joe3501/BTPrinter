@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:45:23 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     07/Dec/2015  18:42:27 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -824,4 +824,4 @@ E:\BT Printer\FW\src\App\basic_fun.c
  1 272 bytes of CODE memory (+ 34 bytes shared)
 
 Errors: none
-Warnings: none
+Warnings: 1

@@ -4,6 +4,7 @@
 #include "basic_fun.h"
 #include "Esc_p.h"
 #include "ESC_POS_test.h"
+#include "uart.h"
 
 
 //======================================================================================================
@@ -84,14 +85,14 @@ extern void event_proc(void)
     case evtKeyDownHold7000msMode:
         break;
 	case evtPaperOut:
-		for (i = 0; i< MAX_PT_CHANNEL;i++)
+		for (i = 0; i< MAX_PRINT_CHANNEL;i++)
 		{
 			esc_sts[i].status4 |= (0x03<<5);
 		}
         
 		break;
 	case evtPaperIn:
-		for (i = 0; i< MAX_PT_CHANNEL;i++)
+		for (i = 0; i< MAX_PRINT_CHANNEL;i++)
 		{
 			esc_sts[i].status4 &= ~(0x03<<5);
 		}

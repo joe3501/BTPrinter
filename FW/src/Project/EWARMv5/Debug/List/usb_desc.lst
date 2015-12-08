@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:45:24 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     08/Dec/2015  15:20:45 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -405,61 +405,209 @@ E:\BT Printer\FW\src\usb_lib\usb_desc.c
     366          };
     367          #endif
     368          
-    369          /* USB String Descriptors (optional) */
-    370          const u8 USB_APP_StringLangID[USB_APP_SIZ_STRING_LANGID] =
-    371            {
-    372              USB_APP_SIZ_STRING_LANGID,
-    373              USB_STRING_DESCRIPTOR_TYPE,
-    374              0x09,
-    375              0x04
-    376            }
-    377            ; /* LangID = 0x0409: U.S. English */
-    378          
-    379          const u8 USB_APP_StringVendor[USB_APP_SIZ_STRING_VENDOR] =
-    380            {
-    381              USB_APP_SIZ_STRING_VENDOR, /* Size of Vendor string */
-    382              USB_STRING_DESCRIPTOR_TYPE,  /* bDescriptorType*/
-    383              /* Manufacturer: "STMicroelectronics" */
-    384              'H', 0, 'E', 0, 'R', 0, 'O', 0, 'J', 0, 'E', 0, ' ', 0, ' ', 0,
-    385              ' ', 0, ' ', 0, ' ', 0, ' ', 0, ' ', 0, ' ', 0, ' ', 0, ' ', 0,
-    386              ' ', 0, ' ', 0
-    387            };
-    388          
-    389          const u8 USB_APP_StringProduct[USB_APP_SIZ_STRING_PRODUCT] =
-    390            {
-    391              USB_APP_SIZ_STRING_PRODUCT,          /* bLength */
-    392              USB_STRING_DESCRIPTOR_TYPE,        /* bDescriptorType */
-    393              'T', 0, '5', 0, ' ', 0, 'H', 0, 'J', 0, ' ', 0, 'U', 0,
-    394              's', 0, 'b', 0, 'd', 0, 'i', 0, 's', 0, 'k', 0, ' ', 0
-    395            };
-    396          
-    397          u8 USB_APP_StringSerial[USB_APP_SIZ_STRING_SERIAL] =
-    398            {
-    399              USB_APP_SIZ_STRING_SERIAL,           /* bLength */
-    400              USB_STRING_DESCRIPTOR_TYPE,        /* bDescriptorType */
-    401              'T', 0, '5', 0, ' ', 0, 'H', 0, 'J', 0, '1', 0, '0', 0
-    402            };
-    403          
-    404          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
-    405          
+    369          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    370          const u8 Printer_DeviceDescriptor[PRINTER_SIZ_DEVICE_DESC] =
+    371          {
+    372          	0x12,   /* bLength  */
+    373          	0x01,   /* bDescriptorType */
+    374          	0x00,   /* bcdUSB, version 2.00 */
+    375          	0x02,
+    376          	0x00,   /* bDeviceClass : each interface define the device class */
+    377          	0x00,   /* bDeviceSubClass */
+    378          	0x00,   /* bDeviceProtocol */
+    379          	0x40,   /* bMaxPacketSize0 0x40 = 64 */
+    380          	0x00,   /* idVendor     (0483) */
+    381          	0xb0,
+    382          	0x11,   /* idProduct */
+    383          	0x04,
+    384          	0x00,   /* bcdDevice 2.00*/
+    385          	0x02,
+    386          	1,              /* index of string Manufacturer  */
+    387          	/**/
+    388          	2,              /* index of string descriptor of product*/
+    389          	/* */
+    390          	3,              /* */
+    391          	/* */
+    392          	/* */
+    393          	0x01    /*bNumConfigurations */
+    394          };
+    395          const u8 Printer_ConfigDescriptor[PRINTER_SIZ_CONFIG_DESC] =
+    396          {
+    397          #if 1
+    398          	0x09,   /* bLength: Configuation Descriptor size */
+    399          	0x02,   /* bDescriptorType: Configuration */
+    400          	PRINTER_SIZ_CONFIG_DESC,
+    401          
+    402          	0x00,
+    403          	0x01,   /* bNumInterfaces: 1 interface */
+    404          	0x01,   /* bConfigurationValue: */
+    405          	/*      Configuration value */
+    406          	0x00,   /* iConfiguration: */
+    407          	/*      Index of string descriptor */
+    408          	/*      describing the configuration */
+    409          	0xC0,   /* bmAttributes: */
+    410          	/*      bus powered */
+    411          	0x32,   /* MaxPower 100 mA */
+    412          
+    413          	/******************** Descriptor of Printer interface ********************/
+    414          	/* 09 */
+    415          	0x09,   /* bLength: Interface Descriptor size */
+    416          	0x04,   /* bDescriptorType: */
+    417          	/*      Interface descriptor type */
+    418          	0x00,   /* bInterfaceNumber: Number of Interface */
+    419          	0x00,   /* bAlternateSetting: Alternate setting */
+    420          	0x02,   /* bNumEndpoints*/
+    421          	0x07,   /* bInterfaceClass: Printer Class */
+    422          	0x01,   /* bInterfaceSubClass : printer*/
+    423          	0x02,   /* nInterfaceProtocol :  01: Unidirectional interface  02£ºBi-directional interface  03£º1284.4 compatible bi-directional interface*/
+    424          	4,          /* iInterface: */
+    425          	/* 18 */
+    426          	0x07,   /*Endpoint descriptor length = 7*/
+    427          	0x05,   /*Endpoint descriptor type */
+    428          	0x81,   /*Endpoint address (IN, address 1) */
+    429          	0x02,   /*Bulk endpoint type */
+    430          	0x40,   /*Maximum packet size (64 bytes) */
+    431          	0x00,
+    432          	0x00,   /*Polling interval in milliseconds */
+    433          	/* 25 */
+    434          	0x07,   /*Endpoint descriptor length = 7 */
+    435          	0x05,   /*Endpoint descriptor type */
+    436          	0x02,   /*Endpoint address (OUT, address 2) */
+    437          	0x02,   /*Bulk endpoint type */
+    438          	0x40,   /*Maximum packet size (64 bytes) */
+    439          	0x00,
+    440          	0x00     /*Polling interval in milliseconds*/
+    441          #endif
+    442          
+    443          #if 0
+    444          	0x09,   /* bLength: Configuation Descriptor size */
+    445          	0x02,   /* bDescriptorType: Configuration */
+    446          	PRINTER_SIZ_CONFIG_DESC,
+    447          
+    448          	0x00,
+    449          	0x02,   /* bNumInterfaces: 1 interface */
+    450          	0x01,   /* bConfigurationValue: */
+    451          	/*      Configuration value */
+    452          	0x00,   /* iConfiguration: */
+    453          	/*      Index of string descriptor */
+    454          	/*      describing the configuration */
+    455          	0xC0,   /* bmAttributes: */
+    456          	/*      bus powered */
+    457          	0x32,   /* MaxPower 100 mA */
+    458          
+    459          	/******************** Descriptor of Printer interface ********************/
+    460          	/* 09 */
+    461          	0x09,   /* bLength: Interface Descriptor size */
+    462          	0x04,   /* bDescriptorType: */
+    463          	/*      Interface descriptor type */
+    464          	0x00,   /* bInterfaceNumber: Number of Interface */
+    465          	0x00,   /* bAlternateSetting: Alternate setting */
+    466          	0x01,   /* bNumEndpoints*/
+    467          	0x07,   /* bInterfaceClass: Printer Class */
+    468          	0x01,   /* bInterfaceSubClass : printer*/
+    469          	0x02,   /* nInterfaceProtocol :  01: Unidirectional interface  02£ºBi-directional interface  03£º1284.4 compatible bi-directional interface*/
+    470          	0,          /* iInterface: */
+    471          	/* 18 */
+    472          	0x07,   /*Endpoint descriptor length = 7*/
+    473          	0x05,   /*Endpoint descriptor type */
+    474          	0x02,   /*Endpoint address (IN, address 1) */
+    475          	0x02,   /*Bulk endpoint type */
+    476          	0x40,   /*Maximum packet size (64 bytes) */
+    477          	0x00,
+    478          	0x00,   /*Polling interval in milliseconds */
+    479          	0x09,
+    480          	0x04,
+    481          	0x01,
+    482          	0x00,
+    483          	0x02,
+    484          	0x03,
+    485          	0x00,
+    486          	0x00,
+    487          	0x03,
+    488          	0x09,
+    489          	0x21,
+    490          	0x10,
+    491          	0x01,
+    492          	0x00,
+    493          	0x01,
+    494          	0x22,
+    495          	0x1b,
+    496          	0x00,
+    497          	0x07,
+    498          	0x05,
+    499          	0x82,
+    500          	0x03,
+    501          	0x40,
+    502          	0x00,
+    503          	0x01,
+    504          	0x07,
+    505          	0x05,
+    506          	0x03,
+    507          	0x03,
+    508          	0x40,
+    509          	0x00,
+    510          	0x01
+    511          #endif
+    512          };
+    513          #endif
+    514          
+    515          /* USB String Descriptors (optional) */
+    516          const u8 USB_APP_StringLangID[USB_APP_SIZ_STRING_LANGID] =
+    517            {
+    518              USB_APP_SIZ_STRING_LANGID,
+    519              USB_STRING_DESCRIPTOR_TYPE,
+    520              0x09,
+    521              0x04
+    522            }
+    523            ; /* LangID = 0x0409: U.S. English */
+    524          
+    525          const u8 USB_APP_StringVendor[USB_APP_SIZ_STRING_VENDOR] =
+    526            {
+    527              USB_APP_SIZ_STRING_VENDOR, /* Size of Vendor string */
+    528              USB_STRING_DESCRIPTOR_TYPE,  /* bDescriptorType*/
+    529              /* Manufacturer: "STMicroelectronics" */
+    530              'H', 0, 'E', 0, 'R', 0, 'O', 0, 'J', 0, 'E', 0, ' ', 0, ' ', 0,
+    531              ' ', 0, ' ', 0, ' ', 0, ' ', 0, ' ', 0, ' ', 0, ' ', 0, ' ', 0,
+    532              ' ', 0, ' ', 0
+    533            };
+    534          
+    535          const u8 USB_APP_StringProduct[USB_APP_SIZ_STRING_PRODUCT] =
+    536            {
+    537              USB_APP_SIZ_STRING_PRODUCT,          /* bLength */
+    538              USB_STRING_DESCRIPTOR_TYPE,        /* bDescriptorType */
+    539              'H', 0, 'J', 0, ' ', 0, 'U', 0, 'S', 0, 'B', 0, 'P', 0,
+    540              'r', 0, 'i', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, ' ', 0
+    541            };
+    542          
+    543          u8 USB_APP_StringSerial[USB_APP_SIZ_STRING_SERIAL] =
+    544            {
+    545              USB_APP_SIZ_STRING_SERIAL,           /* bLength */
+    546              USB_STRING_DESCRIPTOR_TYPE,        /* bDescriptorType */
+    547              'K', 0, 'T', 0, '4', 0, '8', 0, '6', 0, '1', 0, '0', 0
+    548            };
+    549          
+    550          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+    551          
 
 
    Section sizes:
 
-     Function/Label        Bytes
-     --------------        -----
-     MASS_DeviceDescriptor   20
-     MASS_ConfigDescriptor   32
-     USB_APP_StringLangID     4
-     USB_APP_StringVendor    40
-     USB_APP_StringProduct   32
-     USB_APP_StringSerial    28
+     Function/Label           Bytes
+     --------------           -----
+     MASS_DeviceDescriptor      20
+     MASS_ConfigDescriptor      32
+     Printer_DeviceDescriptor   20
+     Printer_ConfigDescriptor   32
+     USB_APP_StringLangID        4
+     USB_APP_StringVendor       40
+     USB_APP_StringProduct      32
+     USB_APP_StringSerial       28
 
  
   28 bytes in section .data
- 128 bytes in section .rodata
+ 180 bytes in section .rodata
  
- 128 bytes of CONST memory
+ 180 bytes of CONST memory
   28 bytes of DATA  memory
 
 Errors: none

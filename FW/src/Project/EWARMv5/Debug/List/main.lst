@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:46:16 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     08/Dec/2015  10:33:18 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -255,201 +255,202 @@ E:\BT Printer\FW\src\Project\main.c
     218          
     219          	esc_init();
     220          
-    221          	//test_motor();
-    222          
-    223          	PaperStartSns();		//Systick跳动起来
-    224          
+    221          	usb_device_init(USB_PRINTER);
+    222          	//test_motor();
+    223          
+    224          	PaperStartSns();		//Systick跳动起来
     225          
-    226          	while (1)
-    227          	{
-    228          		esc_p();		//等待串口接收到的数据，根据不同的数据进行相应的处理
-    229          	}
-    230          }
-    231          
-    232          /*******************************************************************************
-    233          * Function Name  : RCC_Configuration
-    234          * Description    : Configures the different system clocks.
-    235          * Input          : None
-    236          * Output         : None
-    237          * Return         : None
-    238          *******************************************************************************/
-    239          void RCC_Configuration(void)
-    240          {   
-    241          	vu32 i=0;
-    242          
-    243          	/* RCC system reset(for debug purpose) */
-    244          	RCC_DeInit();
-    245          
-    246          	/* Enable HSE							*/
-    247          	RCC_HSEConfig(RCC_HSE_ON);
-    248          	// 这里要做延时，才能兼容某些比较差的晶体，以便顺利起震	
-    249          	for(i=0; i<200000; i++);
-    250          
-    251          	/* Wait till HSE is ready			*/
-    252          	HSEStartUpStatus = RCC_WaitForHSEStartUp();
-    253          
-    254          	if(HSEStartUpStatus == SUCCESS)
-    255          	{
-    256          		/* Enable Prefetch Buffer		*/
-    257          		FLASH_PrefetchBufferCmd(FLASH_PrefetchBuffer_Enable);
-    258          
-    259          		/* Flash 2 wait state			*/
-    260          		FLASH_SetLatency(FLASH_Latency_2);
-    261          
-    262          		/* HCLK = SYSCLK					*/
-    263          		RCC_HCLKConfig(RCC_SYSCLK_Div1); 
-    264          
-    265          		/* PCLK2 = HCLK					*/
-    266          		RCC_PCLK2Config(RCC_HCLK_Div1); 
-    267          
-    268          		/* PCLK1 = HCLK/2					*/
-    269          		RCC_PCLK1Config(RCC_HCLK_Div2);
-    270          
-    271          		/* PLLCLK = 12MHz * 6 = 72 MHz	*/
-    272          		RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_6);
-    273          
-    274          		/* PLLCLK = 8MHz * 9 = 72 MHz	*/
-    275          		//RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_9);
-    276          
-    277          		/* Enable PLL						*/
-    278          		RCC_PLLCmd(ENABLE);
-    279          
-    280          		/* Wait till PLL is ready		*/
-    281          		while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET)
-    282          		{
-    283          		}
-    284          
-    285          		/* Select PLL as system clock source */
-    286          		RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
-    287          
-    288          		/* Wait till PLL is used as system clock source */
-    289          		while(RCC_GetSYSCLKSource() != 0x08)
-    290          		{
-    291          		}
-    292          	}
-    293          }
-    294          
-    295          /*******************************************************************************
-    296          * Function Name  : Unconfigure_All
-    297          * Description    : set all the RCC data to the default values 
-    298          *                  configure all the GPIO as input
-    299          * Input          : None
-    300          * Output         : None
-    301          * Return         : None
-    302          *******************************************************************************/
-    303          static void Unconfigure_All(void)
-    304          {
-    305          	//RCC_DeInit();
-    306          
-    307          	/* RCC configuration */
-    308          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ALL, DISABLE);
-    309          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_ALL, DISABLE);
-    310          
-    311          	GPIO_AllAinConfig();
-    312          }
-    313          
+    226          
+    227          	while (1)
+    228          	{
+    229          		esc_p();		//等待串口接收到的数据，根据不同的数据进行相应的处理
+    230          	}
+    231          }
+    232          
+    233          /*******************************************************************************
+    234          * Function Name  : RCC_Configuration
+    235          * Description    : Configures the different system clocks.
+    236          * Input          : None
+    237          * Output         : None
+    238          * Return         : None
+    239          *******************************************************************************/
+    240          void RCC_Configuration(void)
+    241          {   
+    242          	vu32 i=0;
+    243          
+    244          	/* RCC system reset(for debug purpose) */
+    245          	RCC_DeInit();
+    246          
+    247          	/* Enable HSE							*/
+    248          	RCC_HSEConfig(RCC_HSE_ON);
+    249          	// 这里要做延时，才能兼容某些比较差的晶体，以便顺利起震	
+    250          	for(i=0; i<200000; i++);
+    251          
+    252          	/* Wait till HSE is ready			*/
+    253          	HSEStartUpStatus = RCC_WaitForHSEStartUp();
+    254          
+    255          	if(HSEStartUpStatus == SUCCESS)
+    256          	{
+    257          		/* Enable Prefetch Buffer		*/
+    258          		FLASH_PrefetchBufferCmd(FLASH_PrefetchBuffer_Enable);
+    259          
+    260          		/* Flash 2 wait state			*/
+    261          		FLASH_SetLatency(FLASH_Latency_2);
+    262          
+    263          		/* HCLK = SYSCLK					*/
+    264          		RCC_HCLKConfig(RCC_SYSCLK_Div1); 
+    265          
+    266          		/* PCLK2 = HCLK					*/
+    267          		RCC_PCLK2Config(RCC_HCLK_Div1); 
+    268          
+    269          		/* PCLK1 = HCLK/2					*/
+    270          		RCC_PCLK1Config(RCC_HCLK_Div2);
+    271          
+    272          		/* PLLCLK = 12MHz * 6 = 72 MHz	*/
+    273          		RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_6);
+    274          
+    275          		/* PLLCLK = 8MHz * 9 = 72 MHz	*/
+    276          		//RCC_PLLConfig(RCC_PLLSource_HSE_Div1, RCC_PLLMul_9);
+    277          
+    278          		/* Enable PLL						*/
+    279          		RCC_PLLCmd(ENABLE);
+    280          
+    281          		/* Wait till PLL is ready		*/
+    282          		while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET)
+    283          		{
+    284          		}
+    285          
+    286          		/* Select PLL as system clock source */
+    287          		RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
+    288          
+    289          		/* Wait till PLL is used as system clock source */
+    290          		while(RCC_GetSYSCLKSource() != 0x08)
+    291          		{
+    292          		}
+    293          	}
+    294          }
+    295          
+    296          /*******************************************************************************
+    297          * Function Name  : Unconfigure_All
+    298          * Description    : set all the RCC data to the default values 
+    299          *                  configure all the GPIO as input
+    300          * Input          : None
+    301          * Output         : None
+    302          * Return         : None
+    303          *******************************************************************************/
+    304          static void Unconfigure_All(void)
+    305          {
+    306          	//RCC_DeInit();
+    307          
+    308          	/* RCC configuration */
+    309          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ALL, DISABLE);
+    310          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_ALL, DISABLE);
+    311          
+    312          	GPIO_AllAinConfig();
+    313          }
     314          
-    315          /*******************************************************************************
-    316          * Function Name  : GPIO_AllAinConfig
-    317          * Description    : Configure all GPIO port pins in Analog Input mode 
-    318          *                  (floating input trigger OFF)
-    319          * Input          : None
-    320          * Output         : None
-    321          * Return         : None
-    322          *******************************************************************************/
-    323          static void GPIO_AllAinConfig(void)
-    324          {
-    325          	GPIO_InitTypeDef GPIO_InitStructure;
-    326          
-    327          	/* Configure all GPIO port pins in Analog Input mode (floating input trigger OFF) */
-    328          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
-    329          	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-    330          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
-    331          	GPIO_Init(GPIOA, &GPIO_InitStructure);
-    332          	GPIO_Init(GPIOB, &GPIO_InitStructure);
-    333          	GPIO_Init(GPIOC, &GPIO_InitStructure);
-    334          	GPIO_Init(GPIOD, &GPIO_InitStructure);
-    335          	GPIO_Init(GPIOE, &GPIO_InitStructure);
-    336          }
-    337          
-    338          /************************************************
-    339          * Function Name  : EnterLowPowerMode()
-    340          ************************************************/
-    341          void EnterLowPowerMode(void)
-    342          {
-    343          	//GPIO_InitTypeDef GPIO_InitStructure;
-    344          	//BT816_enter_sleep();
-    345          	stop_real_timer();
-    346          
-    347          	//但是需要开启PWR模块的时钟
-    348          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE); // Enable PWR clock
-    349          
-    350          	// enable Debug in Stop mode
-    351          	//DBGMCU->CR |= DBGMCU_CR_DBG_STOP;
-    352          	
-    353          	//进入低功耗模式
-    354          	EXTI_ClearFlag(0xffff);
-    355          	PWR_EnterSTOPMode(PWR_Regulator_ON, PWR_STOPEntry_WFI);
-    356          }
-    357          
-    358          /************************************************
-    359          * Function Name  : ExitLowPowerMode()
-    360          ************************************************/
-    361          void ExitLowPowerMode(void)
-    362          {
-    363          	//GPIO_InitTypeDef GPIO_InitStructure;
-    364          	//重新配置时钟
-    365          	RCC_Configuration();
-    366          	//BT816_wakeup();
-    367          	start_real_timer();
-    368          }
-    369          
-    370          //关闭某一个中断
-    371           void NVIC_DisableIRQ(unsigned char	irq_channel)
-    372          {
-    373          	NVIC_InitTypeDef							NVIC_InitStructure;
-    374          	/* Enable the TIM3 Interrupt */
-    375          	NVIC_InitStructure.NVIC_IRQChannel			= irq_channel;
-    376          	NVIC_InitStructure.NVIC_IRQChannelCmd		= DISABLE;
-    377          	NVIC_Init(&NVIC_InitStructure);
-    378          }
-    379          
-    380          //使能某一个中断
-    381           void NVIC_EnableIRQ(unsigned char	irq_channel)
-    382          {
-    383          	NVIC_InitTypeDef							NVIC_InitStructure;
-    384          	/* Enable the TIM3 Interrupt */
-    385          	NVIC_InitStructure.NVIC_IRQChannel			= irq_channel;
-    386          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-    387          	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 0;
-    388          	NVIC_InitStructure.NVIC_IRQChannelCmd		= ENABLE;
-    389          	NVIC_Init(&NVIC_InitStructure);
-    390          }
-    391          
+    315          
+    316          /*******************************************************************************
+    317          * Function Name  : GPIO_AllAinConfig
+    318          * Description    : Configure all GPIO port pins in Analog Input mode 
+    319          *                  (floating input trigger OFF)
+    320          * Input          : None
+    321          * Output         : None
+    322          * Return         : None
+    323          *******************************************************************************/
+    324          static void GPIO_AllAinConfig(void)
+    325          {
+    326          	GPIO_InitTypeDef GPIO_InitStructure;
+    327          
+    328          	/* Configure all GPIO port pins in Analog Input mode (floating input trigger OFF) */
+    329          	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_All;
+    330          	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
+    331          	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    332          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+    333          	GPIO_Init(GPIOB, &GPIO_InitStructure);
+    334          	GPIO_Init(GPIOC, &GPIO_InitStructure);
+    335          	GPIO_Init(GPIOD, &GPIO_InitStructure);
+    336          	GPIO_Init(GPIOE, &GPIO_InitStructure);
+    337          }
+    338          
+    339          /************************************************
+    340          * Function Name  : EnterLowPowerMode()
+    341          ************************************************/
+    342          void EnterLowPowerMode(void)
+    343          {
+    344          	//GPIO_InitTypeDef GPIO_InitStructure;
+    345          	//BT816_enter_sleep();
+    346          	stop_real_timer();
+    347          
+    348          	//但是需要开启PWR模块的时钟
+    349          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE); // Enable PWR clock
+    350          
+    351          	// enable Debug in Stop mode
+    352          	//DBGMCU->CR |= DBGMCU_CR_DBG_STOP;
+    353          	
+    354          	//进入低功耗模式
+    355          	EXTI_ClearFlag(0xffff);
+    356          	PWR_EnterSTOPMode(PWR_Regulator_ON, PWR_STOPEntry_WFI);
+    357          }
+    358          
+    359          /************************************************
+    360          * Function Name  : ExitLowPowerMode()
+    361          ************************************************/
+    362          void ExitLowPowerMode(void)
+    363          {
+    364          	//GPIO_InitTypeDef GPIO_InitStructure;
+    365          	//重新配置时钟
+    366          	RCC_Configuration();
+    367          	//BT816_wakeup();
+    368          	start_real_timer();
+    369          }
+    370          
+    371          //关闭某一个中断
+    372           void NVIC_DisableIRQ(unsigned char	irq_channel)
+    373          {
+    374          	NVIC_InitTypeDef							NVIC_InitStructure;
+    375          	/* Enable the TIM3 Interrupt */
+    376          	NVIC_InitStructure.NVIC_IRQChannel			= irq_channel;
+    377          	NVIC_InitStructure.NVIC_IRQChannelCmd		= DISABLE;
+    378          	NVIC_Init(&NVIC_InitStructure);
+    379          }
+    380          
+    381          //使能某一个中断
+    382           void NVIC_EnableIRQ(unsigned char	irq_channel)
+    383          {
+    384          	NVIC_InitTypeDef							NVIC_InitStructure;
+    385          	/* Enable the TIM3 Interrupt */
+    386          	NVIC_InitStructure.NVIC_IRQChannel			= irq_channel;
+    387          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    388          	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 0;
+    389          	NVIC_InitStructure.NVIC_IRQChannelCmd		= ENABLE;
+    390          	NVIC_Init(&NVIC_InitStructure);
+    391          }
     392          
     393          
-    394          /*******************************************************************************
-    395          * Function Name  : assert_failed
-    396          * Description    : Reports the name of the source file and the source line number
-    397          *                  where the assert_param error has occurred.
-    398          * Input          : - file: pointer to the source file name
-    399          *                  - line: assert_param error line source number
-    400          * Output         : None
-    401          * Return         : None
-    402          *******************************************************************************/
-    403          
-    404          //void assert_failed(u8* file, u32 line)
-    405          //{ 
-    406          /* User can add his own implementation to report the file name and line number,
-    407          ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-    408          
-    409          /* Infinite loop */
-    410          //while (1)
-    411          //{
-    412          //}
+    394          
+    395          /*******************************************************************************
+    396          * Function Name  : assert_failed
+    397          * Description    : Reports the name of the source file and the source line number
+    398          *                  where the assert_param error has occurred.
+    399          * Input          : - file: pointer to the source file name
+    400          *                  - line: assert_param error line source number
+    401          * Output         : None
+    402          * Return         : None
+    403          *******************************************************************************/
+    404          
+    405          //void assert_failed(u8* file, u32 line)
+    406          //{ 
+    407          /* User can add his own implementation to report the file name and line number,
+    408          ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    409          
+    410          /* Infinite loop */
+    411          //while (1)
+    412          //{
     413          //}
-    414          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
-    415          
+    414          //}
+    415          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+    416          
 
    Maximum stack usage in bytes:
 
@@ -478,7 +479,7 @@ E:\BT Printer\FW\src\Project\main.c
      HSEStartUpStatus                           1
      system_error_tip                           2
      enter_u_disk_mode                         60
-     main                                     268
+     main                                     276
      RCC_Configuration                        136
      Unconfigure_All                           32
      GPIO_AllAinConfig                         80
@@ -495,11 +496,11 @@ E:\BT Printer\FW\src\Project\main.c
  
  16 005 bytes in section .bss
      52 bytes in section .rodata
-    704 bytes in section .text
+    712 bytes in section .text
  
-    684 bytes of CODE  memory (+ 20 bytes shared)
+    692 bytes of CODE  memory (+ 20 bytes shared)
      52 bytes of CONST memory
  16 005 bytes of DATA  memory
 
 Errors: none
-Warnings: none
+Warnings: 1

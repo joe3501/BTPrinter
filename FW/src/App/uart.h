@@ -19,6 +19,15 @@
 ****************************************************************************/
 #ifndef __UART_H
 #define __UART_H
+#include "BT816.h"
+#include "ringbuffer.h"
+
+#define MAX_PRINT_CHANNEL		(MAX_BT_CHANNEL+1)		//BT channel + USB channel
+
+#define USB_PRINT_CHANNEL_OFFSET		(MAX_BT_CHANNEL)
+
+extern unsigned char		spp_rec_buffer[MAX_PRINT_CHANNEL][SPP_BUFFER_LEN];
+extern struct ringbuffer	spp_ringbuf[MAX_PRINT_CHANNEL];
 
 //extern uint8_t Putchar(uint8_t c) ;
 extern uint8_t Getchar(void);

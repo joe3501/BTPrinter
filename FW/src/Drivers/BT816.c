@@ -20,8 +20,8 @@
 #include "string.h"
 #include <assert.h>
 #include "basic_fun.h"
-#include "ringbuffer.h"
 #include "TimeBase.h"
+#include "uart.h"
 
 //#define	BT816_DEBUG
 #ifdef DEBUG_VER
@@ -56,13 +56,10 @@ typedef struct {
 	unsigned char			*DataBuffer;
 }TBT816Res;
 
-TBT816Res		BT816_res[MAX_PT_CHANNEL];
+TBT816Res		BT816_res[MAX_BT_CHANNEL];
 
-static unsigned char	BT816_send_buff[MAX_PT_CHANNEL][32];
-unsigned char	BT816_recbuffer[MAX_PT_CHANNEL][BT816_RES_BUFFER_LEN];
-
-unsigned char		spp_rec_buffer[MAX_PT_CHANNEL][SPP_BUFFER_LEN];
-struct ringbuffer	spp_ringbuf[MAX_PT_CHANNEL];
+static unsigned char	BT816_send_buff[MAX_BT_CHANNEL][32];
+unsigned char	BT816_recbuffer[MAX_BT_CHANNEL][BT816_RES_BUFFER_LEN];
 
 
 static	unsigned char  bt_connect_status;
@@ -1553,7 +1550,7 @@ int BT816_init(void)
 {
 	unsigned char	str[21];
 	int ret,i;
-	for (i = 0; i < MAX_PT_CHANNEL;i++)
+	for (i = 0; i < MAX_BT_CHANNEL;i++)
 	{
 		BT816_res[i].DataBuffer = BT816_recbuffer[i];
 		BT816_reset_resVar(i);
@@ -1629,7 +1626,7 @@ int BT816_init(void)
 
 #endif
 
-	memset(spp_rec_buffer,0,MAX_PT_CHANNEL*SPP_BUFFER_LEN);
+	memset(spp_rec_buffer,0,MAX_BT_CHANNEL*SPP_BUFFER_LEN);
 	RESET_BT1_DMA();
 	RESET_BT2_DMA();
 	RESET_BT3_DMA();

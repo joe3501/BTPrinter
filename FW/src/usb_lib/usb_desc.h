@@ -59,7 +59,14 @@
 #define MASS_SIZ_STRING_SERIAL            26
 #define MASS_SIZ_STRING_INTERFACE         16
 
+#define PRINTER_SIZ_DEVICE_DESC			  18						  
+#define PRINTER_SIZ_CONFIG_DESC			  32
+#define PRINTER_USB_PORT_BUF_SIZE         64
+
 /* Exported functions ------------------------------------------------------- */
+extern const u8 Printer_DeviceDescriptor[PRINTER_SIZ_DEVICE_DESC];
+extern const u8 Printer_ConfigDescriptor[PRINTER_SIZ_CONFIG_DESC];
+
 extern const u8 MASS_DeviceDescriptor[MASS_SIZ_DEVICE_DESC];
 extern const u8 MASS_ConfigDescriptor[MASS_SIZ_CONFIG_DESC];
 

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:45:22 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     08/Dec/2015  15:12:28 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -64,279 +64,242 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
      25          #include "usb_lib.h"
      26          #include "usb_pwr.h"
      27          #include "usb_desc.h"
-     28          
+     28          #include "uart.h"
      29          
-     30          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-     31          unsigned char	g_mass_storage_device_type;
-     32          #ifdef DUMMY_FAT_FS
-     33          unsigned char	g_send_buff[512];
-     34          #endif
+     30          
+     31          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+     32          unsigned char	g_mass_storage_device_type;
+     33          #ifdef DUMMY_FAT_FS
+     34          unsigned char	g_send_buff[512];
      35          #endif
-     36          
+     36          #endif
      37          
-     38          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-     39          unsigned char buffer_out[512];
-     40          unsigned int	count_out;
-     41          #endif
-     42          
-     43          unsigned char				g_usb_type;
-     44          extern u32 count_in;
-     45          
+     38          
+     39          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+     40          unsigned char buffer_out[512];
+     41          unsigned int	count_out;
+     42          #endif
+     43          
+     44          unsigned char				g_usb_type;
+     45          extern u32 count_in;
      46          
-     47          /*******************************************************************************
-     48          * Function Name  : Set_USBClock
-     49          * Description    : Configures USB Clock input (48MHz)
-     50          * Input          : None.
-     51          * Return         : None.
-     52          *******************************************************************************/
-     53          static void usb_SetClock(void)
-     54          {
-     55          	/* Enable GPIOA, GPIOD and USART1 clock */
-     56          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOD, ENABLE);
-     57          
-     58          	/* USBCLK = PLLCLK / 1.5 */
-     59          	RCC_USBCLKConfig(RCC_USBCLKSource_PLLCLK_1Div5);
-     60          	/* Enable USB clock */
-     61          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USB, ENABLE);
-     62          }
-     63          
-     64          /*******************************************************************************
-     65          * Function Name  : USB_Interrupts_Config
-     66          * Description    : Configures the USB interrupts
-     67          * Input          : None.
-     68          * Return         : None.
-     69          *******************************************************************************/
-     70          static void usb_Interrupts_Config(void)
-     71          {
-     72          	NVIC_InitTypeDef NVIC_InitStructure;
-     73          
-     74          	//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
-     75          
-     76          	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN_RX0_IRQChannel;
-     77          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-     78          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
-     79          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-     80          	NVIC_Init(&NVIC_InitStructure);
-     81          
-     82          	NVIC_InitStructure.NVIC_IRQChannel = USB_HP_CAN_TX_IRQChannel;
-     83          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-     84          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;
-     85          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-     86          	NVIC_Init(&NVIC_InitStructure);
-     87          }
-     88          
-     89          /*******************************************************************************
-     90          * Function Name  : usb_cable_insert
-     91          * Description    : detect the USB Cable wether insert
-     92          * Input          : None.
-     93          * Return         : false: not insert true: insert  
-     94          *******************************************************************************/
-     95          bool usb_cable_insert (void)
-     96          {
-     97          	//@todo....
-     98          }
-     99          
+     47          
+     48          /*******************************************************************************
+     49          * Function Name  : Set_USBClock
+     50          * Description    : Configures USB Clock input (48MHz)
+     51          * Input          : None.
+     52          * Return         : None.
+     53          *******************************************************************************/
+     54          static void usb_SetClock(void)
+     55          {
+     56          	/* Enable GPIOA, GPIOD and USART1 clock */
+     57          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOD, ENABLE);
+     58          
+     59          	/* USBCLK = PLLCLK / 1.5 */
+     60          	RCC_USBCLKConfig(RCC_USBCLKSource_PLLCLK_1Div5);
+     61          	/* Enable USB clock */
+     62          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USB, ENABLE);
+     63          }
+     64          
+     65          /*******************************************************************************
+     66          * Function Name  : USB_Interrupts_Config
+     67          * Description    : Configures the USB interrupts
+     68          * Input          : None.
+     69          * Return         : None.
+     70          *******************************************************************************/
+     71          static void usb_Interrupts_Config(void)
+     72          {
+     73          	NVIC_InitTypeDef NVIC_InitStructure;
+     74          
+     75          	//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+     76          
+     77          	NVIC_InitStructure.NVIC_IRQChannel = USB_LP_CAN_RX0_IRQChannel;
+     78          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+     79          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;
+     80          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     81          	NVIC_Init(&NVIC_InitStructure);
+     82          
+     83          	NVIC_InitStructure.NVIC_IRQChannel = USB_HP_CAN_TX_IRQChannel;
+     84          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+     85          	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;
+     86          	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+     87          	NVIC_Init(&NVIC_InitStructure);
+     88          }
+     89          
+     90          /*******************************************************************************
+     91          * Function Name  : usb_cable_insert
+     92          * Description    : detect the USB Cable wether insert
+     93          * Input          : None.
+     94          * Return         : false: not insert true: insert  
+     95          *******************************************************************************/
+     96          bool usb_cable_insert (void)
+     97          {
+     98          	//@todo....
+     99          }
     100          
-    101          /**
-    102          * @brief 设备的初始化
-    103          * @note
-    104          */
-    105          void usb_device_init(unsigned char device_type)
-    106          {
-    107          #if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_VIRTUAL_COMM_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
-    108          	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_KEYBOARD)&&(device_type != USB_MASSSTORAGE))
-    109          	{
-    110          		return;
-    111          	}
-    112          #endif
-    113          
-    114          #if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_VIRTUAL_COMM_DEVICE))
-    115          	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_KEYBOARD))
-    116          	{
-    117          		return;
-    118          	}
-    119          #endif
-    120          
-    121          #if(USB_DEVICE_CONFIG == (_USE_USB_KEYBOARD_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
-    122          	if ((device_type != USB_KEYBOARD)&&(device_type != USB_MASSSTORAGE))
-    123          	{
-    124          		return;
-    125          	}
-    126          #endif
+    101          
+    102          /**
+    103          * @brief 设备的初始化
+    104          * @param[in] #define USB_VIRTUAL_PORT		1	//虚拟串口
+    105          *			 #define USB_KEYBOARD			2	//USB键盘
+    106          *			 #define USB_MASSSTORAGE		3	//大容量存储设备
+    107          *			 #define USB_PRINTER			4	//USB打印机设备
+    108          * @note 函数调用者保证device_type确实是已经实现的USB类
+    109          */
+    110          void usb_device_init(unsigned char device_type)
+    111          {
+    112          	if (device_type == USB_PRINTER)
+    113          	{
+    114          		memset(spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],0,SPP_BUFFER_LEN);
+    115          		ringbuffer_init(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],SPP_BUFFER_LEN);
+    116          	}
+    117          
+    118          	if (g_usb_type != device_type)
+    119          	{
+    120          		g_usb_type = device_type;
+    121          		usb_SetClock();
+    122          		usb_Interrupts_Config();
+    123          		USB_Init();
+    124          	}
+    125          }
+    126          
     127          
-    128          #if(USB_DEVICE_CONFIG == (_USE_USB_VIRTUAL_COMM_DEVICE | _USE_USB_MASS_STOARGE_DEVICE))
-    129          	if ((device_type != USB_VIRTUAL_PORT)&&(device_type != USB_MASSSTORAGE))
-    130          	{
-    131          		return;
-    132          	}
-    133          #endif
-    134          
-    135          #if(USB_DEVICE_CONFIG ==  _USE_USB_MASS_STOARGE_DEVICE)
-    136          	if (device_type != USB_MASSSTORAGE)
-    137          	{
-    138          		return;
-    139          	}
-    140          #endif
-    141          
-    142          #if(USB_DEVICE_CONFIG == _USE_USB_KEYBOARD_DEVICE)
-    143          	if (device_type != USB_KEYBOARD)
-    144          	{
-    145          		return;
-    146          	}
-    147          #endif
-    148          
-    149          #if(USB_DEVICE_CONFIG == _USE_USB_VIRTUAL_COMM_DEVICE)
-    150          	if (device_type != USB_VIRTUAL_PORT)
-    151          	{
-    152          		return;
-    153          	}
-    154          #endif
-    155          
-    156          	if (g_usb_type != device_type)
-    157          	{
-    158          		g_usb_type = device_type;
-    159          		usb_SetClock();
-    160          		usb_Interrupts_Config();
-    161          		USB_Init();
-    162          	}
-    163          }
-    164          
-    165          
-    166          void usb_SendData(unsigned char *pData, int length)
-    167          {
-    168          	volatile int i = 0;
-    169                  unsigned int	delay_cnt;
-    170                  
-    171          #if (USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)        
-    172          	int batch = length/VIRTUAL_COM_PORT_DATA_SIZE;
-    173          	int res	  = length%VIRTUAL_COM_PORT_DATA_SIZE;
-    174          #endif 
-    175          	
-    176          
-    177          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    178          	if (g_usb_type == USB_KEYBOARD)	//按键
-    179          	{
-    180          		count_in = length;
-    181          		UserToPMABufferCopy(pData, GetEPTxAddr(ENDP1), count_in);
-    182          		SetEPTxCount(ENDP1, count_in);
-    183          		/* enable endpoint for transmission */
-    184          		SetEPTxValid(ENDP1);
-    185          		//StartDelay(600);	//3S的延时
-    186          		delay_cnt = 300;
-    187          		while (count_in != 0 && delay_cnt != 0 &&(bDeviceState == CONFIGURED))
-    188          		{
-    189          			delay_cnt--;
-    190          			delay_ms(10);
-    191          		}
-    192          	}
-    193          	else 
-    194          #elif (USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    195          	if(g_usb_type == USB_VIRTUAL_PORT)
-    196          	{
-    197          		for (i = 0; i < batch; i++)
-    198          		{
-    199          			count_in	= VIRTUAL_COM_PORT_DATA_SIZE;
-    200          			UserToPMABufferCopy(pData+i*VIRTUAL_COM_PORT_DATA_SIZE, ENDP1_TXADDR, count_in);
-    201          			SetEPTxCount(ENDP1, count_in);
-    202          			SetEPTxValid(ENDP1);
-    203          			//StartDelay(600);
-    204          			delay_cnt = 300;
-    205          			while (count_in != 0 && delay_cnt != 0 && (bDeviceState == CONFIGURED))
-    206          			{
-    207          				delay_cnt--;
-    208          				delay_ms(10);
-    209          			}
-    210          		}
-    211          		if (res > 0)
-    212          		{
-    213          			//最后一包
-    214          			count_in	= res;
-    215          			UserToPMABufferCopy(pData+batch*VIRTUAL_COM_PORT_DATA_SIZE, ENDP1_TXADDR, count_in);
-    216          			SetEPTxCount(ENDP1, count_in);
-    217          			SetEPTxValid(ENDP1);
-    218          			//StartDelay(600);
-    219          			delay_cnt = 300;
-    220          			while (count_in != 0 && delay_cnt != 0 &&(bDeviceState == CONFIGURED))
-    221          			{
-    222          				delay_cnt--;
-    223          				delay_ms(10);
-    224          			}
-    225          		}
-    226          	}//Virtual port
-    227          	else 
-    228          #elif (USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    229          #ifdef DUMMY_FAT_FS
-    230          	if((g_usb_type == USB_MASSSTORAGE)&&(g_mass_storage_device_type == MASSTORAGE_DEVICE_TYPE_DUMMY_FAT))
-    231          	{
-    232          		if (length > G_SEND_BUF_LENGTH)
-    233          		{
-    234          			length = G_SEND_BUF_LENGTH;
-    235          		}
-    236          		memcpy(g_send_buff,pData,length);
-    237          	}//USB_Masstorage
-    238          #endif
-    239          #endif
-    240                  ;
-    241          }
-    242          
-    243          //int usb_test_connect(void)
-    244          //{
-    245          //	volatile int i = 0;
-    246          //	unsigned char pData[2] = {0};
-    247          //
-    248          //	count_in = 1;
-    249          //	UserToPMABufferCopy(pData, GetEPTxAddr(ENDP1), count_in);
-    250          //	/* enable endpoint for transmission */
-    251          //	SetEPTxValid(ENDP1);
-    252          //	while (count_in != 0 && i < 100000)
-    253          //	{
-    254          //		i++;
-    255          //	}
-    256          //	if (count_in == 0)
-    257          //	{
-    258          //		return 0;
-    259          //	}
-    260          //	return -1;
-    261          //}
-    262          
-    263          /*******************************************************************************
-    264          * Function Name  : Get_SerialNum.
-    265          * Description    : Create the serial number string descriptor.
-    266          * Input          : None.
-    267          * Output         : None.
-    268          * Return         : None.
-    269          *******************************************************************************/
-    270          void usb_Get_SerialNum(void)
-    271          {
-    272          	u32 Device_Serial0, Device_Serial1, Device_Serial2;
-    273          
-    274          	Device_Serial0 = *(u32*)(0x1FFFF7E8);
-    275          	Device_Serial1 = *(u32*)(0x1FFFF7EC);
-    276          	Device_Serial2 = *(u32*)(0x1FFFF7F0);
-    277          
-    278          	if (Device_Serial0 != 0)
-    279          	{
-    280          		USB_APP_StringSerial[2] = (u8)(Device_Serial0 & 0x000000FF);
-    281          		USB_APP_StringSerial[4] = (u8)((Device_Serial0 & 0x0000FF00) >> 8);
-    282          		USB_APP_StringSerial[6] = (u8)((Device_Serial0 & 0x00FF0000) >> 16);
-    283          		USB_APP_StringSerial[8] = (u8)((Device_Serial0 & 0xFF000000) >> 24);
-    284          
-    285          		USB_APP_StringSerial[10] = (u8)(Device_Serial1 & 0x000000FF);
-    286          		USB_APP_StringSerial[12] = (u8)((Device_Serial1 & 0x0000FF00) >> 8);
-    287          		USB_APP_StringSerial[14] = (u8)((Device_Serial1 & 0x00FF0000) >> 16);
-    288          		USB_APP_StringSerial[16] = (u8)((Device_Serial1 & 0xFF000000) >> 24);
-    289          
-    290          		USB_APP_StringSerial[18] = (u8)(Device_Serial2 & 0x000000FF);
-    291          		USB_APP_StringSerial[20] = (u8)((Device_Serial2 & 0x0000FF00) >> 8);
-    292          		USB_APP_StringSerial[22] = (u8)((Device_Serial2 & 0x00FF0000) >> 16);
-    293          		USB_APP_StringSerial[24] = (u8)((Device_Serial2 & 0xFF000000) >> 24);
-    294          	}
-    295          }
+    128          void usb_SendData(unsigned char *pData, int length)
+    129          {
+    130          	volatile int i = 0;
+    131                  unsigned int	delay_cnt;
+    132                  
+    133          #if (USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)        
+    134          	int batch = length/VIRTUAL_COM_PORT_DATA_SIZE;
+    135          	int res	  = length%VIRTUAL_COM_PORT_DATA_SIZE;
+    136          #endif 
+    137          	
+    138          
+    139          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    140          	if (g_usb_type == USB_KEYBOARD)	//按键
+    141          	{
+    142          		count_in = length;
+    143          		UserToPMABufferCopy(pData, GetEPTxAddr(ENDP1), count_in);
+    144          		SetEPTxCount(ENDP1, count_in);
+    145          		/* enable endpoint for transmission */
+    146          		SetEPTxValid(ENDP1);
+    147          		//StartDelay(600);	//3S的延时
+    148          		delay_cnt = 300;
+    149          		while (count_in != 0 && delay_cnt != 0 &&(bDeviceState == CONFIGURED))
+    150          		{
+    151          			delay_cnt--;
+    152          			delay_ms(10);
+    153          		}
+    154          	}
+    155          	else 
+    156          #elif (USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    157          	if(g_usb_type == USB_VIRTUAL_PORT)
+    158          	{
+    159          		for (i = 0; i < batch; i++)
+    160          		{
+    161          			count_in	= VIRTUAL_COM_PORT_DATA_SIZE;
+    162          			UserToPMABufferCopy(pData+i*VIRTUAL_COM_PORT_DATA_SIZE, ENDP1_TXADDR, count_in);
+    163          			SetEPTxCount(ENDP1, count_in);
+    164          			SetEPTxValid(ENDP1);
+    165          			//StartDelay(600);
+    166          			delay_cnt = 300;
+    167          			while (count_in != 0 && delay_cnt != 0 && (bDeviceState == CONFIGURED))
+    168          			{
+    169          				delay_cnt--;
+    170          				delay_ms(10);
+    171          			}
+    172          		}
+    173          		if (res > 0)
+    174          		{
+    175          			//最后一包
+    176          			count_in	= res;
+    177          			UserToPMABufferCopy(pData+batch*VIRTUAL_COM_PORT_DATA_SIZE, ENDP1_TXADDR, count_in);
+    178          			SetEPTxCount(ENDP1, count_in);
+    179          			SetEPTxValid(ENDP1);
+    180          			//StartDelay(600);
+    181          			delay_cnt = 300;
+    182          			while (count_in != 0 && delay_cnt != 0 &&(bDeviceState == CONFIGURED))
+    183          			{
+    184          				delay_cnt--;
+    185          				delay_ms(10);
+    186          			}
+    187          		}
+    188          	}//Virtual port
+    189          	else 
+    190          #elif (USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    191          #ifdef DUMMY_FAT_FS
+    192          	if((g_usb_type == USB_MASSSTORAGE)&&(g_mass_storage_device_type == MASSTORAGE_DEVICE_TYPE_DUMMY_FAT))
+    193          	{
+    194          		if (length > G_SEND_BUF_LENGTH)
+    195          		{
+    196          			length = G_SEND_BUF_LENGTH;
+    197          		}
+    198          		memcpy(g_send_buff,pData,length);
+    199          	}//USB_Masstorage
+    200          #endif
+    201          #endif
+    202                  ;
+    203          }
+    204          
+    205          //int usb_test_connect(void)
+    206          //{
+    207          //	volatile int i = 0;
+    208          //	unsigned char pData[2] = {0};
+    209          //
+    210          //	count_in = 1;
+    211          //	UserToPMABufferCopy(pData, GetEPTxAddr(ENDP1), count_in);
+    212          //	/* enable endpoint for transmission */
+    213          //	SetEPTxValid(ENDP1);
+    214          //	while (count_in != 0 && i < 100000)
+    215          //	{
+    216          //		i++;
+    217          //	}
+    218          //	if (count_in == 0)
+    219          //	{
+    220          //		return 0;
+    221          //	}
+    222          //	return -1;
+    223          //}
+    224          
+    225          /*******************************************************************************
+    226          * Function Name  : Get_SerialNum.
+    227          * Description    : Create the serial number string descriptor.
+    228          * Input          : None.
+    229          * Output         : None.
+    230          * Return         : None.
+    231          *******************************************************************************/
+    232          void usb_Get_SerialNum(void)
+    233          {
+    234          	u32 Device_Serial0, Device_Serial1, Device_Serial2;
+    235          
+    236          	Device_Serial0 = *(u32*)(0x1FFFF7E8);
+    237          	Device_Serial1 = *(u32*)(0x1FFFF7EC);
+    238          	Device_Serial2 = *(u32*)(0x1FFFF7F0);
+    239          
+    240          	if (Device_Serial0 != 0)
+    241          	{
+    242          		USB_APP_StringSerial[2] = (u8)(Device_Serial0 & 0x000000FF);
+    243          		USB_APP_StringSerial[4] = (u8)((Device_Serial0 & 0x0000FF00) >> 8);
+    244          		USB_APP_StringSerial[6] = (u8)((Device_Serial0 & 0x00FF0000) >> 16);
+    245          		USB_APP_StringSerial[8] = (u8)((Device_Serial0 & 0xFF000000) >> 24);
+    246          
+    247          		USB_APP_StringSerial[10] = (u8)(Device_Serial1 & 0x000000FF);
+    248          		USB_APP_StringSerial[12] = (u8)((Device_Serial1 & 0x0000FF00) >> 8);
+    249          		USB_APP_StringSerial[14] = (u8)((Device_Serial1 & 0x00FF0000) >> 16);
+    250          		USB_APP_StringSerial[16] = (u8)((Device_Serial1 & 0xFF000000) >> 24);
+    251          
+    252          		USB_APP_StringSerial[18] = (u8)(Device_Serial2 & 0x000000FF);
+    253          		USB_APP_StringSerial[20] = (u8)((Device_Serial2 & 0x0000FF00) >> 8);
+    254          		USB_APP_StringSerial[22] = (u8)((Device_Serial2 & 0x00FF0000) >> 16);
+    255          		USB_APP_StringSerial[24] = (u8)((Device_Serial2 & 0xFF000000) >> 24);
+    256          	}
+    257          }
 
    Maximum stack usage in bytes:
 
      Function              .cstack
      --------              -------
+     memset                     8
      usb_Get_SerialNum          8
      usb_Interrupts_Config      8
      usb_SendData               8
@@ -349,21 +312,22 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
 
      Function/Label             Bytes
      --------------             -----
+     memset                       20
      g_mass_storage_device_type    1
      g_usb_type                    1
      usb_SetClock                 28
      usb_Interrupts_Config        64
      usb_cable_insert              2
-     usb_device_init              40
+     usb_device_init              76
      usb_SendData                 10
      usb_Get_SerialNum           104
 
  
    2 bytes in section .bss
- 248 bytes in section .text
+ 304 bytes in section .text
  
- 248 bytes of CODE memory
+ 284 bytes of CODE memory (+ 20 bytes shared)
    2 bytes of DATA memory
 
 Errors: none
-Warnings: 2
+Warnings: 3

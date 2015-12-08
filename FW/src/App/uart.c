@@ -27,12 +27,17 @@
 #include "uart.h"
 #include "stm32f10x_systick.h"
 #include "stm32f10x_lib.h"
+#include "usb_regs.h"
 #define		CHANNEL_TIMEOUT_TH		200		//当某一个串口通道在100ms内没有接收到数据时，认为此通道打印任务结束，此数据待调试	
 
 #ifdef DEBUG_VER
 extern unsigned short debug_buffer[];
 extern unsigned int debug_cnt;
 #endif
+
+unsigned char		spp_rec_buffer[MAX_PRINT_CHANNEL][SPP_BUFFER_LEN];
+struct ringbuffer	spp_ringbuf[MAX_PRINT_CHANNEL];
+
 /******************************************************************************
 **Function name:  Getchar
 **
@@ -54,15 +59,15 @@ extern uint8_t Getchar(void)        //接收数据
 		if (current_channel == -1)
 		{
 			//还未进入打印通道的打印会话过程
-			for (i = 0; i < MAX_PT_CHANNEL;i++)
+			for (i = 0; i < MAX_PRINT_CHANNEL;i++)
 			{
 				if (ringbuffer_getchar(&spp_ringbuf[i],&c))
 				{
 					current_channel = i;
-//#ifdef DEBUG_VER
-//					debug_buffer[0] = c;
-//					debug_cnt = 1;
-//#endif
+#ifdef DEBUG_VER
+					//debug_buffer[0] = c;
+					//debug_cnt = 1;
+#endif
 					return c;
 				}
 			}
@@ -75,12 +80,19 @@ extern uint8_t Getchar(void)        //接收数据
 				timeout = 0;
 				if (ringbuffer_data_len(&spp_ringbuf[current_channel]) < RING_BUFF_EMPTY_TH)
 				{
-					set_BT_FREE(current_channel);
+					if (current_channel != USB_PRINT_CHANNEL_OFFSET)
+					{
+						set_BT_FREE(current_channel);
+					}
+					else
+					{
+						SetEPRxStatus(EP2_OUT, EP_RX_VALID);
+					}
 				}
-//#ifdef DEBUG_VER
-//				debug_buffer[debug_cnt] = c;
-//				debug_cnt++;
-//#endif
+#ifdef DEBUG_VER
+				//debug_buffer[debug_cnt] = c;
+				//debug_cnt++;
+#endif
 				return c;
 			}
 			else

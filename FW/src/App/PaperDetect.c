@@ -5,7 +5,7 @@
 #include "Esc_p.h"
 #include "Event.h"
 #include "KeyScan.h"
-#include "BT816.h"
+#include "uart.h"
 
 uint8_t printersts,papercnt,platencnt,bm_cnt;
 
@@ -110,7 +110,7 @@ void TPPaperSNSInit(void)
 	SysTick_ITConfig(ENABLE);
 	SysTick_CounterCmd(DISABLE);
 
-	for (i = 0; i<MAX_PT_CHANNEL;i++)
+	for (i = 0; i<MAX_PRINT_CHANNEL;i++)
 	{
 		esc_sts[i].status4=0;
 	}
@@ -126,7 +126,7 @@ void PaperStartSns(void)
        {
             printersts &= ~PAPER_SNS;
             printersts |= PAPER_READY;
-			for (i = 0; i<MAX_PT_CHANNEL;i++)
+			for (i = 0; i<MAX_PRINT_CHANNEL;i++)
 			{
 				esc_sts[i].status4 &=~(0x03<<5);
 			}
@@ -135,7 +135,7 @@ void PaperStartSns(void)
        {
             printersts |= PAPER_SNS;
             printersts &= ~PAPER_READY;
-			for (i = 0; i<MAX_PT_CHANNEL;i++)
+			for (i = 0; i<MAX_PRINT_CHANNEL;i++)
 			{
 				esc_sts[i].status4 |= (0x03<<5);
 			}
@@ -300,7 +300,7 @@ void SysTick_IRQ_Handle(void)
 	KeyScanProc();
 	TPBMSNSDetect();
 	TPPaperSNSDetect( PAPERSNS());
-	for (i = 0; i < MAX_PT_CHANNEL;i++)
+	for (i = 0; i < MAX_BT_CHANNEL;i++)
 	{
 		BT816_connect_status(i);
 	}

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:31:18 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     07/Dec/2015  18:42:26 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -44,7 +44,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
       5          #include "Esc_p.h"
       6          #include "Event.h"
       7          #include "KeyScan.h"
-      8          #include "BT816.h"
+      8          #include "uart.h"
       9          
      10          uint8_t printersts,papercnt,platencnt,bm_cnt;
      11          
@@ -149,7 +149,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     110          	SysTick_ITConfig(ENABLE);
     111          	SysTick_CounterCmd(DISABLE);
     112          
-    113          	for (i = 0; i<MAX_PT_CHANNEL;i++)
+    113          	for (i = 0; i<MAX_PRINT_CHANNEL;i++)
     114          	{
     115          		esc_sts[i].status4=0;
     116          	}
@@ -165,7 +165,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     126                 {
     127                      printersts &= ~PAPER_SNS;
     128                      printersts |= PAPER_READY;
-    129          			for (i = 0; i<MAX_PT_CHANNEL;i++)
+    129          			for (i = 0; i<MAX_PRINT_CHANNEL;i++)
     130          			{
     131          				esc_sts[i].status4 &=~(0x03<<5);
     132          			}
@@ -174,7 +174,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     135                 {
     136                      printersts |= PAPER_SNS;
     137                      printersts &= ~PAPER_READY;
-    138          			for (i = 0; i<MAX_PT_CHANNEL;i++)
+    138          			for (i = 0; i<MAX_PRINT_CHANNEL;i++)
     139          			{
     140          				esc_sts[i].status4 |= (0x03<<5);
     141          			}
@@ -339,7 +339,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
     300          	KeyScanProc();
     301          	TPBMSNSDetect();
     302          	TPPaperSNSDetect( PAPERSNS());
-    303          	for (i = 0; i < MAX_PT_CHANNEL;i++)
+    303          	for (i = 0; i < MAX_BT_CHANNEL;i++)
     304          	{
     305          		BT816_connect_status(i);
     306          	}

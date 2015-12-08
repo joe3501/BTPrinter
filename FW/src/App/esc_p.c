@@ -45,8 +45,35 @@
 #define US		(0x1f)
 #define SP		(0x20)
 
-ESC_P_STS_T  esc_sts[MAX_PT_CHANNEL];
+ESC_P_STS_T  esc_sts[MAX_PRINT_CHANNEL];
 signed char	 current_channel;		//当前正在处理的通道
+#ifdef DEBUG_VER
+extern unsigned short debug_buffer[];
+extern unsigned int debug_cnt;
+#endif
+//倍宽转换
+static uint8_t double_byte(uint8_t* out,uint8_t c)
+{
+	int i,tmp;
+	out[0] = 0;
+	out[1] = 0;
+	for (i = 0,tmp=0x80; i < 4; i++)
+	{
+		out[0] |= (c&tmp)>>i;
+		out[0] |= (c&tmp)>>(i+1);
+                tmp >>= 1;
+	}
+        
+        c <<= 4; 
+        for (i = 0,tmp=0x80; i < 4; i++)
+	{
+		out[1] |= (c&tmp)>>i;
+		out[1] |= (c&tmp)>>(i+1);
+                tmp >>= 1;
+	}
+        
+	return 2;
+}
 
 extern void esc_p_init(unsigned int n)
 {
@@ -55,7 +82,8 @@ extern void esc_p_init(unsigned int n)
 
 	esc_sts[n].international_character_set = 0;    // english
 	esc_sts[n].character_code_page = g_param.character_code_page;
-
+	esc_sts[n].h_motionunit = 0;
+	esc_sts[n].v_motionunit = 0;
 	esc_sts[n].prt_on = 0;
 	esc_sts[n].larger = 0;
 #ifdef ASCII9X24
@@ -103,7 +131,7 @@ extern void esc_p_init(unsigned int n)
 extern esc_init(void)
 {
 	int i;
-	for (i = 0; i < MAX_PT_CHANNEL; i++)
+	for (i = 0; i < MAX_PRINT_CHANNEL; i++)
 	{
 		esc_p_init(i);
 	}
@@ -113,7 +141,7 @@ extern esc_init(void)
 extern void esc_p(void)
 {
 	uint8_t cmd;
-	uint16_t  i,cnt,off;
+	uint16_t  i,j,cnt,off;
 	uint8_t chs[25],n;
         unsigned char tmp[LineDot/8];
 
@@ -239,8 +267,8 @@ extern void esc_p(void)
 		case 'J':
 			//ESC J n 打印并走纸
 			chs[1] = Getchar();
-			PrintCurrentBuffer(0);
-			TPFeedLine(chs[1]);
+			PrintCurrentBuffer_0(0);
+			TPFeedLine(chs[1]*esc_sts[current_channel].v_motionunit);
 			esc_sts[current_channel].start_dot = 0;
 			break;
 		case 'a':
@@ -276,14 +304,14 @@ extern void esc_p(void)
 			//ESC d n 打印并向前走纸n 行
 			chs[1] = Getchar();
 			esc_sts[current_channel].start_dot = 0;
-			PrintCurrentBuffer(0);
+			PrintCurrentBuffer_0(0);
 			TPFeedLine(chs[1]);
 			break;
 		case 'e':
 			//ESC e n Print and reverse feed n lines
 			chs[1] = Getchar();
 			esc_sts[current_channel].start_dot = 0;
-			PrintCurrentBuffer(0);
+			PrintCurrentBuffer_0(0);
 			//TPFeedLine(chs[1]);
 			//@todo...反向走纸
 			break;
@@ -652,6 +680,7 @@ extern void esc_p(void)
 			break;
 		case 'v':
 			//GS v 0 m xL xH yL yH d1...dk 打印光栅位图
+			//
 			//@todo....
 			chs[1] = Getchar();
 			if (chs[1] == '0')
@@ -664,10 +693,45 @@ extern void esc_p(void)
 					chs[5] = Getchar();
 					chs[6] = Getchar();
 
-					for (i = 0; i<((chs[4]*256+chs[3])*(chs[6]*256+chs[5]));i++)
+					//for (i = 0; i<((chs[4]*256+chs[3])*(chs[6]*256+chs[5]));i++)
+					//{
+					//	//@todo....保存光栅位图并打印
+					//	Getchar();
+					//}
+					for (i = 0; i < (chs[6]*256+chs[5]);i++)
 					{
-						//@todo....保存光栅位图并打印
-						Getchar();
+						memset(tmp,0,sizeof(tmp));
+						off = 0;
+						for (j = 0; j < (chs[4]*256+chs[3]);j++)
+						{
+							if (off<LineDot/8)
+							{
+								if (chs[2]&0x01)
+								{
+									double_byte(&tmp[off],Getchar());
+                                                                        debug_buffer[debug_cnt++] = tmp[off];
+                                                                        debug_buffer[debug_cnt++] = tmp[off+1];
+                                                                        off+=2;
+                                                                        
+								}
+								else
+								{
+									tmp[off] = Getchar();
+									debug_buffer[debug_cnt++] = tmp[off];
+                                                                        off++;
+								}
+							}
+							else
+							{
+								Getchar();
+							}
+						}
+						
+						TPPrintLine(tmp);
+						if (chs[2]&0x02)
+						{
+							TPPrintLine(tmp);
+						}
 					}
 				}
 			}

@@ -27,21 +27,24 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-u32 ProtocolValue;
-u32 Max_Lun = 0;
+
 
 #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
 unsigned int	keyboard_output_report_value;
+u32 ProtocolValue;
 #endif
 
 #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+u32 Max_Lun = 0;
 extern u8 Bot_State;
 extern Bulk_Only_CBW CBW;
+static u8 *Get_Max_Lun(u16 Length);
 #endif
 
-u8 Request = 0;
 
 #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+u8 Request = 0;
+
 LINE_CODING linecoding =
 {
 	115200, /* baud rate*/
@@ -49,6 +52,15 @@ LINE_CODING linecoding =
 	0x00,   /* parity - none*/
 	0x08    /* no. of bits 8*/
 };
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+u8 port_status;
+const u8 *device_id="MFG:EPSON;CMD:EJL,ESCP24J-84,ESCPAGEJ-04,ESCPSUPER-00;MDL:LP-2400;CLS:PRINTER;DES:HJ KT486;";
+
+static u8 *Get_Device_id(u16 Length);
+static u8 *Get_Port_status(u16 Length);
+static void print_device_reset(void);
 #endif
 
 /* -------------------------------------------------------------------------- */
@@ -109,7 +121,14 @@ ONE_DESCRIPTOR Device_Descriptor[USB_DEVICE_TYPE_NUM] =
 	 {
 		(u8*)MASS_DeviceDescriptor,
 		MASS_SIZ_DEVICE_DESC
-	 }
+	 },
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+		  {
+			  (u8*)Printer_DeviceDescriptor,
+				  PRINTER_SIZ_DEVICE_DESC
+		  }
 #endif
   };
 
@@ -133,7 +152,14 @@ ONE_DESCRIPTOR Config_Descriptor[USB_DEVICE_TYPE_NUM] =
 	{
 		(u8*)MASS_ConfigDescriptor,
 			MASS_SIZ_CONFIG_DESC
-	}
+	},
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+		{
+			(u8*)Printer_ConfigDescriptor,
+				PRINTER_SIZ_CONFIG_DESC
+		}
 #endif
   };
 
@@ -190,11 +216,22 @@ void USB_Set_Descriptor(void)
 #endif
 
 #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+	if(g_usb_type == USB_MASSSTORAGE)
 	{
 		Device_Descriptor[MASS_DESC_OFFSET].Descriptor = (u8*)MASS_DeviceDescriptor;
 
 		Config_Descriptor[MASS_DESC_OFFSET].Descriptor = (u8*)MASS_ConfigDescriptor;
 		Config_Descriptor[MASS_DESC_OFFSET].Descriptor_Size	= MASS_SIZ_CONFIG_DESC;
+	}
+	else
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+	{
+		Device_Descriptor[PRINTER_DESC_OFFSET].Descriptor = (u8*)Printer_DeviceDescriptor;
+
+		Config_Descriptor[PRINTER_DESC_OFFSET].Descriptor = (u8*)Printer_ConfigDescriptor;
+		Config_Descriptor[PRINTER_DESC_OFFSET].Descriptor_Size	= PRINTER_SIZ_CONFIG_DESC;
 	}
 #endif
       ;
@@ -260,6 +297,13 @@ void USB_APP_Reset(void)
   {
 	pInformation->Current_Feature = MASS_ConfigDescriptor[7];
   }
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+	  {
+		  pInformation->Current_Interface = 0;
+		  pInformation->Current_Feature = Printer_ConfigDescriptor[7];
+	  }
 #endif
 
   SetBTABLE(BTABLE_ADDRESS);
@@ -332,6 +376,24 @@ else
 
 	CBW.dSignature = BOT_CBW_SIGNATURE;
 	Bot_State = BOT_IDLE;
+}
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+{
+	/* Initialize Endpoint 1 */
+	SetEPType(ENDP1, EP_BULK);
+	SetEPTxAddr(ENDP1, ENDP1_TXADDR);
+	SetEPTxStatus(ENDP1, EP_TX_NAK);
+	SetEPRxStatus(ENDP1, EP_RX_DIS);
+
+	/* Initialize Endpoint 2 */
+	SetEPType(ENDP2, EP_BULK);
+	SetEPRxAddr(ENDP2, ENDP2_RXADDR);
+	SetEPRxCount(ENDP2, Device_Property.MaxPacketSize);			
+	//SetEPRxCount(ENDP2, 0x40);										//joe ÐÞ¸Ä
+	SetEPRxStatus(ENDP2, EP_RX_VALID);
+	SetEPTxStatus(ENDP2, EP_TX_DIS);
 }
 #endif
 
@@ -501,6 +563,7 @@ RESULT USB_APP_Data_Setup(u8 RequestNo)
 #endif
 
 #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+	   if(g_usb_type == USB_MASSSTORAGE)
   {
 	  if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
 		  && (RequestNo == GET_MAX_LUN) && (pInformation->USBwValue == 0)
@@ -513,8 +576,35 @@ RESULT USB_APP_Data_Setup(u8 RequestNo)
 		  return USB_UNSUPPORT;
 	  }
   }
+	   else
 #endif
 
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+	  {
+		  if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)))
+		  {
+			  if ((RequestNo == GET_DEVICE_ID) && (pInformation->USBwValue == 0)
+				  && (pInformation->USBwIndex == 0))
+			{
+			  //CopyRoutine = Get_Device_id;
+			}
+			  else if ((RequestNo == GET_PORT_STATUS) && (pInformation->USBwValue == 0)
+				  && (pInformation->USBwIndex == 0)&&(pInformation->USBwLength == 1))
+			  {
+					CopyRoutine = Get_Port_status;
+			  }
+			  else
+			  {
+				return USB_UNSUPPORT;
+			  }
+		  }
+		  else
+		  {
+			  return USB_UNSUPPORT;
+		  }
+	  }
+#endif
+	;
   if (CopyRoutine == NULL)
   {
 	  return USB_UNSUPPORT;
@@ -566,6 +656,7 @@ RESULT USB_APP_NoData_Setup(u8 RequestNo)
 #endif
 
 #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+		if(g_usb_type == USB_MASSSTORAGE)
 	{
 		if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
 			&& (RequestNo == MASS_STORAGE_RESET) && (pInformation->USBwValue == 0)
@@ -585,6 +676,19 @@ RESULT USB_APP_NoData_Setup(u8 RequestNo)
 			return USB_SUCCESS;
 		}
 	}
+		else
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+			{
+				if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+					&& (RequestNo == SOFT_RESET) && (pInformation->USBwValue == 0)
+					&& (pInformation->USBwIndex == 0) && (pInformation->USBwLength == 0x00))
+				{
+					print_device_reset();
+					return USB_SUCCESS;
+				}
+			}
 #endif
         ;
 	return USB_UNSUPPORT;
@@ -616,9 +720,18 @@ u8 *USB_APP_GetDeviceDescriptor(u16 Length)
 #endif
 
 #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+	if(g_usb_type == USB_MASSSTORAGE)
 	{
 		return Standard_GetDescriptorData(Length, &Device_Descriptor[MASS_DESC_OFFSET]);
 	}
+	else
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+		if(g_usb_type == USB_PRINTER)
+		{
+			return Standard_GetDescriptorData(Length, &Device_Descriptor[PRINTER_DESC_OFFSET]);
+		}
 #endif
         ;
 }
@@ -649,9 +762,18 @@ u8 *USB_APP_GetConfigDescriptor(u16 Length)
 #endif
 
 #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+	if(g_usb_type == USB_MASSSTORAGE)
 	{
 		return Standard_GetDescriptorData(Length, &Config_Descriptor[MASS_DESC_OFFSET]);
 	}
+	else
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+		if(g_usb_type == USB_PRINTER)
+		{
+			return Standard_GetDescriptorData(Length, &Config_Descriptor[PRINTER_DESC_OFFSET]);
+		}
 #endif
         ;
 }
@@ -839,7 +961,7 @@ u8 *Virtual_Com_Port_SetLineCoding(u16 Length)
 * Output         : None.
 * Return         : None.
 *******************************************************************************/
-u8 *Get_Max_Lun(u16 Length)
+static u8 *Get_Max_Lun(u16 Length)
 {
 	if (Length == 0)
 	{
@@ -850,6 +972,55 @@ u8 *Get_Max_Lun(u16 Length)
 	{
 		return((u8*)(&Max_Lun));
 	}
+}
+#endif
+
+#if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+/*******************************************************************************
+* Function Name  : Get_Device_id
+* Description    : Handle the Get Max Lun request.
+* Input          : uint16_t Length.
+* Output         : None.
+* Return         : None.
+*******************************************************************************/
+static u8 *Get_Device_id(u16 Length)
+{
+	if (Length == 0)
+	{
+		pInformation->Ctrl_Info.Usb_wLength = strlen(device_id);
+		return 0;
+	}
+	else
+	{
+		return((u8*)(device_id));
+	}
+}
+
+static u8 *Get_Port_status(u16 Length)
+{
+	if (Length == 0)
+	{
+		pInformation->Ctrl_Info.Usb_wLength = PORT_STATUS_DATA_LEN;
+		return 0;
+	}
+	else
+	{
+		port_status = 0x18;
+		if (esc_sts[USB_PRINT_CHANNEL_OFFSET].status4&(0x03<<5))
+		{
+			//È±Ö½
+			port_status |= (0x01<<5); 
+		}
+		return((u8*)(&port_status));
+	}
+}
+
+//soft reset
+static void print_device_reset(void)
+{
+	current_channel = USB_PRINT_CHANNEL_OFFSET;
+	esc_p_init(USB_PRINT_CHANNEL_OFFSET);
+	PrintBufToZero();
 }
 #endif
 

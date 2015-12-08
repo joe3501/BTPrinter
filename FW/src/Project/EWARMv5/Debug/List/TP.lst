@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  11:06:19 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     08/Dec/2015  16:55:05 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -1630,13 +1630,13 @@ E:\BT Printer\FW\src\App\TP.c
    1593          	len = snprintf(buf, sizeof(buf),  "[BT Module config]\n");
    1594          	TPPrintAsciiLine(buf,len);
    1595          
-   1596          	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_PT_CHANNEL);
+   1596          	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_BT_CHANNEL);
    1597          	TPPrintAsciiLine(buf,len);
    1598          
-   1599          	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n",MAX_PT_CHANNEL);
+   1599          	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n",MAX_BT_CHANNEL);
    1600          	TPPrintAsciiLine(buf,len);
    1601          
-   1602          	for (i = 0;i<MAX_PT_CHANNEL;i++)
+   1602          	for (i = 0;i<MAX_BT_CHANNEL;i++)
    1603          	{
    1604          		len = snprintf(buf, sizeof(buf),  "BT Module(%d):|HJ Printer%d | 0000\n",i+1,i+1);
    1605          		TPPrintAsciiLine(buf,len);
@@ -1859,9 +1859,9 @@ E:\BT Printer\FW\src\App\TP.c
      ?<Constant "System: HJ_PT486_KT100\n">           24
      ?<Constant "Firmware:%d.%02d.%02d \n">           24
      ?<Constant "Build date: %s\n">                   16
-     ?<Constant "Dec  5 2015">                        12
+     ?<Constant "Dec  8 2015">                        12
      ?<Constant "Build time: %s\n">                   16
-     ?<Constant "11:06:19">                           12
+     ?<Constant "16:55:04">                           12
      ?<Constant "[BT Module config]\n">               20
      ?<Constant "%d BT Module Support\n">             24
      ?<Constant "    Seq      |    Nam...">           36

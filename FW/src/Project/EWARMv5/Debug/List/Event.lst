@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:45:22 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     07/Dec/2015  18:43:11 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -42,115 +42,116 @@ E:\BT Printer\FW\src\App\Event.c
       4          #include "basic_fun.h"
       5          #include "Esc_p.h"
       6          #include "ESC_POS_test.h"
-      7          
+      7          #include "uart.h"
       8          
-      9          //======================================================================================================
-     10          static volatile uint8_t evtHead;
-     11          static uint8_t evtTail;
-     12          static uint8_t evtQueue[64];
-     13          //======================================================================================================
-     14          
-     15          //======================================================================================================
-     16          extern void event_init(void)
-     17          {
-     18          	evtHead = evtTail = 0;
-     19          }
-     20          //======================================================================================================
-     21          extern void event_post(uint8_t event)
-     22          {
-     23          	uint32_t head;
-     24          
-     25          	if(event)
-     26          	{
-     27                   // Disable Interrupts
-     28          		head = evtHead;
-     29          		evtHead = (head + 1) & (ARRAY_SIZE(evtQueue) - 1);
-     30          		// restore flag
-     31          
-     32          		evtQueue[head] = event;
-     33          	}
-     34          }
-     35          //======================================================================================================
+      9          
+     10          //======================================================================================================
+     11          static volatile uint8_t evtHead;
+     12          static uint8_t evtTail;
+     13          static uint8_t evtQueue[64];
+     14          //======================================================================================================
+     15          
+     16          //======================================================================================================
+     17          extern void event_init(void)
+     18          {
+     19          	evtHead = evtTail = 0;
+     20          }
+     21          //======================================================================================================
+     22          extern void event_post(uint8_t event)
+     23          {
+     24          	uint32_t head;
+     25          
+     26          	if(event)
+     27          	{
+     28                   // Disable Interrupts
+     29          		head = evtHead;
+     30          		evtHead = (head + 1) & (ARRAY_SIZE(evtQueue) - 1);
+     31          		// restore flag
+     32          
+     33          		evtQueue[head] = event;
+     34          	}
+     35          }
      36          //======================================================================================================
-     37          extern uint8_t event_pend(void)
-     38          {
-     39          	uint8_t event;
-     40          
-     41          	if(evtHead == evtTail)
-     42          	{
-     43          		return evtNULL;
-     44          	}
-     45          	event = evtQueue[evtTail];
-     46          	evtTail = (evtTail + 1) & (ARRAY_SIZE(evtQueue) - 1);
-     47          	return event;
-     48          }
-     49          //======================================================================================================
-     50          extern void event_proc(void)
-     51          {
-     52          	int i;
-     53          	switch(event_pend())
-     54          	{
-     55          	//-----------------------------------------------------------------
-     56          	case evtKeyDownFeed:
-     57          		//ESC_POS_test_esc();
-     58          		//ESC_POS_test_esc_special();
-     59          		//TPPrintTestPage();
-     60          		TPFeedStart();
-     61          		//TPSelfTest2();
-     62          		break;
-     63          	case evtKeyUpFeed:
-     64          		TPFeedStop();
-     65          		break;
-     66          	case evtKeyDownHold500msMode:
-     67                  break;
-     68          	case evtKeyDownMode:
-     69          		#if 1
-     70          		if(TPPrinterReady())
-     71                  TPPrintTestPage();
-     72          		#endif
-     73          		break;
-     74          	case evtKeyDownHold2000msMode:
-     75          		if(TPPrinterReady())
-     76                  TPPrintTestPage();
-     77          		break;
-     78          	case evtKeyUpMode:
-     79          		break;
-     80          	case evtKeyHoldMode:
-     81          		break;
-     82          	case evtKeyDownHold5000msMode:
-     83          		break;
-     84              case evtKeyDownHold7000msMode:
-     85                  break;
-     86          	case evtPaperOut:
-     87          		for (i = 0; i< MAX_PT_CHANNEL;i++)
-     88          		{
-     89          			esc_sts[i].status4 |= (0x03<<5);
-     90          		}
-     91                  
-     92          		break;
-     93          	case evtPaperIn:
-     94          		for (i = 0; i< MAX_PT_CHANNEL;i++)
-     95          		{
-     96          			esc_sts[i].status4 &= ~(0x03<<5);
-     97          		}
-     98                  Wake_up();
-     99                  break;
-    100              case evtBmDetect:
-    101                  break;
-    102              case evtGetRealTimeStatus4:
-    103                 //Putchar(esc_sts.status4);
-    104                  break;
-    105          	case evtLifetest:
-    106          	   break;
-    107          	default:
-    108          		break;
-    109          	}
-    110          }
-    111          //======================================================================================================
-    112          
+     37          //======================================================================================================
+     38          extern uint8_t event_pend(void)
+     39          {
+     40          	uint8_t event;
+     41          
+     42          	if(evtHead == evtTail)
+     43          	{
+     44          		return evtNULL;
+     45          	}
+     46          	event = evtQueue[evtTail];
+     47          	evtTail = (evtTail + 1) & (ARRAY_SIZE(evtQueue) - 1);
+     48          	return event;
+     49          }
+     50          //======================================================================================================
+     51          extern void event_proc(void)
+     52          {
+     53          	int i;
+     54          	switch(event_pend())
+     55          	{
+     56          	//-----------------------------------------------------------------
+     57          	case evtKeyDownFeed:
+     58          		//ESC_POS_test_esc();
+     59          		//ESC_POS_test_esc_special();
+     60          		//TPPrintTestPage();
+     61          		TPFeedStart();
+     62          		//TPSelfTest2();
+     63          		break;
+     64          	case evtKeyUpFeed:
+     65          		TPFeedStop();
+     66          		break;
+     67          	case evtKeyDownHold500msMode:
+     68                  break;
+     69          	case evtKeyDownMode:
+     70          		#if 1
+     71          		if(TPPrinterReady())
+     72                  TPPrintTestPage();
+     73          		#endif
+     74          		break;
+     75          	case evtKeyDownHold2000msMode:
+     76          		if(TPPrinterReady())
+     77                  TPPrintTestPage();
+     78          		break;
+     79          	case evtKeyUpMode:
+     80          		break;
+     81          	case evtKeyHoldMode:
+     82          		break;
+     83          	case evtKeyDownHold5000msMode:
+     84          		break;
+     85              case evtKeyDownHold7000msMode:
+     86                  break;
+     87          	case evtPaperOut:
+     88          		for (i = 0; i< MAX_PRINT_CHANNEL;i++)
+     89          		{
+     90          			esc_sts[i].status4 |= (0x03<<5);
+     91          		}
+     92                  
+     93          		break;
+     94          	case evtPaperIn:
+     95          		for (i = 0; i< MAX_PRINT_CHANNEL;i++)
+     96          		{
+     97          			esc_sts[i].status4 &= ~(0x03<<5);
+     98          		}
+     99                  Wake_up();
+    100                  break;
+    101              case evtBmDetect:
+    102                  break;
+    103              case evtGetRealTimeStatus4:
+    104                 //Putchar(esc_sts.status4);
+    105                  break;
+    106          	case evtLifetest:
+    107          	   break;
+    108          	default:
+    109          		break;
+    110          	}
+    111          }
+    112          //======================================================================================================
     113          
     114          
     115          
+    116          
 
    Maximum stack usage in bytes:
 

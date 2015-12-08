@@ -1593,13 +1593,13 @@ extern void TPPrintTestPage(void)
 	len = snprintf(buf, sizeof(buf),  "[BT Module config]\n");
 	TPPrintAsciiLine(buf,len);
 
-	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_PT_CHANNEL);
+	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_BT_CHANNEL);
 	TPPrintAsciiLine(buf,len);
 
-	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n",MAX_PT_CHANNEL);
+	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n",MAX_BT_CHANNEL);
 	TPPrintAsciiLine(buf,len);
 
-	for (i = 0;i<MAX_PT_CHANNEL;i++)
+	for (i = 0;i<MAX_BT_CHANNEL;i++)
 	{
 		len = snprintf(buf, sizeof(buf),  "BT Module(%d):|HJ Printer%d | 0000\n",i+1,i+1);
 		TPPrintAsciiLine(buf,len);

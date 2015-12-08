@@ -6,7 +6,7 @@
 #include "TP.h"
 #include "BT816.h"
 
-//#define MAX_PT_CHANNEL		4		//最多支持4个连接通道
+//#define MAX_BT_CHANNEL		4		//最多支持4个连接通道
 
 #if defined(TM_T88II)
 #define FONT_A_WIDTH		(12)

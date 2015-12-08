@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:45:24 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     08/Dec/2015  15:12:29 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -61,110 +61,163 @@ E:\BT Printer\FW\src\usb_lib\usb_endp.c
      22          #include "usb_bot.h"
      23          #include "usb_app_config.h"
      24          
-     25          /* Private typedef -----------------------------------------------------------*/
-     26          /* Private define ------------------------------------------------------------*/
-     27          /* Private macro -------------------------------------------------------------*/
-     28          /* Private variables ---------------------------------------------------------*/
-     29          //u8 buffer_out[VIRTUAL_COM_PORT_DATA_SIZE];
-     30          //u32 count_out = 0;
-     31          u32 count_in = 0;
-     32          
-     33          /* Private function prototypes -----------------------------------------------*/
-     34          /* Private functions ---------------------------------------------------------*/
-     35          /*******************************************************************************
-     36          * Function Name  : EP3_IN_Callback
-     37          * Description    :
-     38          * Input          : None.
-     39          * Output         : None.
-     40          * Return         : None.
-     41          *******************************************************************************/
-     42          void EP3_OUT_Callback(void)
-     43          {
-     44          #if(USB_DEVICE_CONFIG &_USE_USB_VIRTUAL_COMM_DEVICE)
-     45             //int i;
-     46            if (g_usb_type == USB_VIRTUAL_PORT)
-     47            {
-     48          	  count_out = GetEPRxCount(ENDP3);
-     49          	  PMAToUserBufferCopy(buffer_out, ENDP3_RXADDR, count_out);
-     50          	  SetEPRxValid(ENDP3);
-     51          
-     52          	  /*for (i = 0; i < count_out; i++)
-     53          	  {
-     54          	  PCUsart_InByte(buffer_out[i]);
-     55          	  }*/
-     56          	  //@todo....
-     57          
-     58          	  //此处应用可以处理虚拟串口接收到的数据，由具体应用来修改。。。。
-     59            }
-     60          #endif
-     61          }
+     25          #ifdef DEBUG_VER
+     26          extern unsigned short debug_buffer[];
+     27          extern unsigned int debug_cnt;
+     28          #endif
+     29          /* Private typedef -----------------------------------------------------------*/
+     30          /* Private define ------------------------------------------------------------*/
+     31          /* Private macro -------------------------------------------------------------*/
+     32          /* Private variables ---------------------------------------------------------*/
+     33          #if(USB_DEVICE_CONFIG &_USE_USB_VIRTUAL_COMM_DEVICE)
+     34          u8 buffer_out[VIRTUAL_COM_PORT_DATA_SIZE];
+     35          u32 count_out = 0;
+     36          u32 count_in = 0;
+     37          #endif
+     38          
+     39          #if(USB_DEVICE_CONFIG &_USE_USB_PRINTER_DEVICE)
+     40          u8	buffer_out[PRINTER_USB_PORT_BUF_SIZE];
+     41          u32 print_data_len;
+     42          #endif
+     43          
+     44          /* Private function prototypes -----------------------------------------------*/
+     45          /* Private functions ---------------------------------------------------------*/
+     46          /*******************************************************************************
+     47          * Function Name  : EP3_IN_Callback
+     48          * Description    :
+     49          * Input          : None.
+     50          * Output         : None.
+     51          * Return         : None.
+     52          *******************************************************************************/
+     53          void EP3_OUT_Callback(void)
+     54          {
+     55          #if(USB_DEVICE_CONFIG &_USE_USB_VIRTUAL_COMM_DEVICE)
+     56             //int i;
+     57            if (g_usb_type == USB_VIRTUAL_PORT)
+     58            {
+     59          	  count_out = GetEPRxCount(ENDP3);
+     60          	  PMAToUserBufferCopy(buffer_out, ENDP3_RXADDR, count_out);
+     61          	  SetEPRxValid(ENDP3);
      62          
-     63          /*******************************************************************************
-     64          * Function Name  : EP2_OUT_Callback.
-     65          * Description    : EP2 OUT Callback Routine.
-     66          * Input          : None.
-     67          * Output         : None.
-     68          * Return         : None.
-     69          *******************************************************************************/
-     70          void EP2_OUT_Callback(void)
-     71          {
-     72          #if(USB_DEVICE_CONFIG &_USE_USB_MASS_STOARGE_DEVICE)
-     73          	if (g_usb_type == USB_MASSSTORAGE)
-     74          	{
-     75          		Mass_Storage_Out();
-     76          	}
-     77          #endif
-     78          }
-     79          
-     80          /*******************************************************************************
-     81          * Function Name  : EP1_IN_Callback
-     82          * Description    :
-     83          * Input          : None.
-     84          * Output         : None.
-     85          * Return         : None.
-     86          *******************************************************************************/
-     87          void EP1_IN_Callback(void)
-     88          {
-     89          #if(USB_DEVICE_CONFIG &_USE_USB_MASS_STOARGE_DEVICE)
-     90          	if (g_usb_type == USB_MASSSTORAGE)
-     91          	{
-     92          		Mass_Storage_In();
-     93          	}
-     94          	else
-     95          #endif
-     96          	{
-     97          		count_in = 0;
-     98          	}
-     99          }
-    100          
-    101          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
-    102          
+     63          	  /*for (i = 0; i < count_out; i++)
+     64          	  {
+     65          	  PCUsart_InByte(buffer_out[i]);
+     66          	  }*/
+     67          	  //@todo....
+     68          
+     69          	  //此处应用可以处理虚拟串口接收到的数据，由具体应用来修改。。。。
+     70            }
+     71          #endif
+     72          }
+     73          
+     74          /*******************************************************************************
+     75          * Function Name  : EP2_OUT_Callback.
+     76          * Description    : EP2 OUT Callback Routine.
+     77          * Input          : None.
+     78          * Output         : None.
+     79          * Return         : None.
+     80          *******************************************************************************/
+     81          void EP2_OUT_Callback(void)
+     82          {
+     83          #if(USB_DEVICE_CONFIG &_USE_USB_MASS_STOARGE_DEVICE)
+     84          	if (g_usb_type == USB_MASSSTORAGE)
+     85          	{
+     86          		Mass_Storage_Out();
+     87          	}
+     88          	else
+     89          #endif
+     90          #if(USB_DEVICE_CONFIG &_USE_USB_PRINTER_DEVICE)
+     91          		if (g_usb_type == USB_PRINTER)
+     92          		{
+     93          			//@todo.....//解析打印语言
+     94          			print_data_len = USB_SIL_Read(EP2_OUT, buffer_out);
+     95          			ringbuffer_put(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],buffer_out,print_data_len);
+     96          			//SetEPTxStatus(ENDP1, EP_TX_STALL);
+     97          			//SetEPRxStatus(ENDP2, EP_RX_STALL);
+     98          			if (ringbuffer_data_len(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET]) < RING_BUFF_FULL_TH)
+     99          			{
+    100          				SetEPRxStatus(EP2_OUT, EP_RX_VALID);
+    101          			}
+    102          			//SetEPTxCount(ENDP1, BULK_MAX_PACKET_SIZE);
+    103          			//SetEPTxStatus(ENDP1, EP_TX_VALID);
+    104          
+    105          		}
+    106          		else
+    107          #endif
+    108          			;
+    109          }
+    110          
+    111          /*******************************************************************************
+    112          * Function Name  : EP1_IN_Callback
+    113          * Description    :
+    114          * Input          : None.
+    115          * Output         : None.
+    116          * Return         : None.
+    117          *******************************************************************************/
+    118          void EP1_IN_Callback(void)
+    119          {
+    120          #if(USB_DEVICE_CONFIG &_USE_USB_MASS_STOARGE_DEVICE)
+    121          	if (g_usb_type == USB_MASSSTORAGE)
+    122          	{
+    123          		Mass_Storage_In();
+    124          	}
+    125          	else
+    126          #endif
+    127          #if(USB_DEVICE_CONFIG &_USE_USB_PRINTER_DEVICE)
+    128          		if (g_usb_type == USB_PRINTER)
+    129          		{
+    130          			//Mass_Storage_In();
+    131          			//@todo.....//根据打印语言的解析，返回结果或者状态
+    132          			//if (GetEPRxStatus(EP2_OUT) == EP_RX_STALL)
+    133          			{
+    134          				SetEPRxStatus(EP2_OUT, EP_RX_VALID);/* enable the Endpoint to recive the next cmd*/
+    135          			}
+    136          			
+    137          		}
+    138          		else
+    139          #endif
+    140          
+    141          #if(USB_DEVICE_CONFIG &_USE_USB_VIRTUAL_COMM_DEVICE)
+    142          	{
+    143          		count_in = 0;
+    144          	}
+    145          #endif
+    146          		;
+    147          }
+    148          
+    149          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+    150          
 
    Maximum stack usage in bytes:
 
-     Function         .cstack
-     --------         -------
-     EP1_IN_Callback       8
-     EP2_OUT_Callback      8
-     EP3_OUT_Callback      0
+     Function            .cstack
+     --------            -------
+     EP1_IN_Callback          8
+     EP2_OUT_Callback         8
+     EP3_OUT_Callback         0
+     ringbuffer_data_len      8
+     ringbuffer_status        0
 
 
    Section sizes:
 
-     Function/Label   Bytes
-     --------------   -----
-     count_in            4
-     EP3_OUT_Callback    2
-     EP2_OUT_Callback   16
-     EP1_IN_Callback    28
-     ??DataTable1        4
+     Function/Label      Bytes
+     --------------      -----
+     ringbuffer_status     40
+     ringbuffer_data_len   68
+     buffer_out            64
+     print_data_len         4
+     EP3_OUT_Callback       2
+     EP2_OUT_Callback      84
+     EP1_IN_Callback       36
+     ??DataTable3           4
 
  
-  4 bytes in section .bss
- 50 bytes in section .text
+  68 bytes in section .bss
+ 234 bytes in section .text
  
- 50 bytes of CODE memory
-  4 bytes of DATA memory
+ 234 bytes of CODE memory
+  68 bytes of DATA memory
 
 Errors: none
-Warnings: none
+Warnings: 1

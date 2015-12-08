@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     05/Dec/2015  10:45:25 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     08/Dec/2015  15:12:29 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -66,839 +66,1011 @@ E:\BT Printer\FW\src\usb_lib\usb_prop.c
      27          /* Private define ------------------------------------------------------------*/
      28          /* Private macro -------------------------------------------------------------*/
      29          /* Private variables ---------------------------------------------------------*/
-     30          u32 ProtocolValue;
-     31          u32 Max_Lun = 0;
-     32          
-     33          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-     34          unsigned int	keyboard_output_report_value;
+     30          
+     31          
+     32          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+     33          unsigned int	keyboard_output_report_value;
+     34          u32 ProtocolValue;
      35          #endif
      36          
      37          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-     38          extern u8 Bot_State;
-     39          extern Bulk_Only_CBW CBW;
-     40          #endif
-     41          
-     42          u8 Request = 0;
+     38          u32 Max_Lun = 0;
+     39          extern u8 Bot_State;
+     40          extern Bulk_Only_CBW CBW;
+     41          static u8 *Get_Max_Lun(u16 Length);
+     42          #endif
      43          
-     44          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-     45          LINE_CODING linecoding =
-     46          {
-     47          	115200, /* baud rate*/
-     48          	0x00,   /* stop bits-1*/
-     49          	0x00,   /* parity - none*/
-     50          	0x08    /* no. of bits 8*/
-     51          };
-     52          #endif
-     53          
-     54          /* -------------------------------------------------------------------------- */
-     55          /*  Structures initializations */
-     56          /* -------------------------------------------------------------------------- */
-     57          
-     58          DEVICE Device_Table =
-     59            {
-     60              EP_NUM,
-     61              1
-     62            };
-     63          
-     64          DEVICE_PROP Device_Property =
-     65            {
-     66              USB_APP_init,
-     67              USB_APP_Reset,
-     68              USB_APP_Status_In,
-     69              USB_APP_Status_Out,
-     70              USB_APP_Data_Setup,
-     71              USB_APP_NoData_Setup,
-     72              USB_APP_Get_Interface_Setting,
-     73              USB_APP_GetDeviceDescriptor,
-     74              USB_APP_GetConfigDescriptor,
-     75              USB_APP_GetStringDescriptor,
-     76              0,
-     77          	0x40 /*MAX PACKET SIZE*/
-     78            };
-     79          USER_STANDARD_REQUESTS User_Standard_Requests =
-     80            {
-     81              USB_APP_GetConfiguration,
-     82              USB_APP_SetConfiguration,
-     83              USB_APP_GetInterface,
-     84              USB_APP_SetInterface,
-     85              USB_APP_GetStatus,
-     86              USB_APP_ClearFeature,
-     87              USB_APP_SetEndPointFeature,
-     88              USB_APP_SetDeviceFeature,
-     89              USB_APP_SetDeviceAddress
+     44          
+     45          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+     46          u8 Request = 0;
+     47          
+     48          LINE_CODING linecoding =
+     49          {
+     50          	115200, /* baud rate*/
+     51          	0x00,   /* stop bits-1*/
+     52          	0x00,   /* parity - none*/
+     53          	0x08    /* no. of bits 8*/
+     54          };
+     55          #endif
+     56          
+     57          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+     58          u8 port_status;
+     59          const u8 *device_id="MFG:EPSON;CMD:EJL,ESCP24J-84,ESCPAGEJ-04,ESCPSUPER-00;MDL:LP-2400;CLS:PRINTER;DES:HJ KT486;";
+     60          
+     61          static u8 *Get_Device_id(u16 Length);
+     62          static u8 *Get_Port_status(u16 Length);
+     63          static void print_device_reset(void);
+     64          #endif
+     65          
+     66          /* -------------------------------------------------------------------------- */
+     67          /*  Structures initializations */
+     68          /* -------------------------------------------------------------------------- */
+     69          
+     70          DEVICE Device_Table =
+     71            {
+     72              EP_NUM,
+     73              1
+     74            };
+     75          
+     76          DEVICE_PROP Device_Property =
+     77            {
+     78              USB_APP_init,
+     79              USB_APP_Reset,
+     80              USB_APP_Status_In,
+     81              USB_APP_Status_Out,
+     82              USB_APP_Data_Setup,
+     83              USB_APP_NoData_Setup,
+     84              USB_APP_Get_Interface_Setting,
+     85              USB_APP_GetDeviceDescriptor,
+     86              USB_APP_GetConfigDescriptor,
+     87              USB_APP_GetStringDescriptor,
+     88              0,
+     89          	0x40 /*MAX PACKET SIZE*/
      90            };
-     91          
-     92          ONE_DESCRIPTOR Device_Descriptor[USB_DEVICE_TYPE_NUM] =
-     93            {
-     94          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-     95          	  {
-     96          		  (u8*)Virtual_Com_Port_DeviceDescriptor,
-     97          			  USB_APP_SIZ_DEVICE_DESC
-     98          	  },
-     99          #endif
-    100          
-    101          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    102          	  {
-    103          		  (u8*)Keyboard_DeviceDescriptor,
-    104          		  USB_APP_SIZ_DEVICE_DESC
-    105          	  },
-    106          #endif
-    107          
-    108          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    109          	 {
-    110          		(u8*)MASS_DeviceDescriptor,
-    111          		MASS_SIZ_DEVICE_DESC
-    112          	 }
-    113          #endif
-    114            };
-    115          
-    116          ONE_DESCRIPTOR Config_Descriptor[USB_DEVICE_TYPE_NUM] =
-    117            {
-    118          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    119          	  {
-    120          		  (u8*)Virtual_Com_Port_ConfigDescriptor,
-    121          			  VIRTUAL_COM_PORT_SIZ_CONFIG_DESC
-    122          	  },
-    123          #endif
-    124          
-    125          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    126          	  {
-    127          		(u8*)Keyboard_ConfigDescriptor,
-    128          		KEYBOARD_SIZ_CONFIG_DESC
-    129          	  },
-    130          #endif
-    131          
-    132          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    133          	{
-    134          		(u8*)MASS_ConfigDescriptor,
-    135          			MASS_SIZ_CONFIG_DESC
-    136          	}
-    137          #endif
-    138            };
-    139          
-    140          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    141          ONE_DESCRIPTOR Keyboard_Report_Descriptor =
-    142            {
-    143              (u8 *)Keyboard_ReportDescriptor,
-    144              KEYBOARD_SIZ_REPORT_DESC
-    145            };
-    146          
-    147          ONE_DESCRIPTOR Keyboard_Hid_Descriptor =
-    148            {
-    149              (u8*)Keyboard_ConfigDescriptor + KEYBOARD_OFF_HID_DESC,
-    150              KEYBOARD_SIZ_HID_DESC
-    151            };
-    152          #endif
-    153          
-    154          
-    155          ONE_DESCRIPTOR String_Descriptor[4] =
-    156            {
-    157              {(u8*)USB_APP_StringLangID, USB_APP_SIZ_STRING_LANGID},
-    158              {(u8*)USB_APP_StringVendor, USB_APP_SIZ_STRING_VENDOR},
-    159              {(u8*)USB_APP_StringProduct, USB_APP_SIZ_STRING_PRODUCT},
-    160              {(u8*)USB_APP_StringSerial, USB_APP_SIZ_STRING_SERIAL}
-    161            };
-    162          
-    163          /* Extern variables ----------------------------------------------------------*/
-    164          /* Private function prototypes -----------------------------------------------*/
-    165          /* Extern function prototypes ------------------------------------------------*/
-    166          /* Private functions ---------------------------------------------------------*/
-    167          
-    168          void USB_Set_Descriptor(void)
-    169          {
-    170          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    171          	if (g_usb_type == USB_VIRTUAL_PORT)
-    172          	{
-    173          		Device_Descriptor[VIRTUAL_COMM_DESC_OFFSET].Descriptor =  (u8*)Virtual_Com_Port_DeviceDescriptor;
-    174          
-    175          		Config_Descriptor[VIRTUAL_COMM_DESC_OFFSET].Descriptor = (u8*)Virtual_Com_Port_ConfigDescriptor;
-    176          		Config_Descriptor[VIRTUAL_COMM_DESC_OFFSET].Descriptor_Size	= VIRTUAL_COM_PORT_SIZ_CONFIG_DESC;
-    177          	}
-    178          	else 
-    179          #endif
+     91          USER_STANDARD_REQUESTS User_Standard_Requests =
+     92            {
+     93              USB_APP_GetConfiguration,
+     94              USB_APP_SetConfiguration,
+     95              USB_APP_GetInterface,
+     96              USB_APP_SetInterface,
+     97              USB_APP_GetStatus,
+     98              USB_APP_ClearFeature,
+     99              USB_APP_SetEndPointFeature,
+    100              USB_APP_SetDeviceFeature,
+    101              USB_APP_SetDeviceAddress
+    102            };
+    103          
+    104          ONE_DESCRIPTOR Device_Descriptor[USB_DEVICE_TYPE_NUM] =
+    105            {
+    106          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    107          	  {
+    108          		  (u8*)Virtual_Com_Port_DeviceDescriptor,
+    109          			  USB_APP_SIZ_DEVICE_DESC
+    110          	  },
+    111          #endif
+    112          
+    113          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    114          	  {
+    115          		  (u8*)Keyboard_DeviceDescriptor,
+    116          		  USB_APP_SIZ_DEVICE_DESC
+    117          	  },
+    118          #endif
+    119          
+    120          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    121          	 {
+    122          		(u8*)MASS_DeviceDescriptor,
+    123          		MASS_SIZ_DEVICE_DESC
+    124          	 },
+    125          #endif
+    126          
+    127          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    128          		  {
+    129          			  (u8*)Printer_DeviceDescriptor,
+    130          				  PRINTER_SIZ_DEVICE_DESC
+    131          		  }
+    132          #endif
+    133            };
+    134          
+    135          ONE_DESCRIPTOR Config_Descriptor[USB_DEVICE_TYPE_NUM] =
+    136            {
+    137          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    138          	  {
+    139          		  (u8*)Virtual_Com_Port_ConfigDescriptor,
+    140          			  VIRTUAL_COM_PORT_SIZ_CONFIG_DESC
+    141          	  },
+    142          #endif
+    143          
+    144          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    145          	  {
+    146          		(u8*)Keyboard_ConfigDescriptor,
+    147          		KEYBOARD_SIZ_CONFIG_DESC
+    148          	  },
+    149          #endif
+    150          
+    151          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    152          	{
+    153          		(u8*)MASS_ConfigDescriptor,
+    154          			MASS_SIZ_CONFIG_DESC
+    155          	},
+    156          #endif
+    157          
+    158          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    159          		{
+    160          			(u8*)Printer_ConfigDescriptor,
+    161          				PRINTER_SIZ_CONFIG_DESC
+    162          		}
+    163          #endif
+    164            };
+    165          
+    166          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    167          ONE_DESCRIPTOR Keyboard_Report_Descriptor =
+    168            {
+    169              (u8 *)Keyboard_ReportDescriptor,
+    170              KEYBOARD_SIZ_REPORT_DESC
+    171            };
+    172          
+    173          ONE_DESCRIPTOR Keyboard_Hid_Descriptor =
+    174            {
+    175              (u8*)Keyboard_ConfigDescriptor + KEYBOARD_OFF_HID_DESC,
+    176              KEYBOARD_SIZ_HID_DESC
+    177            };
+    178          #endif
+    179          
     180          
-    181          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    182          	if(g_usb_type == USB_KEYBOARD)
-    183          	{
-    184          		Device_Descriptor[KEYBOARD_DESC_OFFSET].Descriptor = (u8*)Keyboard_DeviceDescriptor;
-    185          
-    186          		Config_Descriptor[KEYBOARD_DESC_OFFSET].Descriptor = (u8*)Keyboard_ConfigDescriptor;
-    187          		Config_Descriptor[KEYBOARD_DESC_OFFSET].Descriptor_Size	= KEYBOARD_SIZ_CONFIG_DESC;
-    188          	}
-    189          	else
-    190          #endif
-    191          
-    192          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    193          	{
-    194          		Device_Descriptor[MASS_DESC_OFFSET].Descriptor = (u8*)MASS_DeviceDescriptor;
-    195          
-    196          		Config_Descriptor[MASS_DESC_OFFSET].Descriptor = (u8*)MASS_ConfigDescriptor;
-    197          		Config_Descriptor[MASS_DESC_OFFSET].Descriptor_Size	= MASS_SIZ_CONFIG_DESC;
-    198          	}
-    199          #endif
-    200                ;
-    201          }
-    202          
-    203          /*******************************************************************************
-    204          * Function Name  : Joystick_init.
-    205          * Description    : Joystick Mouse init routine.
-    206          * Input          : None.
-    207          * Output         : None.
-    208          * Return         : None.
-    209          *******************************************************************************/
-    210          void USB_APP_init(void)
-    211          {
-    212          
-    213            /* Update the serial number string descriptor with the data from the unique
-    214            ID*/
-    215            usb_Get_SerialNum();
-    216          
-    217            pInformation->Current_Configuration = 0;
-    218            /* Connect the device */
-    219            USB_PowerOn();
-    220            /* USB interrupts initialization */
-    221            _SetISTR(0);               /* clear pending interrupts */
-    222            wInterrupt_Mask = IMR_MSK;
-    223            _SetCNTR(wInterrupt_Mask); /* set interrupts mask */
-    224          
-    225            bDeviceState = UNCONNECTED;
-    226          }
-    227          
-    228          /*******************************************************************************
-    229          * Function Name  : Joystick_Reset.
-    230          * Description    : Joystick Mouse reset routine.
-    231          * Input          : None.
-    232          * Output         : None.
-    233          * Return         : None.
-    234          *******************************************************************************/
-    235          void USB_APP_Reset(void)
-    236          {
-    237            /* Set Joystick_DEVICE as not configured */
-    238            pInformation->Current_Configuration = 0;
-    239           
-    240            /* Current Feature initialization */
-    241          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    242            if (g_usb_type == USB_VIRTUAL_PORT)
-    243            {
-    244          	  pInformation->Current_Interface = 0;
-    245          	  pInformation->Current_Feature = Virtual_Com_Port_ConfigDescriptor[7];
-    246            }
-    247            else 
-    248          #endif
+    181          ONE_DESCRIPTOR String_Descriptor[4] =
+    182            {
+    183              {(u8*)USB_APP_StringLangID, USB_APP_SIZ_STRING_LANGID},
+    184              {(u8*)USB_APP_StringVendor, USB_APP_SIZ_STRING_VENDOR},
+    185              {(u8*)USB_APP_StringProduct, USB_APP_SIZ_STRING_PRODUCT},
+    186              {(u8*)USB_APP_StringSerial, USB_APP_SIZ_STRING_SERIAL}
+    187            };
+    188          
+    189          /* Extern variables ----------------------------------------------------------*/
+    190          /* Private function prototypes -----------------------------------------------*/
+    191          /* Extern function prototypes ------------------------------------------------*/
+    192          /* Private functions ---------------------------------------------------------*/
+    193          
+    194          void USB_Set_Descriptor(void)
+    195          {
+    196          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    197          	if (g_usb_type == USB_VIRTUAL_PORT)
+    198          	{
+    199          		Device_Descriptor[VIRTUAL_COMM_DESC_OFFSET].Descriptor =  (u8*)Virtual_Com_Port_DeviceDescriptor;
+    200          
+    201          		Config_Descriptor[VIRTUAL_COMM_DESC_OFFSET].Descriptor = (u8*)Virtual_Com_Port_ConfigDescriptor;
+    202          		Config_Descriptor[VIRTUAL_COMM_DESC_OFFSET].Descriptor_Size	= VIRTUAL_COM_PORT_SIZ_CONFIG_DESC;
+    203          	}
+    204          	else 
+    205          #endif
+    206          
+    207          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    208          	if(g_usb_type == USB_KEYBOARD)
+    209          	{
+    210          		Device_Descriptor[KEYBOARD_DESC_OFFSET].Descriptor = (u8*)Keyboard_DeviceDescriptor;
+    211          
+    212          		Config_Descriptor[KEYBOARD_DESC_OFFSET].Descriptor = (u8*)Keyboard_ConfigDescriptor;
+    213          		Config_Descriptor[KEYBOARD_DESC_OFFSET].Descriptor_Size	= KEYBOARD_SIZ_CONFIG_DESC;
+    214          	}
+    215          	else
+    216          #endif
+    217          
+    218          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    219          	if(g_usb_type == USB_MASSSTORAGE)
+    220          	{
+    221          		Device_Descriptor[MASS_DESC_OFFSET].Descriptor = (u8*)MASS_DeviceDescriptor;
+    222          
+    223          		Config_Descriptor[MASS_DESC_OFFSET].Descriptor = (u8*)MASS_ConfigDescriptor;
+    224          		Config_Descriptor[MASS_DESC_OFFSET].Descriptor_Size	= MASS_SIZ_CONFIG_DESC;
+    225          	}
+    226          	else
+    227          #endif
+    228          
+    229          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    230          	{
+    231          		Device_Descriptor[PRINTER_DESC_OFFSET].Descriptor = (u8*)Printer_DeviceDescriptor;
+    232          
+    233          		Config_Descriptor[PRINTER_DESC_OFFSET].Descriptor = (u8*)Printer_ConfigDescriptor;
+    234          		Config_Descriptor[PRINTER_DESC_OFFSET].Descriptor_Size	= PRINTER_SIZ_CONFIG_DESC;
+    235          	}
+    236          #endif
+    237                ;
+    238          }
+    239          
+    240          /*******************************************************************************
+    241          * Function Name  : Joystick_init.
+    242          * Description    : Joystick Mouse init routine.
+    243          * Input          : None.
+    244          * Output         : None.
+    245          * Return         : None.
+    246          *******************************************************************************/
+    247          void USB_APP_init(void)
+    248          {
     249          
-    250          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    251          	  if(g_usb_type == USB_KEYBOARD)
-    252            {
-    253          	 pInformation->Current_Interface = 0;
-    254          	 pInformation->Current_Feature = Keyboard_ConfigDescriptor[7];
-    255            }
-    256            else
-    257          #endif
-    258          
-    259          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    260            {
-    261          	pInformation->Current_Feature = MASS_ConfigDescriptor[7];
-    262            }
-    263          #endif
+    250            /* Update the serial number string descriptor with the data from the unique
+    251            ID*/
+    252            usb_Get_SerialNum();
+    253          
+    254            pInformation->Current_Configuration = 0;
+    255            /* Connect the device */
+    256            USB_PowerOn();
+    257            /* USB interrupts initialization */
+    258            _SetISTR(0);               /* clear pending interrupts */
+    259            wInterrupt_Mask = IMR_MSK;
+    260            _SetCNTR(wInterrupt_Mask); /* set interrupts mask */
+    261          
+    262            bDeviceState = UNCONNECTED;
+    263          }
     264          
-    265            SetBTABLE(BTABLE_ADDRESS);
-    266          
-    267            /* Initialize Endpoint 0 */
-    268            SetEPType(ENDP0, EP_CONTROL);
-    269            SetEPTxStatus(ENDP0, EP_TX_STALL);
-    270            SetEPRxAddr(ENDP0, ENDP0_RXADDR);
-    271            SetEPTxAddr(ENDP0, ENDP0_TXADDR);
-    272            Clear_Status_Out(ENDP0);
-    273            SetEPRxCount(ENDP0, Device_Property.MaxPacketSize);
-    274            SetEPRxValid(ENDP0);
-    275          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    276          if (g_usb_type == USB_VIRTUAL_PORT)
-    277          {
-    278          	/* Initialize Endpoint 1 */
-    279          	SetEPType(ENDP1, EP_BULK);
-    280          	SetEPTxAddr(ENDP1, ENDP1_TXADDR);
-    281          	SetEPTxStatus(ENDP1, EP_TX_NAK);
-    282          	SetEPRxStatus(ENDP1, EP_RX_DIS);
-    283          
-    284          	/* Initialize Endpoint 2 */
-    285          	SetEPType(ENDP2, EP_INTERRUPT);
-    286          	SetEPTxAddr(ENDP2, ENDP2_TXADDR);
-    287          	SetEPRxStatus(ENDP2, EP_RX_DIS);
-    288          	SetEPTxStatus(ENDP2, EP_TX_NAK);
-    289          
-    290          	/* Initialize Endpoint 3 */
-    291          	SetEPType(ENDP3, EP_BULK);
-    292          	SetEPRxAddr(ENDP3, ENDP3_RXADDR);
-    293          	SetEPRxCount(ENDP3, VIRTUAL_COM_PORT_DATA_SIZE);
-    294          	SetEPRxStatus(ENDP3, EP_RX_VALID);
-    295          	SetEPTxStatus(ENDP3, EP_TX_DIS);
-    296          }
-    297          else 
-    298          #endif
-    299          
-    300          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    301          if(g_usb_type == USB_KEYBOARD)
-    302          {
-    303          	/* Initialize Endpoint 1 */
-    304          	SetEPType(ENDP1, EP_INTERRUPT);
-    305          	SetEPTxAddr(ENDP1, ENDP1_TXADDR);
-    306          	SetEPTxCount(ENDP1, 1);
-    307          	SetEPRxStatus(ENDP1, EP_RX_DIS);
-    308          	SetEPTxStatus(ENDP1, EP_TX_NAK);
-    309          }
-    310          else
-    311          #endif
-    312          
-    313          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    314          {
-    315          	/* Initialize Endpoint 1 */
-    316          	SetEPType(ENDP1, EP_BULK);
-    317          	SetEPTxAddr(ENDP1, ENDP1_TXADDR);
-    318          	SetEPTxStatus(ENDP1, EP_TX_NAK);
-    319          	SetEPRxStatus(ENDP1, EP_RX_DIS);
-    320          
-    321          	/* Initialize Endpoint 2 */
-    322          	SetEPType(ENDP2, EP_BULK);
-    323          	SetEPRxAddr(ENDP2, ENDP2_RXADDR);
-    324          	SetEPRxCount(ENDP2, Device_Property.MaxPacketSize);			
-    325          	//SetEPRxCount(ENDP2, 0x40);										//joe ÐÞ¸Ä
-    326          	SetEPRxStatus(ENDP2, EP_RX_VALID);
-    327          	SetEPTxStatus(ENDP2, EP_TX_DIS);
-    328          
-    329          
-    330          	SetEPRxCount(ENDP0, Device_Property.MaxPacketSize);
-    331          	SetEPRxValid(ENDP0);
-    332          
-    333          	CBW.dSignature = BOT_CBW_SIGNATURE;
-    334          	Bot_State = BOT_IDLE;
-    335          }
-    336          #endif
-    337          
-    338            bDeviceState = ATTACHED;
-    339          
-    340            /* Set this device to response on default address */
-    341            SetDeviceAddress(0);
-    342          }
-    343          /*******************************************************************************
-    344          * Function Name  : Joystick_SetConfiguration.
-    345          * Description    : Udpade the device state to configured.
-    346          * Input          : None.
-    347          * Output         : None.
-    348          * Return         : None.
-    349          *******************************************************************************/
-    350          void USB_APP_SetConfiguration(void)
-    351          {
-    352            DEVICE_INFO *pInfo = &Device_Info;
-    353          
-    354            if (pInfo->Current_Configuration != 0)
-    355            {
-    356              /* Device configured */
-    357              bDeviceState = CONFIGURED;
-    358          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    359          	if (g_usb_type == USB_MASSSTORAGE)
-    360          	{
-    361          		ClearDTOG_TX(ENDP1);
-    362          		ClearDTOG_RX(ENDP2);
-    363          
-    364          		Bot_State = BOT_IDLE; /* set the Bot state machine to the IDLE state */
-    365          	}
-    366          #endif
-    367          
-    368            }
-    369          }
-    370          
-    371          /*******************************************************************************
-    372          * Function Name  : Mass_Storage_ClearFeature
-    373          * Description    : Handle the ClearFeature request.
-    374          * Input          : None.
-    375          * Output         : None.
-    376          * Return         : None.
-    377          *******************************************************************************/
-    378          void USB_APP_ClearFeature(void)
-    379          {
-    380          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    381          	/* when the host send a CBW with invalid signature or invalid length the two
-    382          	Endpoints (IN & OUT) shall stall until receiving a Mass Storage Reset     */
-    383          	if (g_usb_type == USB_MASSSTORAGE)
-    384          	{
-    385          		if (CBW.dSignature != BOT_CBW_SIGNATURE)
-    386          			Bot_Abort(BOTH_DIR);
-    387          	}
-    388          #endif
+    265          /*******************************************************************************
+    266          * Function Name  : Joystick_Reset.
+    267          * Description    : Joystick Mouse reset routine.
+    268          * Input          : None.
+    269          * Output         : None.
+    270          * Return         : None.
+    271          *******************************************************************************/
+    272          void USB_APP_Reset(void)
+    273          {
+    274            /* Set Joystick_DEVICE as not configured */
+    275            pInformation->Current_Configuration = 0;
+    276           
+    277            /* Current Feature initialization */
+    278          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    279            if (g_usb_type == USB_VIRTUAL_PORT)
+    280            {
+    281          	  pInformation->Current_Interface = 0;
+    282          	  pInformation->Current_Feature = Virtual_Com_Port_ConfigDescriptor[7];
+    283            }
+    284            else 
+    285          #endif
+    286          
+    287          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    288          	  if(g_usb_type == USB_KEYBOARD)
+    289            {
+    290          	 pInformation->Current_Interface = 0;
+    291          	 pInformation->Current_Feature = Keyboard_ConfigDescriptor[7];
+    292            }
+    293            else
+    294          #endif
+    295          
+    296          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    297            {
+    298          	pInformation->Current_Feature = MASS_ConfigDescriptor[7];
+    299            }
+    300          #endif
+    301          
+    302          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    303          	  {
+    304          		  pInformation->Current_Interface = 0;
+    305          		  pInformation->Current_Feature = Printer_ConfigDescriptor[7];
+    306          	  }
+    307          #endif
+    308          
+    309            SetBTABLE(BTABLE_ADDRESS);
+    310          
+    311            /* Initialize Endpoint 0 */
+    312            SetEPType(ENDP0, EP_CONTROL);
+    313            SetEPTxStatus(ENDP0, EP_TX_STALL);
+    314            SetEPRxAddr(ENDP0, ENDP0_RXADDR);
+    315            SetEPTxAddr(ENDP0, ENDP0_TXADDR);
+    316            Clear_Status_Out(ENDP0);
+    317            SetEPRxCount(ENDP0, Device_Property.MaxPacketSize);
+    318            SetEPRxValid(ENDP0);
+    319          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    320          if (g_usb_type == USB_VIRTUAL_PORT)
+    321          {
+    322          	/* Initialize Endpoint 1 */
+    323          	SetEPType(ENDP1, EP_BULK);
+    324          	SetEPTxAddr(ENDP1, ENDP1_TXADDR);
+    325          	SetEPTxStatus(ENDP1, EP_TX_NAK);
+    326          	SetEPRxStatus(ENDP1, EP_RX_DIS);
+    327          
+    328          	/* Initialize Endpoint 2 */
+    329          	SetEPType(ENDP2, EP_INTERRUPT);
+    330          	SetEPTxAddr(ENDP2, ENDP2_TXADDR);
+    331          	SetEPRxStatus(ENDP2, EP_RX_DIS);
+    332          	SetEPTxStatus(ENDP2, EP_TX_NAK);
+    333          
+    334          	/* Initialize Endpoint 3 */
+    335          	SetEPType(ENDP3, EP_BULK);
+    336          	SetEPRxAddr(ENDP3, ENDP3_RXADDR);
+    337          	SetEPRxCount(ENDP3, VIRTUAL_COM_PORT_DATA_SIZE);
+    338          	SetEPRxStatus(ENDP3, EP_RX_VALID);
+    339          	SetEPTxStatus(ENDP3, EP_TX_DIS);
+    340          }
+    341          else 
+    342          #endif
+    343          
+    344          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    345          if(g_usb_type == USB_KEYBOARD)
+    346          {
+    347          	/* Initialize Endpoint 1 */
+    348          	SetEPType(ENDP1, EP_INTERRUPT);
+    349          	SetEPTxAddr(ENDP1, ENDP1_TXADDR);
+    350          	SetEPTxCount(ENDP1, 1);
+    351          	SetEPRxStatus(ENDP1, EP_RX_DIS);
+    352          	SetEPTxStatus(ENDP1, EP_TX_NAK);
+    353          }
+    354          else
+    355          #endif
+    356          
+    357          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    358          {
+    359          	/* Initialize Endpoint 1 */
+    360          	SetEPType(ENDP1, EP_BULK);
+    361          	SetEPTxAddr(ENDP1, ENDP1_TXADDR);
+    362          	SetEPTxStatus(ENDP1, EP_TX_NAK);
+    363          	SetEPRxStatus(ENDP1, EP_RX_DIS);
+    364          
+    365          	/* Initialize Endpoint 2 */
+    366          	SetEPType(ENDP2, EP_BULK);
+    367          	SetEPRxAddr(ENDP2, ENDP2_RXADDR);
+    368          	SetEPRxCount(ENDP2, Device_Property.MaxPacketSize);			
+    369          	//SetEPRxCount(ENDP2, 0x40);										//joe ÐÞ¸Ä
+    370          	SetEPRxStatus(ENDP2, EP_RX_VALID);
+    371          	SetEPTxStatus(ENDP2, EP_TX_DIS);
+    372          
+    373          
+    374          	SetEPRxCount(ENDP0, Device_Property.MaxPacketSize);
+    375          	SetEPRxValid(ENDP0);
+    376          
+    377          	CBW.dSignature = BOT_CBW_SIGNATURE;
+    378          	Bot_State = BOT_IDLE;
+    379          }
+    380          #endif
+    381          
+    382          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    383          {
+    384          	/* Initialize Endpoint 1 */
+    385          	SetEPType(ENDP1, EP_BULK);
+    386          	SetEPTxAddr(ENDP1, ENDP1_TXADDR);
+    387          	SetEPTxStatus(ENDP1, EP_TX_NAK);
+    388          	SetEPRxStatus(ENDP1, EP_RX_DIS);
     389          
-    390          }
-    391          
-    392          /*******************************************************************************
-    393          * Function Name  : Joystick_SetConfiguration.
-    394          * Description    : Udpade the device state to addressed.
-    395          * Input          : None.
-    396          * Output         : None.
-    397          * Return         : None.
-    398          *******************************************************************************/
-    399          void USB_APP_SetDeviceAddress (void)
-    400          {
-    401            bDeviceState = ADDRESSED;
-    402          }
-    403          /*******************************************************************************
-    404          * Function Name  : Joystick_Status_In.
-    405          * Description    : Joystick status IN routine.
-    406          * Input          : None.
-    407          * Output         : None.
-    408          * Return         : None.
-    409          *******************************************************************************/
-    410          void USB_APP_Status_In(void)
-    411          {
-    412          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    413          	if (g_usb_type == USB_VIRTUAL_PORT)
-    414          	{
-    415          		if (Request == SET_LINE_CODING)
-    416          		{
-    417          			//USART_Config();
-    418          			Request = 0;
-    419          		}
-    420          	}
-    421          #endif
-    422          }
-    423          
-    424          /*******************************************************************************
-    425          * Function Name  : Joystick_Status_Out
-    426          * Description    : Joystick status OUT routine.
-    427          * Input          : None.
-    428          * Output         : None.
-    429          * Return         : None.
-    430          *******************************************************************************/
-    431          void USB_APP_Status_Out (void)
-    432          {}
-    433          
-    434          /*******************************************************************************
-    435          * Function Name  : Joystick_Data_Setup
-    436          * Description    : Handle the data class specific requests.
-    437          * Input          : Request Nb.
-    438          * Output         : None.
-    439          * Return         : USB_UNSUPPORT or USB_SUCCESS.
-    440          *******************************************************************************/
-    441          RESULT USB_APP_Data_Setup(u8 RequestNo)
-    442          {
-    443            u8 *(*CopyRoutine)(u16);
-    444          
-    445            CopyRoutine = NULL;
-    446           #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    447            if (g_usb_type == USB_VIRTUAL_PORT)
-    448            {
-    449          	  if (RequestNo == GET_LINE_CODING)
-    450          	  {
-    451          		  if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-    452          		  {
-    453          			  CopyRoutine = Virtual_Com_Port_GetLineCoding;
-    454          		  }
-    455          	  }
-    456          	  else if (RequestNo == SET_LINE_CODING)
-    457          	  {
-    458          		  if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-    459          		  {
-    460          			  CopyRoutine = Virtual_Com_Port_SetLineCoding;
-    461          		  }
-    462          		  Request = SET_LINE_CODING;
-    463          	  }
-    464            }
-    465            else 
-    466          #endif
-    467          
-    468          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    469          	  if(g_usb_type == USB_KEYBOARD)
-    470            {
-    471          	  if ((RequestNo == GET_DESCRIPTOR)
-    472          		  && (Type_Recipient == (STANDARD_REQUEST | INTERFACE_RECIPIENT))
-    473          		  && (pInformation->USBwIndex0 == 0))
-    474          	  {
-    475          
-    476          		  if (pInformation->USBwValue1 == REPORT_DESCRIPTOR)
-    477          		  {
-    478          			  CopyRoutine = Keyboard_GetReportDescriptor;
-    479          		  }
-    480          		  else if (pInformation->USBwValue1 == HID_DESCRIPTOR_TYPE)
-    481          		  {
-    482          			  CopyRoutine = Keyboard_GetHIDDescriptor;
-    483          		  }
-    484          
-    485          	  } /* End of GET_DESCRIPTOR */
-    486          
-    487          	  /*** GET_PROTOCOL ***/
-    488          	  else if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-    489          	  {
-    490          		  if(RequestNo == GET_PROTOCOL)
-    491          		  {
-    492          			  CopyRoutine = Keyboard_GetProtocolValue;
-    493          		  }
-    494          		  else if (RequestNo == SET_REPORT)
-    495          		  {
-    496          			 CopyRoutine = Keyboard_SetReport;
-    497          		  }
-    498          	  }
-    499            }
-    500            else
-    501          #endif
-    502          
-    503          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    504            {
-    505          	  if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-    506          		  && (RequestNo == GET_MAX_LUN) && (pInformation->USBwValue == 0)
-    507          		  && (pInformation->USBwIndex == 0) && (pInformation->USBwLength == 0x01))
-    508          	  {
-    509          		  CopyRoutine = Get_Max_Lun;
-    510          	  }
-    511          	  else
+    390          	/* Initialize Endpoint 2 */
+    391          	SetEPType(ENDP2, EP_BULK);
+    392          	SetEPRxAddr(ENDP2, ENDP2_RXADDR);
+    393          	SetEPRxCount(ENDP2, Device_Property.MaxPacketSize);			
+    394          	//SetEPRxCount(ENDP2, 0x40);										//joe ÐÞ¸Ä
+    395          	SetEPRxStatus(ENDP2, EP_RX_VALID);
+    396          	SetEPTxStatus(ENDP2, EP_TX_DIS);
+    397          }
+    398          #endif
+    399          
+    400            bDeviceState = ATTACHED;
+    401          
+    402            /* Set this device to response on default address */
+    403            SetDeviceAddress(0);
+    404          }
+    405          /*******************************************************************************
+    406          * Function Name  : Joystick_SetConfiguration.
+    407          * Description    : Udpade the device state to configured.
+    408          * Input          : None.
+    409          * Output         : None.
+    410          * Return         : None.
+    411          *******************************************************************************/
+    412          void USB_APP_SetConfiguration(void)
+    413          {
+    414            DEVICE_INFO *pInfo = &Device_Info;
+    415          
+    416            if (pInfo->Current_Configuration != 0)
+    417            {
+    418              /* Device configured */
+    419              bDeviceState = CONFIGURED;
+    420          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    421          	if (g_usb_type == USB_MASSSTORAGE)
+    422          	{
+    423          		ClearDTOG_TX(ENDP1);
+    424          		ClearDTOG_RX(ENDP2);
+    425          
+    426          		Bot_State = BOT_IDLE; /* set the Bot state machine to the IDLE state */
+    427          	}
+    428          #endif
+    429          
+    430            }
+    431          }
+    432          
+    433          /*******************************************************************************
+    434          * Function Name  : Mass_Storage_ClearFeature
+    435          * Description    : Handle the ClearFeature request.
+    436          * Input          : None.
+    437          * Output         : None.
+    438          * Return         : None.
+    439          *******************************************************************************/
+    440          void USB_APP_ClearFeature(void)
+    441          {
+    442          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    443          	/* when the host send a CBW with invalid signature or invalid length the two
+    444          	Endpoints (IN & OUT) shall stall until receiving a Mass Storage Reset     */
+    445          	if (g_usb_type == USB_MASSSTORAGE)
+    446          	{
+    447          		if (CBW.dSignature != BOT_CBW_SIGNATURE)
+    448          			Bot_Abort(BOTH_DIR);
+    449          	}
+    450          #endif
+    451          
+    452          }
+    453          
+    454          /*******************************************************************************
+    455          * Function Name  : Joystick_SetConfiguration.
+    456          * Description    : Udpade the device state to addressed.
+    457          * Input          : None.
+    458          * Output         : None.
+    459          * Return         : None.
+    460          *******************************************************************************/
+    461          void USB_APP_SetDeviceAddress (void)
+    462          {
+    463            bDeviceState = ADDRESSED;
+    464          }
+    465          /*******************************************************************************
+    466          * Function Name  : Joystick_Status_In.
+    467          * Description    : Joystick status IN routine.
+    468          * Input          : None.
+    469          * Output         : None.
+    470          * Return         : None.
+    471          *******************************************************************************/
+    472          void USB_APP_Status_In(void)
+    473          {
+    474          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    475          	if (g_usb_type == USB_VIRTUAL_PORT)
+    476          	{
+    477          		if (Request == SET_LINE_CODING)
+    478          		{
+    479          			//USART_Config();
+    480          			Request = 0;
+    481          		}
+    482          	}
+    483          #endif
+    484          }
+    485          
+    486          /*******************************************************************************
+    487          * Function Name  : Joystick_Status_Out
+    488          * Description    : Joystick status OUT routine.
+    489          * Input          : None.
+    490          * Output         : None.
+    491          * Return         : None.
+    492          *******************************************************************************/
+    493          void USB_APP_Status_Out (void)
+    494          {}
+    495          
+    496          /*******************************************************************************
+    497          * Function Name  : Joystick_Data_Setup
+    498          * Description    : Handle the data class specific requests.
+    499          * Input          : Request Nb.
+    500          * Output         : None.
+    501          * Return         : USB_UNSUPPORT or USB_SUCCESS.
+    502          *******************************************************************************/
+    503          RESULT USB_APP_Data_Setup(u8 RequestNo)
+    504          {
+    505            u8 *(*CopyRoutine)(u16);
+    506          
+    507            CopyRoutine = NULL;
+    508           #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    509            if (g_usb_type == USB_VIRTUAL_PORT)
+    510            {
+    511          	  if (RequestNo == GET_LINE_CODING)
     512          	  {
-    513          		  return USB_UNSUPPORT;
-    514          	  }
-    515            }
-    516          #endif
-    517          
-    518            if (CopyRoutine == NULL)
-    519            {
-    520          	  return USB_UNSUPPORT;
-    521            }
-    522          
-    523            pInformation->Ctrl_Info.CopyData = CopyRoutine;
-    524            pInformation->Ctrl_Info.Usb_wOffset = 0;
-    525            (*CopyRoutine)(0);
-    526            return USB_SUCCESS;
-    527          }
-    528          
-    529          /*******************************************************************************
-    530          * Function Name  : Joystick_NoData_Setup
-    531          * Description    : handle the no data class specific requests
-    532          * Input          : Request Nb.
-    533          * Output         : None.
-    534          * Return         : USB_UNSUPPORT or USB_SUCCESS.
-    535          *******************************************************************************/
-    536          RESULT USB_APP_NoData_Setup(u8 RequestNo)
-    537          {
-    538          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    539          	if (g_usb_type == USB_VIRTUAL_PORT)
-    540          	{
-    541          		if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-    542          		{
-    543          			if (RequestNo == SET_COMM_FEATURE)
-    544          			{
-    545          				return USB_SUCCESS;
-    546          			}
-    547          			else if (RequestNo == SET_CONTROL_LINE_STATE)
-    548          			{
-    549          				return USB_SUCCESS;
-    550          			}
-    551          		}
-    552          	}
-    553          	else 
-    554          #endif
-    555          
-    556          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    557          		if(g_usb_type == USB_KEYBOARD)
-    558          	{
-    559          		if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-    560          			&& (RequestNo == SET_PROTOCOL))
-    561          		{
-    562          			return Keyboard_SetProtocol();
-    563          		}
-    564          	}
-    565          	else
-    566          #endif
-    567          
-    568          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    569          	{
-    570          		if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-    571          			&& (RequestNo == MASS_STORAGE_RESET) && (pInformation->USBwValue == 0)
-    572          			&& (pInformation->USBwIndex == 0) && (pInformation->USBwLength == 0x00))
-    573          		{
-    574          
-    575          			/* Initialize Endpoint 1 */
-    576          			ClearDTOG_TX(ENDP1);
-    577          
-    578          			/* Initialize Endpoint 2 */
-    579          			ClearDTOG_RX(ENDP2);
-    580          
-    581          			/*intialise the CBW signature to enable the clear feature*/
-    582          			CBW.dSignature = BOT_CBW_SIGNATURE;
-    583          			Bot_State = BOT_IDLE;
-    584          
-    585          			return USB_SUCCESS;
-    586          		}
-    587          	}
-    588          #endif
-    589                  ;
-    590          	return USB_UNSUPPORT;
-    591          }
-    592          
-    593          /*******************************************************************************
-    594          * Function Name  : Joystick_GetDeviceDescriptor.
-    595          * Description    : Gets the device descriptor.
-    596          * Input          : Length
-    597          * Output         : None.
-    598          * Return         : The address of the device descriptor.
-    599          *******************************************************************************/
-    600          u8 *USB_APP_GetDeviceDescriptor(u16 Length)
-    601          {
-    602          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    603          	if (g_usb_type == USB_VIRTUAL_PORT)
-    604          	{
-    605          		return Standard_GetDescriptorData(Length, &Device_Descriptor[VIRTUAL_COMM_DESC_OFFSET]);
-    606          	}
-    607          	else
-    608          #endif
-    609          
-    610          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    611          	if(g_usb_type == USB_KEYBOARD)
-    612          	{
-    613          		return Standard_GetDescriptorData(Length, &Device_Descriptor[KEYBOARD_DESC_OFFSET]);
-    614          	}
-    615          	else
-    616          #endif
-    617          
-    618          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    619          	{
-    620          		return Standard_GetDescriptorData(Length, &Device_Descriptor[MASS_DESC_OFFSET]);
-    621          	}
-    622          #endif
-    623                  ;
-    624          }
-    625          
-    626          /*******************************************************************************
-    627          * Function Name  : Joystick_GetConfigDescriptor.
-    628          * Description    : Gets the configuration descriptor.
-    629          * Input          : Length
-    630          * Output         : None.
-    631          * Return         : The address of the configuration descriptor.
-    632          *******************************************************************************/
-    633          u8 *USB_APP_GetConfigDescriptor(u16 Length)
-    634          {
-    635          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    636          	if (g_usb_type == USB_VIRTUAL_PORT)
-    637          	{
-    638          		return Standard_GetDescriptorData(Length, &Config_Descriptor[VIRTUAL_COMM_DESC_OFFSET]);
-    639          	}
-    640          	else
-    641          #endif
-    642          
-    643          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    644          	if(g_usb_type == USB_KEYBOARD)
-    645          	{
-    646          		return Standard_GetDescriptorData(Length, &Config_Descriptor[KEYBOARD_DESC_OFFSET]);
-    647          	}
-    648          	else
-    649          #endif
-    650          
-    651          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    652          	{
-    653          		return Standard_GetDescriptorData(Length, &Config_Descriptor[MASS_DESC_OFFSET]);
+    513          		  if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+    514          		  {
+    515          			  CopyRoutine = Virtual_Com_Port_GetLineCoding;
+    516          		  }
+    517          	  }
+    518          	  else if (RequestNo == SET_LINE_CODING)
+    519          	  {
+    520          		  if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+    521          		  {
+    522          			  CopyRoutine = Virtual_Com_Port_SetLineCoding;
+    523          		  }
+    524          		  Request = SET_LINE_CODING;
+    525          	  }
+    526            }
+    527            else 
+    528          #endif
+    529          
+    530          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    531          	  if(g_usb_type == USB_KEYBOARD)
+    532            {
+    533          	  if ((RequestNo == GET_DESCRIPTOR)
+    534          		  && (Type_Recipient == (STANDARD_REQUEST | INTERFACE_RECIPIENT))
+    535          		  && (pInformation->USBwIndex0 == 0))
+    536          	  {
+    537          
+    538          		  if (pInformation->USBwValue1 == REPORT_DESCRIPTOR)
+    539          		  {
+    540          			  CopyRoutine = Keyboard_GetReportDescriptor;
+    541          		  }
+    542          		  else if (pInformation->USBwValue1 == HID_DESCRIPTOR_TYPE)
+    543          		  {
+    544          			  CopyRoutine = Keyboard_GetHIDDescriptor;
+    545          		  }
+    546          
+    547          	  } /* End of GET_DESCRIPTOR */
+    548          
+    549          	  /*** GET_PROTOCOL ***/
+    550          	  else if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+    551          	  {
+    552          		  if(RequestNo == GET_PROTOCOL)
+    553          		  {
+    554          			  CopyRoutine = Keyboard_GetProtocolValue;
+    555          		  }
+    556          		  else if (RequestNo == SET_REPORT)
+    557          		  {
+    558          			 CopyRoutine = Keyboard_SetReport;
+    559          		  }
+    560          	  }
+    561            }
+    562            else
+    563          #endif
+    564          
+    565          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    566          	   if(g_usb_type == USB_MASSSTORAGE)
+    567            {
+    568          	  if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+    569          		  && (RequestNo == GET_MAX_LUN) && (pInformation->USBwValue == 0)
+    570          		  && (pInformation->USBwIndex == 0) && (pInformation->USBwLength == 0x01))
+    571          	  {
+    572          		  CopyRoutine = Get_Max_Lun;
+    573          	  }
+    574          	  else
+    575          	  {
+    576          		  return USB_UNSUPPORT;
+    577          	  }
+    578            }
+    579          	   else
+    580          #endif
+    581          
+    582          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    583          	  {
+    584          		  if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)))
+    585          		  {
+    586          			  if ((RequestNo == GET_DEVICE_ID) && (pInformation->USBwValue == 0)
+    587          				  && (pInformation->USBwIndex == 0))
+    588          			{
+    589          			  //CopyRoutine = Get_Device_id;
+    590          			}
+    591          			  else if ((RequestNo == GET_PORT_STATUS) && (pInformation->USBwValue == 0)
+    592          				  && (pInformation->USBwIndex == 0)&&(pInformation->USBwLength == 1))
+    593          			  {
+    594          					CopyRoutine = Get_Port_status;
+    595          			  }
+    596          			  else
+    597          			  {
+    598          				return USB_UNSUPPORT;
+    599          			  }
+    600          		  }
+    601          		  else
+    602          		  {
+    603          			  return USB_UNSUPPORT;
+    604          		  }
+    605          	  }
+    606          #endif
+    607          	;
+    608            if (CopyRoutine == NULL)
+    609            {
+    610          	  return USB_UNSUPPORT;
+    611            }
+    612          
+    613            pInformation->Ctrl_Info.CopyData = CopyRoutine;
+    614            pInformation->Ctrl_Info.Usb_wOffset = 0;
+    615            (*CopyRoutine)(0);
+    616            return USB_SUCCESS;
+    617          }
+    618          
+    619          /*******************************************************************************
+    620          * Function Name  : Joystick_NoData_Setup
+    621          * Description    : handle the no data class specific requests
+    622          * Input          : Request Nb.
+    623          * Output         : None.
+    624          * Return         : USB_UNSUPPORT or USB_SUCCESS.
+    625          *******************************************************************************/
+    626          RESULT USB_APP_NoData_Setup(u8 RequestNo)
+    627          {
+    628          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    629          	if (g_usb_type == USB_VIRTUAL_PORT)
+    630          	{
+    631          		if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+    632          		{
+    633          			if (RequestNo == SET_COMM_FEATURE)
+    634          			{
+    635          				return USB_SUCCESS;
+    636          			}
+    637          			else if (RequestNo == SET_CONTROL_LINE_STATE)
+    638          			{
+    639          				return USB_SUCCESS;
+    640          			}
+    641          		}
+    642          	}
+    643          	else 
+    644          #endif
+    645          
+    646          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    647          		if(g_usb_type == USB_KEYBOARD)
+    648          	{
+    649          		if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+    650          			&& (RequestNo == SET_PROTOCOL))
+    651          		{
+    652          			return Keyboard_SetProtocol();
+    653          		}
     654          	}
-    655          #endif
-    656                  ;
-    657          }
-    658          
-    659          /*******************************************************************************
-    660          * Function Name  : Joystick_GetStringDescriptor
-    661          * Description    : Gets the string descriptors according to the needed index
-    662          * Input          : Length
-    663          * Output         : None.
-    664          * Return         : The address of the string descriptors.
-    665          *******************************************************************************/
-    666          u8 *USB_APP_GetStringDescriptor(u16 Length)
-    667          {
-    668            u8 wValue0 = pInformation->USBwValue0;
-    669            if (wValue0 > 4)
-    670            {
-    671              return NULL;
-    672            }
-    673            else
-    674            {
-    675              return Standard_GetDescriptorData(Length, &String_Descriptor[wValue0]);
-    676            }
-    677          }
-    678          
-    679          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    680          /*******************************************************************************
-    681          * Function Name  : Joystick_GetReportDescriptor.
-    682          * Description    : Gets the HID report descriptor.
-    683          * Input          : Length
-    684          * Output         : None.
-    685          * Return         : The address of the configuration descriptor.
-    686          *******************************************************************************/
-    687          u8 *Keyboard_GetReportDescriptor(u16 Length)
-    688          {
-    689            return Standard_GetDescriptorData(Length, &Keyboard_Report_Descriptor);
-    690          }
-    691          
-    692          /*******************************************************************************
-    693          * Function Name  : Joystick_GetHIDDescriptor.
-    694          * Description    : Gets the HID descriptor.
-    695          * Input          : Length
-    696          * Output         : None.
-    697          * Return         : The address of the configuration descriptor.
-    698          *******************************************************************************/
-    699          u8 *Keyboard_GetHIDDescriptor(u16 Length)
-    700          {
-    701            return Standard_GetDescriptorData(Length, &Keyboard_Hid_Descriptor);
-    702          }
-    703          #endif
-    704          
-    705          /*******************************************************************************
-    706          * Function Name  : Joystick_Get_Interface_Setting.
-    707          * Description    : tests the interface and the alternate setting according to the
-    708          *                  supported one.
-    709          * Input          : - Interface : interface number.
-    710          *                  - AlternateSetting : Alternate Setting number.
-    711          * Output         : None.
-    712          * Return         : USB_SUCCESS or USB_UNSUPPORT.
-    713          *******************************************************************************/
-    714          RESULT USB_APP_Get_Interface_Setting(u8 Interface, u8 AlternateSetting)
-    715          {
-    716          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    717          	if (g_usb_type == USB_VIRTUAL_PORT)
-    718          	{
-    719          		if (AlternateSetting > 0)
-    720          		{
-    721          			return USB_UNSUPPORT;
-    722          		}
-    723          		else if (Interface > 1)
-    724          		{
-    725          			return USB_UNSUPPORT;
-    726          		}
-    727          	}
-    728          	else
-    729          #endif
-    730          	{
-    731          		if (AlternateSetting > 0)
+    655          	else
+    656          #endif
+    657          
+    658          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    659          		if(g_usb_type == USB_MASSSTORAGE)
+    660          	{
+    661          		if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+    662          			&& (RequestNo == MASS_STORAGE_RESET) && (pInformation->USBwValue == 0)
+    663          			&& (pInformation->USBwIndex == 0) && (pInformation->USBwLength == 0x00))
+    664          		{
+    665          
+    666          			/* Initialize Endpoint 1 */
+    667          			ClearDTOG_TX(ENDP1);
+    668          
+    669          			/* Initialize Endpoint 2 */
+    670          			ClearDTOG_RX(ENDP2);
+    671          
+    672          			/*intialise the CBW signature to enable the clear feature*/
+    673          			CBW.dSignature = BOT_CBW_SIGNATURE;
+    674          			Bot_State = BOT_IDLE;
+    675          
+    676          			return USB_SUCCESS;
+    677          		}
+    678          	}
+    679          		else
+    680          #endif
+    681          
+    682          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    683          			{
+    684          				if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
+    685          					&& (RequestNo == SOFT_RESET) && (pInformation->USBwValue == 0)
+    686          					&& (pInformation->USBwIndex == 0) && (pInformation->USBwLength == 0x00))
+    687          				{
+    688          					print_device_reset();
+    689          					return USB_SUCCESS;
+    690          				}
+    691          			}
+    692          #endif
+    693                  ;
+    694          	return USB_UNSUPPORT;
+    695          }
+    696          
+    697          /*******************************************************************************
+    698          * Function Name  : Joystick_GetDeviceDescriptor.
+    699          * Description    : Gets the device descriptor.
+    700          * Input          : Length
+    701          * Output         : None.
+    702          * Return         : The address of the device descriptor.
+    703          *******************************************************************************/
+    704          u8 *USB_APP_GetDeviceDescriptor(u16 Length)
+    705          {
+    706          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    707          	if (g_usb_type == USB_VIRTUAL_PORT)
+    708          	{
+    709          		return Standard_GetDescriptorData(Length, &Device_Descriptor[VIRTUAL_COMM_DESC_OFFSET]);
+    710          	}
+    711          	else
+    712          #endif
+    713          
+    714          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    715          	if(g_usb_type == USB_KEYBOARD)
+    716          	{
+    717          		return Standard_GetDescriptorData(Length, &Device_Descriptor[KEYBOARD_DESC_OFFSET]);
+    718          	}
+    719          	else
+    720          #endif
+    721          
+    722          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    723          	if(g_usb_type == USB_MASSSTORAGE)
+    724          	{
+    725          		return Standard_GetDescriptorData(Length, &Device_Descriptor[MASS_DESC_OFFSET]);
+    726          	}
+    727          	else
+    728          #endif
+    729          
+    730          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    731          		if(g_usb_type == USB_PRINTER)
     732          		{
-    733          			return USB_UNSUPPORT;
+    733          			return Standard_GetDescriptorData(Length, &Device_Descriptor[PRINTER_DESC_OFFSET]);
     734          		}
-    735          		else if (Interface > 0)
-    736          		{
-    737          			return USB_UNSUPPORT;
-    738          		}
-    739          	}
-    740          
-    741            return USB_SUCCESS;
-    742          }
-    743          
-    744          
-    745          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
-    746          /*******************************************************************************
-    747          * Function Name  : Joystick_SetProtocol
-    748          * Description    : Joystick Set Protocol request routine.
-    749          * Input          : None.
-    750          * Output         : None.
-    751          * Return         : USB SUCCESS.
-    752          *******************************************************************************/
-    753          RESULT Keyboard_SetProtocol(void)
-    754          {
-    755            u8 wValue0 = pInformation->USBwValue0;
-    756            ProtocolValue = wValue0;
-    757            return USB_SUCCESS;
-    758          }
-    759          
-    760          /*******************************************************************************
-    761          * Function Name  : Joystick_GetProtocolValue
-    762          * Description    : get the protocol value
-    763          * Input          : Length.
-    764          * Output         : None.
-    765          * Return         : address of the protcol value.
-    766          *******************************************************************************/
-    767          u8 *Keyboard_GetProtocolValue(u16 Length)
-    768          {
-    769            if (Length == 0)
-    770            {
-    771              pInformation->Ctrl_Info.Usb_wLength = 1;
-    772              return NULL;
-    773            }
-    774            else
-    775            {
-    776              return (u8 *)(&ProtocolValue);
-    777            }
-    778          }
-    779          
-    780          /*******************************************************************************
-    781          * Function Name  : Joystick_SetReportValue
-    782          * Description    : set the protocol value
-    783          * Input          : Length.
-    784          * Output         : None.
-    785          * Return         : address of the set report value.
-    786          *******************************************************************************/
-    787          u8 *Keyboard_SetReport(u16 Length)
-    788          {
-    789          	if (Length == 0)
-    790          	{
-    791          		pInformation->Ctrl_Info.Usb_wLength = sizeof(keyboard_output_report_value);
-    792          		return NULL;
-    793          	}
-    794          	return(u8 *)&keyboard_output_report_value;
-    795          }
-    796          #endif
-    797          
-    798          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
-    799          /*******************************************************************************
-    800          * Function Name  : Virtual_Com_Port_GetLineCoding.
-    801          * Description    : send the linecoding structure to the PC host.
-    802          * Input          : Length.
-    803          * Output         : None.
-    804          * Return         : Inecoding structure base address.
-    805          *******************************************************************************/
-    806          u8 *Virtual_Com_Port_GetLineCoding(u16 Length)
-    807          {
-    808          	if (Length == 0)
-    809          	{
-    810          		pInformation->Ctrl_Info.Usb_wLength = sizeof(linecoding);
-    811          		return NULL;
-    812          	}
-    813          	return(u8 *)&linecoding;
-    814          }
-    815          
-    816          /*******************************************************************************
-    817          * Function Name  : Virtual_Com_Port_SetLineCoding.
-    818          * Description    : Set the linecoding structure fields.
-    819          * Input          : Length.
-    820          * Output         : None.
-    821          * Return         : Linecoding structure base address.
-    822          *******************************************************************************/
-    823          u8 *Virtual_Com_Port_SetLineCoding(u16 Length)
-    824          {
-    825          	if (Length == 0)
-    826          	{
-    827          		pInformation->Ctrl_Info.Usb_wLength = sizeof(linecoding);
-    828          		return NULL;
-    829          	}
-    830          	return(u8 *)&linecoding;
-    831          }
-    832          #endif
-    833          
-    834          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
-    835          /*******************************************************************************
-    836          * Function Name  : Get_Max_Lun
-    837          * Description    : Handle the Get Max Lun request.
-    838          * Input          : uint16_t Length.
-    839          * Output         : None.
-    840          * Return         : None.
-    841          *******************************************************************************/
-    842          u8 *Get_Max_Lun(u16 Length)
-    843          {
-    844          	if (Length == 0)
-    845          	{
-    846          		pInformation->Ctrl_Info.Usb_wLength = LUN_DATA_LENGTH;
-    847          		return 0;
-    848          	}
-    849          	else
-    850          	{
-    851          		return((u8*)(&Max_Lun));
-    852          	}
-    853          }
-    854          #endif
-    855          
-    856          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
+    735          #endif
+    736                  ;
+    737          }
+    738          
+    739          /*******************************************************************************
+    740          * Function Name  : Joystick_GetConfigDescriptor.
+    741          * Description    : Gets the configuration descriptor.
+    742          * Input          : Length
+    743          * Output         : None.
+    744          * Return         : The address of the configuration descriptor.
+    745          *******************************************************************************/
+    746          u8 *USB_APP_GetConfigDescriptor(u16 Length)
+    747          {
+    748          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    749          	if (g_usb_type == USB_VIRTUAL_PORT)
+    750          	{
+    751          		return Standard_GetDescriptorData(Length, &Config_Descriptor[VIRTUAL_COMM_DESC_OFFSET]);
+    752          	}
+    753          	else
+    754          #endif
+    755          
+    756          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    757          	if(g_usb_type == USB_KEYBOARD)
+    758          	{
+    759          		return Standard_GetDescriptorData(Length, &Config_Descriptor[KEYBOARD_DESC_OFFSET]);
+    760          	}
+    761          	else
+    762          #endif
+    763          
+    764          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    765          	if(g_usb_type == USB_MASSSTORAGE)
+    766          	{
+    767          		return Standard_GetDescriptorData(Length, &Config_Descriptor[MASS_DESC_OFFSET]);
+    768          	}
+    769          	else
+    770          #endif
+    771          
+    772          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    773          		if(g_usb_type == USB_PRINTER)
+    774          		{
+    775          			return Standard_GetDescriptorData(Length, &Config_Descriptor[PRINTER_DESC_OFFSET]);
+    776          		}
+    777          #endif
+    778                  ;
+    779          }
+    780          
+    781          /*******************************************************************************
+    782          * Function Name  : Joystick_GetStringDescriptor
+    783          * Description    : Gets the string descriptors according to the needed index
+    784          * Input          : Length
+    785          * Output         : None.
+    786          * Return         : The address of the string descriptors.
+    787          *******************************************************************************/
+    788          u8 *USB_APP_GetStringDescriptor(u16 Length)
+    789          {
+    790            u8 wValue0 = pInformation->USBwValue0;
+    791            if (wValue0 > 4)
+    792            {
+    793              return NULL;
+    794            }
+    795            else
+    796            {
+    797              return Standard_GetDescriptorData(Length, &String_Descriptor[wValue0]);
+    798            }
+    799          }
+    800          
+    801          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    802          /*******************************************************************************
+    803          * Function Name  : Joystick_GetReportDescriptor.
+    804          * Description    : Gets the HID report descriptor.
+    805          * Input          : Length
+    806          * Output         : None.
+    807          * Return         : The address of the configuration descriptor.
+    808          *******************************************************************************/
+    809          u8 *Keyboard_GetReportDescriptor(u16 Length)
+    810          {
+    811            return Standard_GetDescriptorData(Length, &Keyboard_Report_Descriptor);
+    812          }
+    813          
+    814          /*******************************************************************************
+    815          * Function Name  : Joystick_GetHIDDescriptor.
+    816          * Description    : Gets the HID descriptor.
+    817          * Input          : Length
+    818          * Output         : None.
+    819          * Return         : The address of the configuration descriptor.
+    820          *******************************************************************************/
+    821          u8 *Keyboard_GetHIDDescriptor(u16 Length)
+    822          {
+    823            return Standard_GetDescriptorData(Length, &Keyboard_Hid_Descriptor);
+    824          }
+    825          #endif
+    826          
+    827          /*******************************************************************************
+    828          * Function Name  : Joystick_Get_Interface_Setting.
+    829          * Description    : tests the interface and the alternate setting according to the
+    830          *                  supported one.
+    831          * Input          : - Interface : interface number.
+    832          *                  - AlternateSetting : Alternate Setting number.
+    833          * Output         : None.
+    834          * Return         : USB_SUCCESS or USB_UNSUPPORT.
+    835          *******************************************************************************/
+    836          RESULT USB_APP_Get_Interface_Setting(u8 Interface, u8 AlternateSetting)
+    837          {
+    838          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    839          	if (g_usb_type == USB_VIRTUAL_PORT)
+    840          	{
+    841          		if (AlternateSetting > 0)
+    842          		{
+    843          			return USB_UNSUPPORT;
+    844          		}
+    845          		else if (Interface > 1)
+    846          		{
+    847          			return USB_UNSUPPORT;
+    848          		}
+    849          	}
+    850          	else
+    851          #endif
+    852          	{
+    853          		if (AlternateSetting > 0)
+    854          		{
+    855          			return USB_UNSUPPORT;
+    856          		}
+    857          		else if (Interface > 0)
+    858          		{
+    859          			return USB_UNSUPPORT;
+    860          		}
+    861          	}
+    862          
+    863            return USB_SUCCESS;
+    864          }
+    865          
+    866          
+    867          #if(USB_DEVICE_CONFIG & _USE_USB_KEYBOARD_DEVICE)
+    868          /*******************************************************************************
+    869          * Function Name  : Joystick_SetProtocol
+    870          * Description    : Joystick Set Protocol request routine.
+    871          * Input          : None.
+    872          * Output         : None.
+    873          * Return         : USB SUCCESS.
+    874          *******************************************************************************/
+    875          RESULT Keyboard_SetProtocol(void)
+    876          {
+    877            u8 wValue0 = pInformation->USBwValue0;
+    878            ProtocolValue = wValue0;
+    879            return USB_SUCCESS;
+    880          }
+    881          
+    882          /*******************************************************************************
+    883          * Function Name  : Joystick_GetProtocolValue
+    884          * Description    : get the protocol value
+    885          * Input          : Length.
+    886          * Output         : None.
+    887          * Return         : address of the protcol value.
+    888          *******************************************************************************/
+    889          u8 *Keyboard_GetProtocolValue(u16 Length)
+    890          {
+    891            if (Length == 0)
+    892            {
+    893              pInformation->Ctrl_Info.Usb_wLength = 1;
+    894              return NULL;
+    895            }
+    896            else
+    897            {
+    898              return (u8 *)(&ProtocolValue);
+    899            }
+    900          }
+    901          
+    902          /*******************************************************************************
+    903          * Function Name  : Joystick_SetReportValue
+    904          * Description    : set the protocol value
+    905          * Input          : Length.
+    906          * Output         : None.
+    907          * Return         : address of the set report value.
+    908          *******************************************************************************/
+    909          u8 *Keyboard_SetReport(u16 Length)
+    910          {
+    911          	if (Length == 0)
+    912          	{
+    913          		pInformation->Ctrl_Info.Usb_wLength = sizeof(keyboard_output_report_value);
+    914          		return NULL;
+    915          	}
+    916          	return(u8 *)&keyboard_output_report_value;
+    917          }
+    918          #endif
+    919          
+    920          #if(USB_DEVICE_CONFIG & _USE_USB_VIRTUAL_COMM_DEVICE)
+    921          /*******************************************************************************
+    922          * Function Name  : Virtual_Com_Port_GetLineCoding.
+    923          * Description    : send the linecoding structure to the PC host.
+    924          * Input          : Length.
+    925          * Output         : None.
+    926          * Return         : Inecoding structure base address.
+    927          *******************************************************************************/
+    928          u8 *Virtual_Com_Port_GetLineCoding(u16 Length)
+    929          {
+    930          	if (Length == 0)
+    931          	{
+    932          		pInformation->Ctrl_Info.Usb_wLength = sizeof(linecoding);
+    933          		return NULL;
+    934          	}
+    935          	return(u8 *)&linecoding;
+    936          }
+    937          
+    938          /*******************************************************************************
+    939          * Function Name  : Virtual_Com_Port_SetLineCoding.
+    940          * Description    : Set the linecoding structure fields.
+    941          * Input          : Length.
+    942          * Output         : None.
+    943          * Return         : Linecoding structure base address.
+    944          *******************************************************************************/
+    945          u8 *Virtual_Com_Port_SetLineCoding(u16 Length)
+    946          {
+    947          	if (Length == 0)
+    948          	{
+    949          		pInformation->Ctrl_Info.Usb_wLength = sizeof(linecoding);
+    950          		return NULL;
+    951          	}
+    952          	return(u8 *)&linecoding;
+    953          }
+    954          #endif
+    955          
+    956          #if(USB_DEVICE_CONFIG & _USE_USB_MASS_STOARGE_DEVICE)
+    957          /*******************************************************************************
+    958          * Function Name  : Get_Max_Lun
+    959          * Description    : Handle the Get Max Lun request.
+    960          * Input          : uint16_t Length.
+    961          * Output         : None.
+    962          * Return         : None.
+    963          *******************************************************************************/
+    964          static u8 *Get_Max_Lun(u16 Length)
+    965          {
+    966          	if (Length == 0)
+    967          	{
+    968          		pInformation->Ctrl_Info.Usb_wLength = LUN_DATA_LENGTH;
+    969          		return 0;
+    970          	}
+    971          	else
+    972          	{
+    973          		return((u8*)(&Max_Lun));
+    974          	}
+    975          }
+    976          #endif
+    977          
+    978          #if(USB_DEVICE_CONFIG & _USE_USB_PRINTER_DEVICE)
+    979          /*******************************************************************************
+    980          * Function Name  : Get_Device_id
+    981          * Description    : Handle the Get Max Lun request.
+    982          * Input          : uint16_t Length.
+    983          * Output         : None.
+    984          * Return         : None.
+    985          *******************************************************************************/
+    986          static u8 *Get_Device_id(u16 Length)
+    987          {
+    988          	if (Length == 0)
+    989          	{
+    990          		pInformation->Ctrl_Info.Usb_wLength = strlen(device_id);
+    991          		return 0;
+    992          	}
+    993          	else
+    994          	{
+    995          		return((u8*)(device_id));
+    996          	}
+    997          }
+    998          
+    999          static u8 *Get_Port_status(u16 Length)
+   1000          {
+   1001          	if (Length == 0)
+   1002          	{
+   1003          		pInformation->Ctrl_Info.Usb_wLength = PORT_STATUS_DATA_LEN;
+   1004          		return 0;
+   1005          	}
+   1006          	else
+   1007          	{
+   1008          		port_status = 0x18;
+   1009          		if (esc_sts[USB_PRINT_CHANNEL_OFFSET].status4&(0x03<<5))
+   1010          		{
+   1011          			//È±Ö½
+   1012          			port_status |= (0x01<<5); 
+   1013          		}
+   1014          		return((u8*)(&port_status));
+   1015          	}
+   1016          }
+   1017          
+   1018          //soft reset
+   1019          static void print_device_reset(void)
+   1020          {
+   1021          	current_channel = USB_PRINT_CHANNEL_OFFSET;
+   1022          	esc_p_init(USB_PRINT_CHANNEL_OFFSET);
+   1023          	PrintBufToZero();
+   1024          }
+   1025          #endif
+   1026          
+   1027          /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/
 
    Maximum stack usage in bytes:
 
      Function                      .cstack
      --------                      -------
      Get_Max_Lun                        0
+     Get_Port_status                    0
      USB_APP_ClearFeature               8
      USB_APP_Data_Setup                 8
      USB_APP_GetConfigDescriptor        8
@@ -913,53 +1085,60 @@ E:\BT Printer\FW\src\usb_lib\usb_prop.c
      USB_APP_Status_Out                 0
      USB_APP_init                       8
      USB_Set_Descriptor                 0
+     print_device_reset                 8
 
 
    Section sizes:
 
-     Function/Label                Bytes
-     --------------                -----
-     ProtocolValue                    4
-     Max_Lun                          4
-     Request                          1
-     Device_Table                     4
-     Device_Property                 48
-     User_Standard_Requests          36
-     Device_Descriptor                8
-     Config_Descriptor                8
-     String_Descriptor               32
-     USB_Set_Descriptor              24
-     USB_APP_init                    60
-     USB_APP_Reset                  220
-     USB_APP_SetConfiguration        48
-     USB_APP_ClearFeature            28
-     USB_APP_SetDeviceAddress         8
-     USB_APP_Status_In                2
-     USB_APP_Status_Out               2
-     USB_APP_Data_Setup              96
-     USB_APP_NoData_Setup            84
-     USB_APP_GetDeviceDescriptor     12
-     USB_APP_GetConfigDescriptor     12
-     USB_APP_GetStringDescriptor     40
-     USB_APP_Get_Interface_Setting   24
-     Get_Max_Lun                     28
-     ??DataTable8                     4
-     ??DataTable16                    4
-     ??DataTable19                    4
-     ??DataTable30                    4
-     ??DataTable31                    4
-     ??DataTable32                    4
-     ??DataTable33                    4
-     ??DataTable34                    4
-     ??DataTable36                    4
+     Function/Label                         Bytes
+     --------------                         -----
+     Max_Lun                                   4
+     port_status                               1
+     device_id                                 4
+     Device_Table                              4
+     Device_Property                          48
+     User_Standard_Requests                   36
+     Device_Descriptor                        16
+     Config_Descriptor                        16
+     String_Descriptor                        32
+     USB_Set_Descriptor                       72
+     USB_APP_init                             64
+     USB_APP_Reset                           328
+     USB_APP_SetConfiguration                 48
+     USB_APP_ClearFeature                     28
+     USB_APP_SetDeviceAddress                  8
+     USB_APP_Status_In                         2
+     USB_APP_Status_Out                        2
+     USB_APP_Data_Setup                      196
+     USB_APP_NoData_Setup                    152
+     USB_APP_GetDeviceDescriptor              44
+     USB_APP_GetConfigDescriptor              44
+     USB_APP_GetStringDescriptor              40
+     USB_APP_Get_Interface_Setting            24
+     Get_Max_Lun                              28
+     Get_Port_status                          60
+     print_device_reset                       24
+     ??DataTable13                             4
+     ??DataTable16                             4
+     ??DataTable27                             4
+     ??DataTable46                             4
+     ??DataTable47                             4
+     ??DataTable48                             4
+     ??DataTable54                             4
+     ??DataTable57                             4
+     ??DataTable58                             4
+     ??DataTable61                             4
+     ?<Constant "MFG:EPSON;CMD:EJL,ESC...">   92
 
  
-   9 bytes in section .bss
- 136 bytes in section .data
- 724 bytes in section .text
+     5 bytes in section .bss
+   156 bytes in section .data
+    92 bytes in section .rodata
+ 1 204 bytes in section .text
  
- 724 bytes of CODE memory
- 145 bytes of DATA memory
+ 1 204 bytes of CODE  memory
+    92 bytes of CONST memory
+   161 bytes of DATA  memory
 
 Errors: none
-Warnings: none
+Warnings: 4

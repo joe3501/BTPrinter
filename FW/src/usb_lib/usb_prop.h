@@ -65,6 +65,13 @@ typedef struct
 #define SET_CONTROL_LINE_STATE      0x22
 #define SEND_BREAK                  0x23
 
+//printer class
+#define	GET_DEVICE_ID			0x00
+#define GET_PORT_STATUS			0x01
+#define SOFT_RESET				0x02
+
+#define PORT_STATUS_DATA_LEN	1
+
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
@@ -93,7 +100,7 @@ u8 *Virtual_Com_Port_GetLineCoding(u16 Length);
 u8 *Virtual_Com_Port_SetLineCoding(u16 Length);
 
 void USB_Set_Descriptor(void);
-u8 *Get_Max_Lun(u16 Length);
+//u8 *Get_Max_Lun(u16 Length);
 #endif /* __USB_PROP_H */
 
 /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/

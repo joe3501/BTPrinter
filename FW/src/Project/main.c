@@ -218,6 +218,7 @@ int main(void)
 
 	esc_init();
 
+	usb_device_init(USB_PRINTER);
 	//test_motor();
 
 	PaperStartSns();		//SystickÌø¶¯ÆğÀ´
