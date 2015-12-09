@@ -23,7 +23,7 @@
 #include "usb_app_config.h"
 
 #ifdef DEBUG_VER
-extern unsigned short debug_buffer[];
+extern unsigned char debug_buffer[];
 extern unsigned int debug_cnt;
 #endif
 /* Private typedef -----------------------------------------------------------*/

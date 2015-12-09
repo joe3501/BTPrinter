@@ -14,7 +14,7 @@
 #include <stdio.h>
 
 #ifdef DEBUG_VER
-extern unsigned short debug_buffer[];
+extern unsigned char debug_buffer[];
 extern unsigned int debug_cnt;
 #endif
 
@@ -1097,7 +1097,6 @@ static uint8_t TPCheckBuf(void)
 
 extern void TPISRProc(void)
 {
-	GPIOB->BSRR = GPIO_Pin_4; 
 	switch (tp.state)
 	{
 	case TPSTATE_START: 	// start
@@ -1309,7 +1308,6 @@ extern void TPISRProc(void)
 		TPIntSetIdle();
 		break;
 	}
-	GPIOB->BRR = GPIO_Pin_4; 
 }
 
 

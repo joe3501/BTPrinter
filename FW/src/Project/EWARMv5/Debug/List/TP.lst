@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     08/Dec/2015  16:55:05 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:51 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -51,7 +51,7 @@ E:\BT Printer\FW\src\App\TP.c
      14          #include <stdio.h>
      15          
      16          #ifdef DEBUG_VER
-     17          extern unsigned short debug_buffer[];
+     17          extern unsigned char debug_buffer[];
      18          extern unsigned int debug_cnt;
      19          #endif
      20          
@@ -1134,615 +1134,613 @@ E:\BT Printer\FW\src\App\TP.c
    1097          
    1098          extern void TPISRProc(void)
    1099          {
-   1100          	GPIOB->BSRR = GPIO_Pin_4; 
-   1101          	switch (tp.state)
-   1102          	{
-   1103          	case TPSTATE_START: 	// start
-   1104          		switch (TPCheckBuf())
-   1105          		{
-   1106          		case 1:		// 打印
-   1107          			MOTOR_PWR_ON();
-   1108          			TPSetTimeCnt(TPGetStepTime());	// set timer
-   1109          			break;
-   1110          		case 2:		// 走纸
-   1111          			MOTOR_PWR_ON();
-   1112          			TPSetTimeCnt(TPGetStepTime());	// set timer
-   1113          			break;
-   1114          		}
-   1115          		break;
-   1116          	case TPSTATE_HEAT_WITH_FEED:       // 开始马达步进
-   1117          		TPForwardStep(1);
-   1118          		// break;
-   1119          	case TPSTATE_HEAT_WITHOUT_FEED:
-   1120          		if(tp.heat_remain)			// 还要继续加热，每行刚开始加热或者一个步进内加热时间足够时此条件不成立
-   1121          		{
-   1122          			if(tp.feed_time[tp.feed_step] > tp.heat_remain)	// 当前步进的时间足够加热
-   1123          			{
-   1124          					TPSetTimeCnt(tp.heat_remain);	// 加热
-   1125          					tp.feed_time[tp.feed_step] -= tp.heat_remain;
-   1126          					tp.heat_remain = 0;
-   1127          					tp.state = TPSTATE_HEAT_WITHOUT_FEED;
-   1128          			}
-   1129          			else			// 时间不够或者刚好，先加热剩余时间//如果时间不够则走一步后继续跳入上一个if,刚好则跳入else
-   1130          			{
-   1131          				TPSetTimeCnt(tp.feed_time[tp.feed_step]); // 加热剩余时间
-   1132          				tp.heat_remain -= tp.feed_time[tp.feed_step];
-   1133          				tp.state = TPSTATE_HEAT_WITH_FEED;
-   1134          				tp.feed_step++;
-   1135          			}
-   1136          		}
-   1137          		else
-   1138          		{
-   1139          		    if(tp.heat_cnt < tp.heat_max_cnt)	// 已经有数据被送给打印机
-   1140          			{
-   1141          				tp.heat_cnt++;
-   1142          				LATCH_LOW();
-   1143          				LATCH_HIGH();
-   1144          				STROBE_0_ON();
-   1145          				STROBE_1_ON();
-   1146          				if(tp.heat_cnt < tp.heat_max_cnt)	// 还有数据需要送到打印机
-   1147          				{
-   1148          					TPDataDMAShiftToPrn();		// shift next heat data to printer
-   1149          				}
-   1150          				if(tp.feed_time[tp.feed_step] > tp.heat)	// 当前步进的时间足够加热
-   1151          				{
-   1152          					TPSetTimeCnt(tp.heat);	// 加热
-   1153          					tp.feed_time[tp.feed_step] -= tp.heat;
-   1154          					tp.state = TPSTATE_HEAT_WITHOUT_FEED;
-   1155          				}
-   1156          				else			// 时间不够或者刚好，先加热剩余时间
-   1157          				{
-   1158          					TPSetTimeCnt(tp.feed_time[tp.feed_step]);	// 加热剩余时间
-   1159          					tp.heat_remain = tp.heat - tp.feed_time[tp.feed_step];
-   1160          					tp.state = TPSTATE_HEAT_WITH_FEED;
-   1161          					tp.feed_step++;
-   1162          				}
-   1163          			}
-   1164          			else	// no any data need to print//本行加热次数完成
-   1165          			{
-   1166          				//trip2();
-   1167          //strobe_off:
-   1168          				STROBE_0_OFF(); 	// stop heat
-   1169          				STROBE_1_OFF(); 	// stop heat
-   1170          				TPSetTimeCnt(tp.feed_time[tp.feed_step]);   // 停止加热时间//最后一次加热会出现这种情况，加热次数完成还有剩余步进时间
-   1171          				#if TP_MAX_STROBE_STEP>1
-   1172          				if(tp.feed_step < (TP_MAX_STROBE_STEP-1))		// 每个加热Strobe中包含的步进数
-   1173          				{
-   1174          					tp.feed_step++;
-   1175          					tp.state = TPSTATE_HEAT_WITH_FEED;
-   1176          				}
-   1177          				else	// 完成一个加热Strobe的控制
-   1178          				#endif
-   1179          				{
-   1180          					tp.feed_step = 0;
-   1181          					#if TP_MAX_HEAT_STROBE>1
-   1182          				    if(tp.strobe_step < (TP_MAX_HEAT_STROBE-1))
-   1183          					{
-   1184          						tp.strobe_step++;
-   1185          						TPDataShiftCntProc(tp.strobe_step);		// 计算下一个加热行
-   1186          						if(tp.heat_cnt < tp.heat_max_cnt)
-   1187          						{
-   1188          							TPDataDMAShiftToPrn();		// 开始送数据到打印机
-   1189          						}
-   1190          						tp.state = TPSTATE_HEAT_WITH_FEED;
-   1191          					}
-   1192          					else	// 当前点行打印完成
-   1193          					#endif
-   1194          					{
-   1195          						tp.tail = (tp.tail+1) & (ARRAY_SIZE(TP_dot)-1);
-   1196          						switch(TPCheckBuf())
-   1197          						{
-   1198          						case 0: 	// no data
-   1199          							//TPIntSetPreIdle();
-   1200          							break;
-   1201          						case 1:
-   1202          						case 2:
-   1203          						case 3:
-   1204          							break;
-   1205          						default:	// bug
-   1206          							TPIntSetIdle();
-   1207          							break;
-   1208          						}
-   1209          					}
-   1210          				}
-   1211          			}
-   1212          		}
-   1213          		break;
-   1214          	case TPSTATE_FEED:
-   1215          		if (TPFeedStep() == 0)
-   1216          		{
-   1217          			switch(TPCheckBuf())
-   1218          			{
-   1219          			case 0:		// no data
-   1220          				//TPIntSetPreIdle();
-   1221          				break;
-   1222          			case 1:
-   1223          			case 2:
-   1224          			case 3:
-   1225          				break;
-   1226          			default:	// bug
-   1227          				TPIntSetIdle();
-   1228          				break;
-   1229          			}
-   1230          		}
-   1231          		break;
-   1232               case TPSTATE_FEED_TO_MARK:
-   1233                  TPSetTimeCnt(TPGetStepTime());  // set timer
-   1234                  if(TPFeedStep())
-   1235                  {
-   1236                      if(TPPrinterMark() == FALSE)        // find mark
-   1237                      {
-   1238                          tp.state = TPSTATE_FEED_FIND_MARK;
-   1239                      }
-   1240                  }
-   1241                  else
-   1242                  {
-   1243                      TPCheckBuf();
-   1244                  }
-   1245                  break;
-   1246              case TPSTATE_FEED_FIND_MARK:
-   1247                  TPSetTimeCnt(TPGetStepTime());  // set timer
-   1248                  if(TPFeedStep())
-   1249                  {
-   1250                      if(TPPrinterMark() == TRUE)     // space
-   1251                      {
-   1252                          //tp.feedmax = esc_sts.line_after_mark;
-   1253                          tp.feedmax = g_param.line_after_mark;
-   1254                          tp.state = TPSTATE_FEED_AFTERMARK;
-   1255                      }
-   1256                  }
-   1257                  else
-   1258                  {
-   1259                      TPCheckBuf();
-   1260                  }
-   1261                  break;
-   1262              case TPSTATE_FEED_AFTERMARK:
-   1263                  TPSetTimeCnt(TPGetStepTime());  // set timer
-   1264                  if(TPFeedStep() == 0)
-   1265                  {
-   1266                      TPCheckBuf();
-   1267                  }
-   1268                  break;
-   1269              case TPSTATE_WAIT_TIME:
-   1270                  if(--tp.repeat == 0 )
-   1271                  {
-   1272                     TPCheckBuf();
-   1273                  }
-   1274                  break;
-   1275          	case TPSTATE_PRE_IDLE:
-   1276          		TPSetTimeCnt(TIMER1_MS_TO_CNT(1.0));
-   1277          		if(tp.feedmax)
-   1278          		{
-   1279          			tp.feedmax--;
-   1280          			if(tp.feedmax & 0x01)
-   1281          			{
-   1282          				PRN_POWER_CHARGE();
-   1283          			}
-   1284          			else
-   1285          			{
-   1286          				PRN_POWER_DISCHARGE();
-   1287          			}
-   1288          		}
-   1289          		else
-   1290          		{
-   1291          			tp.accel = 0;				// 下次需要退纸，重新开始缓启动
-   1292          			switch(TPCheckBuf())
-   1293          			{
-   1294          			case 0:		// no data
-   1295          			default:	// bug
-   1296          				TPIntSetIdle();
-   1297          				break;
-   1298          			case 1:
-   1299          			case 2:
-   1300          			case 3:
-   1301          				break;
-   1302          			}
-   1303          		}
-   1304          		break;
-   1305          	default:
-   1306          		tp.state = TPSTATE_IDLE;
-   1307          		//break;
-   1308          	case TPSTATE_IDLE:
-   1309          		TPIntSetIdle();
-   1310          		break;
-   1311          	}
-   1312          	GPIOB->BRR = GPIO_Pin_4; 
-   1313          }
-   1314          
-   1315          
-   1316          void TIM3_IRQ_Handle(void)
-   1317          {
-   1318          	//trip1();
-   1319          	//TIM3->CR1 &= ~0x0001;
-   1320              PRN_POWER_DISCHARGE();
-   1321              PRN_POWER_CHARGE();
-   1322              TPISRProc();
-   1323          	//TIM3->CR1 |= 0x0001;
-   1324          }
-   1325          
-   1326          extern void TPSetSpeed(uint8_t speed)
-   1327          {
-   1328          	uint16_t const TPHeatTbl[] =
-   1329          	{
-   1330          		TIMER1_MS_TO_CNT(0.50), // 0
-   1331          		TIMER1_MS_TO_CNT(0.60), // 1
-   1332          		TIMER1_MS_TO_CNT(0.70), // 2
-   1333          		TIMER1_MS_TO_CNT(0.80), // 3
-   1334          		TIMER1_MS_TO_CNT(0.90),	// 4
-   1335          		TIMER1_MS_TO_CNT(1.00), // 5
-   1336          		TIMER1_MS_TO_CNT(1.20), // 6
-   1337          		TIMER1_MS_TO_CNT(1.40), // 7
-   1338          		TIMER1_MS_TO_CNT(1.50), // 8
-   1339          		TIMER1_MS_TO_CNT(1.60), // 9                
-   1340          		TIMER1_MS_TO_CNT(1.80), // 10
-   1341          		TIMER1_MS_TO_CNT(2.00), // 11
-   1342          		TIMER1_MS_TO_CNT(2.50), // 12
-   1343          		TIMER1_MS_TO_CNT(3.00), // 13
-   1344          		TIMER1_MS_TO_CNT(3.50), // 14
-   1345          		TIMER1_MS_TO_CNT(4.00), // 15
-   1346          		TIMER1_MS_TO_CNT(4.50), // 16
-   1347          		TIMER1_MS_TO_CNT(5.00), // 17
-   1348          
-   1349          	};
-   1350          	if (speed < ARRAY_SIZE(TPHeatTbl))
-   1351          	{
-   1352          		tp.heat_setting = TPHeatTbl[speed];
-   1353          	}
-   1354          }
+   1100          	switch (tp.state)
+   1101          	{
+   1102          	case TPSTATE_START: 	// start
+   1103          		switch (TPCheckBuf())
+   1104          		{
+   1105          		case 1:		// 打印
+   1106          			MOTOR_PWR_ON();
+   1107          			TPSetTimeCnt(TPGetStepTime());	// set timer
+   1108          			break;
+   1109          		case 2:		// 走纸
+   1110          			MOTOR_PWR_ON();
+   1111          			TPSetTimeCnt(TPGetStepTime());	// set timer
+   1112          			break;
+   1113          		}
+   1114          		break;
+   1115          	case TPSTATE_HEAT_WITH_FEED:       // 开始马达步进
+   1116          		TPForwardStep(1);
+   1117          		// break;
+   1118          	case TPSTATE_HEAT_WITHOUT_FEED:
+   1119          		if(tp.heat_remain)			// 还要继续加热，每行刚开始加热或者一个步进内加热时间足够时此条件不成立
+   1120          		{
+   1121          			if(tp.feed_time[tp.feed_step] > tp.heat_remain)	// 当前步进的时间足够加热
+   1122          			{
+   1123          					TPSetTimeCnt(tp.heat_remain);	// 加热
+   1124          					tp.feed_time[tp.feed_step] -= tp.heat_remain;
+   1125          					tp.heat_remain = 0;
+   1126          					tp.state = TPSTATE_HEAT_WITHOUT_FEED;
+   1127          			}
+   1128          			else			// 时间不够或者刚好，先加热剩余时间//如果时间不够则走一步后继续跳入上一个if,刚好则跳入else
+   1129          			{
+   1130          				TPSetTimeCnt(tp.feed_time[tp.feed_step]); // 加热剩余时间
+   1131          				tp.heat_remain -= tp.feed_time[tp.feed_step];
+   1132          				tp.state = TPSTATE_HEAT_WITH_FEED;
+   1133          				tp.feed_step++;
+   1134          			}
+   1135          		}
+   1136          		else
+   1137          		{
+   1138          		    if(tp.heat_cnt < tp.heat_max_cnt)	// 已经有数据被送给打印机
+   1139          			{
+   1140          				tp.heat_cnt++;
+   1141          				LATCH_LOW();
+   1142          				LATCH_HIGH();
+   1143          				STROBE_0_ON();
+   1144          				STROBE_1_ON();
+   1145          				if(tp.heat_cnt < tp.heat_max_cnt)	// 还有数据需要送到打印机
+   1146          				{
+   1147          					TPDataDMAShiftToPrn();		// shift next heat data to printer
+   1148          				}
+   1149          				if(tp.feed_time[tp.feed_step] > tp.heat)	// 当前步进的时间足够加热
+   1150          				{
+   1151          					TPSetTimeCnt(tp.heat);	// 加热
+   1152          					tp.feed_time[tp.feed_step] -= tp.heat;
+   1153          					tp.state = TPSTATE_HEAT_WITHOUT_FEED;
+   1154          				}
+   1155          				else			// 时间不够或者刚好，先加热剩余时间
+   1156          				{
+   1157          					TPSetTimeCnt(tp.feed_time[tp.feed_step]);	// 加热剩余时间
+   1158          					tp.heat_remain = tp.heat - tp.feed_time[tp.feed_step];
+   1159          					tp.state = TPSTATE_HEAT_WITH_FEED;
+   1160          					tp.feed_step++;
+   1161          				}
+   1162          			}
+   1163          			else	// no any data need to print//本行加热次数完成
+   1164          			{
+   1165          				//trip2();
+   1166          //strobe_off:
+   1167          				STROBE_0_OFF(); 	// stop heat
+   1168          				STROBE_1_OFF(); 	// stop heat
+   1169          				TPSetTimeCnt(tp.feed_time[tp.feed_step]);   // 停止加热时间//最后一次加热会出现这种情况，加热次数完成还有剩余步进时间
+   1170          				#if TP_MAX_STROBE_STEP>1
+   1171          				if(tp.feed_step < (TP_MAX_STROBE_STEP-1))		// 每个加热Strobe中包含的步进数
+   1172          				{
+   1173          					tp.feed_step++;
+   1174          					tp.state = TPSTATE_HEAT_WITH_FEED;
+   1175          				}
+   1176          				else	// 完成一个加热Strobe的控制
+   1177          				#endif
+   1178          				{
+   1179          					tp.feed_step = 0;
+   1180          					#if TP_MAX_HEAT_STROBE>1
+   1181          				    if(tp.strobe_step < (TP_MAX_HEAT_STROBE-1))
+   1182          					{
+   1183          						tp.strobe_step++;
+   1184          						TPDataShiftCntProc(tp.strobe_step);		// 计算下一个加热行
+   1185          						if(tp.heat_cnt < tp.heat_max_cnt)
+   1186          						{
+   1187          							TPDataDMAShiftToPrn();		// 开始送数据到打印机
+   1188          						}
+   1189          						tp.state = TPSTATE_HEAT_WITH_FEED;
+   1190          					}
+   1191          					else	// 当前点行打印完成
+   1192          					#endif
+   1193          					{
+   1194          						tp.tail = (tp.tail+1) & (ARRAY_SIZE(TP_dot)-1);
+   1195          						switch(TPCheckBuf())
+   1196          						{
+   1197          						case 0: 	// no data
+   1198          							//TPIntSetPreIdle();
+   1199          							break;
+   1200          						case 1:
+   1201          						case 2:
+   1202          						case 3:
+   1203          							break;
+   1204          						default:	// bug
+   1205          							TPIntSetIdle();
+   1206          							break;
+   1207          						}
+   1208          					}
+   1209          				}
+   1210          			}
+   1211          		}
+   1212          		break;
+   1213          	case TPSTATE_FEED:
+   1214          		if (TPFeedStep() == 0)
+   1215          		{
+   1216          			switch(TPCheckBuf())
+   1217          			{
+   1218          			case 0:		// no data
+   1219          				//TPIntSetPreIdle();
+   1220          				break;
+   1221          			case 1:
+   1222          			case 2:
+   1223          			case 3:
+   1224          				break;
+   1225          			default:	// bug
+   1226          				TPIntSetIdle();
+   1227          				break;
+   1228          			}
+   1229          		}
+   1230          		break;
+   1231               case TPSTATE_FEED_TO_MARK:
+   1232                  TPSetTimeCnt(TPGetStepTime());  // set timer
+   1233                  if(TPFeedStep())
+   1234                  {
+   1235                      if(TPPrinterMark() == FALSE)        // find mark
+   1236                      {
+   1237                          tp.state = TPSTATE_FEED_FIND_MARK;
+   1238                      }
+   1239                  }
+   1240                  else
+   1241                  {
+   1242                      TPCheckBuf();
+   1243                  }
+   1244                  break;
+   1245              case TPSTATE_FEED_FIND_MARK:
+   1246                  TPSetTimeCnt(TPGetStepTime());  // set timer
+   1247                  if(TPFeedStep())
+   1248                  {
+   1249                      if(TPPrinterMark() == TRUE)     // space
+   1250                      {
+   1251                          //tp.feedmax = esc_sts.line_after_mark;
+   1252                          tp.feedmax = g_param.line_after_mark;
+   1253                          tp.state = TPSTATE_FEED_AFTERMARK;
+   1254                      }
+   1255                  }
+   1256                  else
+   1257                  {
+   1258                      TPCheckBuf();
+   1259                  }
+   1260                  break;
+   1261              case TPSTATE_FEED_AFTERMARK:
+   1262                  TPSetTimeCnt(TPGetStepTime());  // set timer
+   1263                  if(TPFeedStep() == 0)
+   1264                  {
+   1265                      TPCheckBuf();
+   1266                  }
+   1267                  break;
+   1268              case TPSTATE_WAIT_TIME:
+   1269                  if(--tp.repeat == 0 )
+   1270                  {
+   1271                     TPCheckBuf();
+   1272                  }
+   1273                  break;
+   1274          	case TPSTATE_PRE_IDLE:
+   1275          		TPSetTimeCnt(TIMER1_MS_TO_CNT(1.0));
+   1276          		if(tp.feedmax)
+   1277          		{
+   1278          			tp.feedmax--;
+   1279          			if(tp.feedmax & 0x01)
+   1280          			{
+   1281          				PRN_POWER_CHARGE();
+   1282          			}
+   1283          			else
+   1284          			{
+   1285          				PRN_POWER_DISCHARGE();
+   1286          			}
+   1287          		}
+   1288          		else
+   1289          		{
+   1290          			tp.accel = 0;				// 下次需要退纸，重新开始缓启动
+   1291          			switch(TPCheckBuf())
+   1292          			{
+   1293          			case 0:		// no data
+   1294          			default:	// bug
+   1295          				TPIntSetIdle();
+   1296          				break;
+   1297          			case 1:
+   1298          			case 2:
+   1299          			case 3:
+   1300          				break;
+   1301          			}
+   1302          		}
+   1303          		break;
+   1304          	default:
+   1305          		tp.state = TPSTATE_IDLE;
+   1306          		//break;
+   1307          	case TPSTATE_IDLE:
+   1308          		TPIntSetIdle();
+   1309          		break;
+   1310          	}
+   1311          }
+   1312          
+   1313          
+   1314          void TIM3_IRQ_Handle(void)
+   1315          {
+   1316          	//trip1();
+   1317          	//TIM3->CR1 &= ~0x0001;
+   1318              PRN_POWER_DISCHARGE();
+   1319              PRN_POWER_CHARGE();
+   1320              TPISRProc();
+   1321          	//TIM3->CR1 |= 0x0001;
+   1322          }
+   1323          
+   1324          extern void TPSetSpeed(uint8_t speed)
+   1325          {
+   1326          	uint16_t const TPHeatTbl[] =
+   1327          	{
+   1328          		TIMER1_MS_TO_CNT(0.50), // 0
+   1329          		TIMER1_MS_TO_CNT(0.60), // 1
+   1330          		TIMER1_MS_TO_CNT(0.70), // 2
+   1331          		TIMER1_MS_TO_CNT(0.80), // 3
+   1332          		TIMER1_MS_TO_CNT(0.90),	// 4
+   1333          		TIMER1_MS_TO_CNT(1.00), // 5
+   1334          		TIMER1_MS_TO_CNT(1.20), // 6
+   1335          		TIMER1_MS_TO_CNT(1.40), // 7
+   1336          		TIMER1_MS_TO_CNT(1.50), // 8
+   1337          		TIMER1_MS_TO_CNT(1.60), // 9                
+   1338          		TIMER1_MS_TO_CNT(1.80), // 10
+   1339          		TIMER1_MS_TO_CNT(2.00), // 11
+   1340          		TIMER1_MS_TO_CNT(2.50), // 12
+   1341          		TIMER1_MS_TO_CNT(3.00), // 13
+   1342          		TIMER1_MS_TO_CNT(3.50), // 14
+   1343          		TIMER1_MS_TO_CNT(4.00), // 15
+   1344          		TIMER1_MS_TO_CNT(4.50), // 16
+   1345          		TIMER1_MS_TO_CNT(5.00), // 17
+   1346          
+   1347          	};
+   1348          	if (speed < ARRAY_SIZE(TPHeatTbl))
+   1349          	{
+   1350          		tp.heat_setting = TPHeatTbl[speed];
+   1351          	}
+   1352          }
+   1353          
+   1354          
    1355          
-   1356          
-   1357          
-   1358          extern void SetDesity(void)
-   1359          {
-   1360          	 #if defined(LOW_5V_PRINT)
-   1361                  TPSetSpeed(17);
-   1362               #else
-   1363          	  	#if defined(HIGH_8V_PRINT)
-   1364          		TPSetSpeed(4);
-   1365          		#else
-   1366                  TPSetSpeed(10);//10
-   1367                  #endif
-   1368               #endif
-   1369          }
-   1370          //======================================================================================================
-   1371          extern void Wake_up(void)
-   1372          {
-   1373          	tp.state = TPSTATE_WAIT_TIME;
-   1374              tp.accel = 0;
-   1375              tp.repeat =200;
-   1376          
-   1377          	MOTOR_PWR_ON();
-   1378          	//TIM_SetAutoreload(TIM3,TIMER1_MS_TO_CNT(5.00));
-   1379              TIM3->ARR = TIMER1_MS_TO_CNT(5.00);
-   1380          	//TIM_SetCounter(TIM3,0);
-   1381          	TIM3->CNT = 0;
-   1382          	ENABLE_TIMER_INTERRUPT();
-   1383          }
-   1384          static void TPStart(void)
-   1385          {
-   1386          	uint8_t i;
-   1387              uint32_t delay;
-   1388          
-   1389          	tp.state = TPSTATE_START;
-   1390          	tp.accel = 0;
-   1391          
-   1392          	for(i=0; i<6; i++)
-   1393          	{
-   1394          		PRN_POWER_CHARGE();
-   1395                  delay = 30000;
-   1396                  while(delay--);
-   1397          		PRN_POWER_DISCHARGE();
-   1398                  delay = 10000;
-   1399                  while(delay--);
-   1400          	}
-   1401          	//TIM_SetAutoreload(TIM3,TpAccelerationSteps[0])
-   1402          	TIM3->ARR = TpAccelerationSteps[0];
-   1403          	PRN_POWER_CHARGE();
-   1404          	//TIM_SetCounter(TIM3,0);
-   1405              TIM3->CNT = 0;
-   1406              ENABLE_TIMER_INTERRUPT();
-   1407          }
-   1408          
-   1409          extern void TPReStart(void)
-   1410          {
-   1411          	uint8_t i;
-   1412              uint32_t delay;
-   1413          
-   1414          	if(tp.pause)
-   1415          	{
-   1416          		if (tp.head != tp.tail)
-   1417          		{
-   1418          			for(i=0; i<6; i++)
-   1419          			{
-   1420          				PRN_POWER_CHARGE();
-   1421                          delay = 30000;
-   1422                          while(delay--);
-   1423          				PRN_POWER_DISCHARGE();
-   1424                          delay = 10000;
-   1425                          while(delay--);
-   1426          
-   1427          			}
-   1428          			PRN_POWER_CHARGE();
-   1429          
-   1430          			tp.state = TPSTATE_START;
-   1431          			tp.accel = 0;
-   1432          			//TIM_SetAutoreload(TIM3,TpAccelerationSteps[0])
-   1433          			TIM3->ARR = TpAccelerationSteps[0];
-   1434          			PRN_POWER_CHARGE();
-   1435          			//TIM_SetCounter(TIM3,0);
-   1436          			TIM3->CNT = 0;
-   1437          			ENABLE_TIMER_INTERRUPT();
-   1438          		}
-   1439          	}
-   1440          }
-   1441          
-   1442          //======================================================================================================
-   1443          static void TPPrintCmdToBuf(uint8_t cmd, uint8_t *dot, uint8_t len)
-   1444          {
-   1445          	uint32_t head;
-   1446          	head = (tp.head+1) & (ARRAY_SIZE(TP_dot)-1);
-   1447          	while (head == tp.tail)
-   1448          	{
-   1449          		// 因为打印中断处理程序有可能在异常的情况下进入Idle状态，所以需要不断检查这个状态
-   1450                  event_proc();
-   1451              }
-   1452          
-   1453              if (clr_all_dot == 1)
-   1454              {
-   1455                  clr_all_dot = 0;
-   1456                  return;
-   1457              }
-   1458          
-   1459          	memcpy(TP_dot[tp.head & (ARRAY_SIZE(TP_dot)-1)], dot, len);
-   1460          	TP_dot[tp.head][LineDot/8] = cmd;
-   1461          	tp.head = head;
-   1462              if ((TPPrinterReady() && (tp.state == TPSTATE_IDLE)))//启动只有从IDE状态起来
-   1463              {
-   1464                  TPStart();
-   1465              }
-   1466          }
-   1467          //======================================================================================================
-   1468          extern void TPPrintLine(uint8_t *dot)
-   1469          {
-   1470          	TPPrintCmdToBuf(TP_CMD_PRINT_DOTLINE, dot, LineDot/8);
-   1471          }
-   1472          //======================================================================================================
-   1473          extern void TPFeedLine(uint16_t line)
-   1474          {
-   1475              #ifdef Half_Step
-   1476          	line <<= 2;		// 一个点行等于4步
-   1477          	#else
-   1478          	line <<= 1;		// 一个点行等于2步
-   1479              #endif
-   1480          	TPPrintCmdToBuf(TP_CMD_FEED, (uint8_t *)(&line), sizeof(line));
-   1481          }
-   1482          //======================================================================================================
-   1483          extern void TPFeedToMark(uint16_t line)
-   1484          {
-   1485          	line <<= 1;		// 一个点行等于两步
-   1486          	TPPrintCmdToBuf(TP_CMD_FEED_TO_MARK, (uint8_t *)(&line), sizeof(line));
-   1487          }
-   1488          
-   1489          extern uint32_t TPCheckBusy(void)
-   1490          {
-   1491          	if (tp.state == TPSTATE_IDLE)
-   1492          	{
-   1493          		return FALSE;
-   1494          	}
-   1495          	return TRUE;
-   1496          }
-   1497          //======================================================================================================
-   1498          extern void TPFeedStart(void)
-   1499          {
-   1500          	if (tp.state == TPSTATE_IDLE)
-   1501          	{
-   1502          		TPFeedLine(500*8);		// 500mm
-   1503          	}
-   1504          }
-   1505          //======================================================================================================
-   1506          extern void TPFeedToMarkStart(void)
-   1507          {
-   1508          	if (tp.state == TPSTATE_IDLE)
-   1509          	{
-   1510          		TPFeedToMark(250*8);		// 250mm
-   1511          	}
-   1512          }
-   1513          //======================================================================================================
-   1514          extern void TPFeedStop(void)
-   1515          {
-   1516          	tp.feedmax = 0;		// interrupt will stop feed automaticcly
-   1517          }
-   1518          //======================================================================================================
-   1519          extern uint8_t IsPrintBufEmpty(void)
-   1520          {
-   1521          	if(tp.head != tp.tail)	// have data
-   1522          	{
-   1523          		return 0;
-   1524          	}
-   1525          	else
-   1526          	{
-   1527          		return 1;
-   1528          	}
-   1529          }
-   1530          void TPPrintAsciiLine(char *buf, uint32_t len)
-   1531          {
-   1532             PrintBufPushLine((uint8_t *)buf, len);
-   1533          }
-   1534          extern uint8_t IsPrinterIdle(void)
-   1535          {
-   1536          	if(tp.state == TPSTATE_IDLE)
-   1537          	{
-   1538          		return 1;
-   1539          	}
-   1540          	else
-   1541          	{
-   1542          		return 0;
-   1543          	}
-   1544          }
-   1545          
-   1546          extern void TPPrintTestPage(void)
-   1547          {
-   1548          
-   1549              uint32_t len,i;
-   1550              char buf[64];
-   1551          
-   1552          	//debug_cnt = 0;
-   1553          	current_channel = 0;
-   1554               PrintBufToZero();
-   1555              len = snprintf(buf, sizeof(buf),  "\n");
-   1556              TPPrintAsciiLine(buf,len);
-   1557          #if 1
-   1558          #if defined(PT486)
-   1559              len = snprintf(buf, sizeof(buf), "System: HJ_PT486_KT100\n");
-   1560          #elif defined(PT488)
-   1561              len = snprintf(buf, sizeof(buf), "System: PT488_1MB1\n");
-   1562          #elif defined(PT48D)
-   1563          	len = snprintf(buf, sizeof(buf), "System: PT48D\n");
-   1564          #elif defined(PT48F)
-   1565              len = snprintf(buf, sizeof(buf), "System: PT48F\n");
-   1566          #elif defined(PT48G)
-   1567              len = snprintf(buf, sizeof(buf), "System: PT48G\n");
-   1568          #endif
-   1569              TPPrintAsciiLine(buf,len);
-   1570          
-   1571          
-   1572              len = snprintf(buf, sizeof(buf), "Firmware:%d.%02d.%02d \n", VERSION_MAJOR, VERSION_MINOR,VERSION_TEST);
-   1573              TPPrintAsciiLine(buf,len);
-   1574          
-   1575              len = snprintf(buf, sizeof(buf), "Build date: %s\n", __DATE__);
-   1576              TPPrintAsciiLine(buf,len);
-   1577          
-   1578              len = snprintf(buf, sizeof(buf), "Build time: %s\n", __TIME__);
-   1579              TPPrintAsciiLine(buf,len);
-   1580          
-   1581              len = snprintf(buf, sizeof(buf),  "\n");
-   1582              TPPrintAsciiLine(buf,len);
-   1583          
-   1584              //len = snprintf(buf, sizeof(buf),  "[Uart Configure]\n");
-   1585              //TPPrintAsciiLine(buf,len);
-   1586          
-   1587              //len = snprintf(buf, sizeof(buf),  "baudrate : %ld\n", 115200);
-   1588              //TPPrintAsciiLine(buf,len);
-   1589          
-   1590              //len = snprintf(buf, sizeof(buf),  "flow ctrl : HW Flow Control\n");
-   1591              //TPPrintAsciiLine(buf,len);
-   1592          
-   1593          	len = snprintf(buf, sizeof(buf),  "[BT Module config]\n");
-   1594          	TPPrintAsciiLine(buf,len);
-   1595          
-   1596          	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_BT_CHANNEL);
-   1597          	TPPrintAsciiLine(buf,len);
-   1598          
-   1599          	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n",MAX_BT_CHANNEL);
-   1600          	TPPrintAsciiLine(buf,len);
-   1601          
-   1602          	for (i = 0;i<MAX_BT_CHANNEL;i++)
-   1603          	{
-   1604          		len = snprintf(buf, sizeof(buf),  "BT Module(%d):|HJ Printer%d | 0000\n",i+1,i+1);
-   1605          		TPPrintAsciiLine(buf,len);
-   1606          	}
-   1607          
-   1608              len = snprintf(buf, sizeof(buf),  "\n");
-   1609              TPPrintAsciiLine(buf,len);
-   1610          
-   1611              len = snprintf(buf, sizeof(buf),  "[Install Fonts]\n");
-   1612              TPPrintAsciiLine(buf,len);
-   1613          
-   1614              len = snprintf(buf, sizeof(buf),  "ID  Font Name\n");
-   1615              TPPrintAsciiLine(buf,len);
-   1616          
-   1617          
-   1618              //if(esc_sts[current_channel].font_en == FONT_A_WIDTH)
-   1619              {
-   1620              len = snprintf(buf, sizeof(buf),  " 0  SYSTEM 12x24\n");
-   1621              TPPrintAsciiLine(buf,len);
-   1622              }
-   1623              //else
-   1624              {
-   1625          	#if defined(FONTB_ASCII9X24)
-   1626          	len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 9x24\n");
-   1627          	#else
-   1628              len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 8x16\n");
-   1629          	#endif
-   1630              TPPrintAsciiLine(buf,len);
-   1631              }
-   1632          	len = snprintf(buf, sizeof(buf),  " 2  GBK 24x24\n");
-   1633          	TPPrintAsciiLine(buf,len);
-   1634          
-   1635          	len = snprintf(buf, sizeof(buf),  " 3  GBK 16x16\n");
-   1636          	TPPrintAsciiLine(buf,len);
-   1637          
-   1638              len = snprintf(buf, sizeof(buf),  "\n");
-   1639              TPPrintAsciiLine(buf,len);
-   1640          
-   1641              len = snprintf(buf, sizeof(buf),  "[ASCII Samples]\n");
-   1642              TPPrintAsciiLine(buf,len);
-   1643          
-   1644              for(i=0x20; i<0x80; i++)
-   1645              {
-   1646                  PrintBufPushBytes(i);
-   1647              }
-   1648          	len = snprintf(buf, sizeof(buf),  "\n\n");
-   1649          	TPPrintAsciiLine(buf,len);
-   1650          
-   1651          	len = snprintf(buf, sizeof(buf),  "[GBK Samples]\n");
-   1652          	TPPrintAsciiLine(buf,len);
-   1653          
-   1654          	len = snprintf(buf, sizeof(buf),  "中文字库测试：简体字 繁體字\n");
+   1356          extern void SetDesity(void)
+   1357          {
+   1358          	 #if defined(LOW_5V_PRINT)
+   1359                  TPSetSpeed(17);
+   1360               #else
+   1361          	  	#if defined(HIGH_8V_PRINT)
+   1362          		TPSetSpeed(4);
+   1363          		#else
+   1364                  TPSetSpeed(10);//10
+   1365                  #endif
+   1366               #endif
+   1367          }
+   1368          //======================================================================================================
+   1369          extern void Wake_up(void)
+   1370          {
+   1371          	tp.state = TPSTATE_WAIT_TIME;
+   1372              tp.accel = 0;
+   1373              tp.repeat =200;
+   1374          
+   1375          	MOTOR_PWR_ON();
+   1376          	//TIM_SetAutoreload(TIM3,TIMER1_MS_TO_CNT(5.00));
+   1377              TIM3->ARR = TIMER1_MS_TO_CNT(5.00);
+   1378          	//TIM_SetCounter(TIM3,0);
+   1379          	TIM3->CNT = 0;
+   1380          	ENABLE_TIMER_INTERRUPT();
+   1381          }
+   1382          static void TPStart(void)
+   1383          {
+   1384          	uint8_t i;
+   1385              uint32_t delay;
+   1386          
+   1387          	tp.state = TPSTATE_START;
+   1388          	tp.accel = 0;
+   1389          
+   1390          	for(i=0; i<6; i++)
+   1391          	{
+   1392          		PRN_POWER_CHARGE();
+   1393                  delay = 30000;
+   1394                  while(delay--);
+   1395          		PRN_POWER_DISCHARGE();
+   1396                  delay = 10000;
+   1397                  while(delay--);
+   1398          	}
+   1399          	//TIM_SetAutoreload(TIM3,TpAccelerationSteps[0])
+   1400          	TIM3->ARR = TpAccelerationSteps[0];
+   1401          	PRN_POWER_CHARGE();
+   1402          	//TIM_SetCounter(TIM3,0);
+   1403              TIM3->CNT = 0;
+   1404              ENABLE_TIMER_INTERRUPT();
+   1405          }
+   1406          
+   1407          extern void TPReStart(void)
+   1408          {
+   1409          	uint8_t i;
+   1410              uint32_t delay;
+   1411          
+   1412          	if(tp.pause)
+   1413          	{
+   1414          		if (tp.head != tp.tail)
+   1415          		{
+   1416          			for(i=0; i<6; i++)
+   1417          			{
+   1418          				PRN_POWER_CHARGE();
+   1419                          delay = 30000;
+   1420                          while(delay--);
+   1421          				PRN_POWER_DISCHARGE();
+   1422                          delay = 10000;
+   1423                          while(delay--);
+   1424          
+   1425          			}
+   1426          			PRN_POWER_CHARGE();
+   1427          
+   1428          			tp.state = TPSTATE_START;
+   1429          			tp.accel = 0;
+   1430          			//TIM_SetAutoreload(TIM3,TpAccelerationSteps[0])
+   1431          			TIM3->ARR = TpAccelerationSteps[0];
+   1432          			PRN_POWER_CHARGE();
+   1433          			//TIM_SetCounter(TIM3,0);
+   1434          			TIM3->CNT = 0;
+   1435          			ENABLE_TIMER_INTERRUPT();
+   1436          		}
+   1437          	}
+   1438          }
+   1439          
+   1440          //======================================================================================================
+   1441          static void TPPrintCmdToBuf(uint8_t cmd, uint8_t *dot, uint8_t len)
+   1442          {
+   1443          	uint32_t head;
+   1444          	head = (tp.head+1) & (ARRAY_SIZE(TP_dot)-1);
+   1445          	while (head == tp.tail)
+   1446          	{
+   1447          		// 因为打印中断处理程序有可能在异常的情况下进入Idle状态，所以需要不断检查这个状态
+   1448                  event_proc();
+   1449              }
+   1450          
+   1451              if (clr_all_dot == 1)
+   1452              {
+   1453                  clr_all_dot = 0;
+   1454                  return;
+   1455              }
+   1456          
+   1457          	memcpy(TP_dot[tp.head & (ARRAY_SIZE(TP_dot)-1)], dot, len);
+   1458          	TP_dot[tp.head][LineDot/8] = cmd;
+   1459          	tp.head = head;
+   1460              if ((TPPrinterReady() && (tp.state == TPSTATE_IDLE)))//启动只有从IDE状态起来
+   1461              {
+   1462                  TPStart();
+   1463              }
+   1464          }
+   1465          //======================================================================================================
+   1466          extern void TPPrintLine(uint8_t *dot)
+   1467          {
+   1468          	TPPrintCmdToBuf(TP_CMD_PRINT_DOTLINE, dot, LineDot/8);
+   1469          }
+   1470          //======================================================================================================
+   1471          extern void TPFeedLine(uint16_t line)
+   1472          {
+   1473              #ifdef Half_Step
+   1474          	line <<= 2;		// 一个点行等于4步
+   1475          	#else
+   1476          	line <<= 1;		// 一个点行等于2步
+   1477              #endif
+   1478          	TPPrintCmdToBuf(TP_CMD_FEED, (uint8_t *)(&line), sizeof(line));
+   1479          }
+   1480          //======================================================================================================
+   1481          extern void TPFeedToMark(uint16_t line)
+   1482          {
+   1483          	line <<= 1;		// 一个点行等于两步
+   1484          	TPPrintCmdToBuf(TP_CMD_FEED_TO_MARK, (uint8_t *)(&line), sizeof(line));
+   1485          }
+   1486          
+   1487          extern uint32_t TPCheckBusy(void)
+   1488          {
+   1489          	if (tp.state == TPSTATE_IDLE)
+   1490          	{
+   1491          		return FALSE;
+   1492          	}
+   1493          	return TRUE;
+   1494          }
+   1495          //======================================================================================================
+   1496          extern void TPFeedStart(void)
+   1497          {
+   1498          	if (tp.state == TPSTATE_IDLE)
+   1499          	{
+   1500          		TPFeedLine(500*8);		// 500mm
+   1501          	}
+   1502          }
+   1503          //======================================================================================================
+   1504          extern void TPFeedToMarkStart(void)
+   1505          {
+   1506          	if (tp.state == TPSTATE_IDLE)
+   1507          	{
+   1508          		TPFeedToMark(250*8);		// 250mm
+   1509          	}
+   1510          }
+   1511          //======================================================================================================
+   1512          extern void TPFeedStop(void)
+   1513          {
+   1514          	tp.feedmax = 0;		// interrupt will stop feed automaticcly
+   1515          }
+   1516          //======================================================================================================
+   1517          extern uint8_t IsPrintBufEmpty(void)
+   1518          {
+   1519          	if(tp.head != tp.tail)	// have data
+   1520          	{
+   1521          		return 0;
+   1522          	}
+   1523          	else
+   1524          	{
+   1525          		return 1;
+   1526          	}
+   1527          }
+   1528          void TPPrintAsciiLine(char *buf, uint32_t len)
+   1529          {
+   1530             PrintBufPushLine((uint8_t *)buf, len);
+   1531          }
+   1532          extern uint8_t IsPrinterIdle(void)
+   1533          {
+   1534          	if(tp.state == TPSTATE_IDLE)
+   1535          	{
+   1536          		return 1;
+   1537          	}
+   1538          	else
+   1539          	{
+   1540          		return 0;
+   1541          	}
+   1542          }
+   1543          
+   1544          extern void TPPrintTestPage(void)
+   1545          {
+   1546          
+   1547              uint32_t len,i;
+   1548              char buf[64];
+   1549          
+   1550          	//debug_cnt = 0;
+   1551          	current_channel = 0;
+   1552               PrintBufToZero();
+   1553              len = snprintf(buf, sizeof(buf),  "\n");
+   1554              TPPrintAsciiLine(buf,len);
+   1555          #if 1
+   1556          #if defined(PT486)
+   1557              len = snprintf(buf, sizeof(buf), "System: HJ_PT486_KT100\n");
+   1558          #elif defined(PT488)
+   1559              len = snprintf(buf, sizeof(buf), "System: PT488_1MB1\n");
+   1560          #elif defined(PT48D)
+   1561          	len = snprintf(buf, sizeof(buf), "System: PT48D\n");
+   1562          #elif defined(PT48F)
+   1563              len = snprintf(buf, sizeof(buf), "System: PT48F\n");
+   1564          #elif defined(PT48G)
+   1565              len = snprintf(buf, sizeof(buf), "System: PT48G\n");
+   1566          #endif
+   1567              TPPrintAsciiLine(buf,len);
+   1568          
+   1569          
+   1570              len = snprintf(buf, sizeof(buf), "Firmware:%d.%02d.%02d \n", VERSION_MAJOR, VERSION_MINOR,VERSION_TEST);
+   1571              TPPrintAsciiLine(buf,len);
+   1572          
+   1573              len = snprintf(buf, sizeof(buf), "Build date: %s\n", __DATE__);
+   1574              TPPrintAsciiLine(buf,len);
+   1575          
+   1576              len = snprintf(buf, sizeof(buf), "Build time: %s\n", __TIME__);
+   1577              TPPrintAsciiLine(buf,len);
+   1578          
+   1579              len = snprintf(buf, sizeof(buf),  "\n");
+   1580              TPPrintAsciiLine(buf,len);
+   1581          
+   1582              //len = snprintf(buf, sizeof(buf),  "[Uart Configure]\n");
+   1583              //TPPrintAsciiLine(buf,len);
+   1584          
+   1585              //len = snprintf(buf, sizeof(buf),  "baudrate : %ld\n", 115200);
+   1586              //TPPrintAsciiLine(buf,len);
+   1587          
+   1588              //len = snprintf(buf, sizeof(buf),  "flow ctrl : HW Flow Control\n");
+   1589              //TPPrintAsciiLine(buf,len);
+   1590          
+   1591          	len = snprintf(buf, sizeof(buf),  "[BT Module config]\n");
+   1592          	TPPrintAsciiLine(buf,len);
+   1593          
+   1594          	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_BT_CHANNEL);
+   1595          	TPPrintAsciiLine(buf,len);
+   1596          
+   1597          	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n",MAX_BT_CHANNEL);
+   1598          	TPPrintAsciiLine(buf,len);
+   1599          
+   1600          	for (i = 0;i<MAX_BT_CHANNEL;i++)
+   1601          	{
+   1602          		len = snprintf(buf, sizeof(buf),  "BT Module(%d):|HJ Printer%d | 0000\n",i+1,i+1);
+   1603          		TPPrintAsciiLine(buf,len);
+   1604          	}
+   1605          
+   1606              len = snprintf(buf, sizeof(buf),  "\n");
+   1607              TPPrintAsciiLine(buf,len);
+   1608          
+   1609              len = snprintf(buf, sizeof(buf),  "[Install Fonts]\n");
+   1610              TPPrintAsciiLine(buf,len);
+   1611          
+   1612              len = snprintf(buf, sizeof(buf),  "ID  Font Name\n");
+   1613              TPPrintAsciiLine(buf,len);
+   1614          
+   1615          
+   1616              //if(esc_sts[current_channel].font_en == FONT_A_WIDTH)
+   1617              {
+   1618              len = snprintf(buf, sizeof(buf),  " 0  SYSTEM 12x24\n");
+   1619              TPPrintAsciiLine(buf,len);
+   1620              }
+   1621              //else
+   1622              {
+   1623          	#if defined(FONTB_ASCII9X24)
+   1624          	len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 9x24\n");
+   1625          	#else
+   1626              len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 8x16\n");
+   1627          	#endif
+   1628              TPPrintAsciiLine(buf,len);
+   1629              }
+   1630          	len = snprintf(buf, sizeof(buf),  " 2  GBK 24x24\n");
+   1631          	TPPrintAsciiLine(buf,len);
+   1632          
+   1633          	len = snprintf(buf, sizeof(buf),  " 3  GBK 16x16\n");
+   1634          	TPPrintAsciiLine(buf,len);
+   1635          
+   1636              len = snprintf(buf, sizeof(buf),  "\n");
+   1637              TPPrintAsciiLine(buf,len);
+   1638          
+   1639              len = snprintf(buf, sizeof(buf),  "[ASCII Samples]\n");
+   1640              TPPrintAsciiLine(buf,len);
+   1641          
+   1642              for(i=0x20; i<0x80; i++)
+   1643              {
+   1644                  PrintBufPushBytes(i);
+   1645              }
+   1646          	len = snprintf(buf, sizeof(buf),  "\n\n");
+   1647          	TPPrintAsciiLine(buf,len);
+   1648          
+   1649          	len = snprintf(buf, sizeof(buf),  "[GBK Samples]\n");
+   1650          	TPPrintAsciiLine(buf,len);
+   1651          
+   1652          	len = snprintf(buf, sizeof(buf),  "中文字库测试：简体字 繁體字\n");
+   1653          	TPPrintAsciiLine(buf,len);
+   1654          	len = snprintf(buf, sizeof(buf),  "\n");
    1655          	TPPrintAsciiLine(buf,len);
-   1656          	len = snprintf(buf, sizeof(buf),  "\n");
-   1657          	TPPrintAsciiLine(buf,len);
-   1658          
-   1659              len = snprintf(buf, sizeof(buf),  "Selftest Finished.\n");
-   1660              TPPrintAsciiLine(buf,len);
-   1661          #endif
-   1662          
-   1663              len = snprintf(buf, sizeof(buf),  "\n\n\n\n\n");
-   1664              TPPrintAsciiLine(buf,len);
-   1665          
+   1656          
+   1657              len = snprintf(buf, sizeof(buf),  "Selftest Finished.\n");
+   1658              TPPrintAsciiLine(buf,len);
+   1659          #endif
+   1660          
+   1661              len = snprintf(buf, sizeof(buf),  "\n\n\n\n\n");
+   1662              TPPrintAsciiLine(buf,len);
+   1663          
+   1664          
+   1665          }
    1666          
-   1667          }
-   1668          
-   1669          
-   1670          extern void TPSelfTest2(void)
-   1671          {//打印斜线
-   1672          	uint8_t dot[LineDot/8];
-   1673          	uint32_t i,j;
-   1674          	memset(dot, 0, sizeof(dot));
-   1675              for (i=0;i<100;i++)// 400
-   1676              {
-   1677                  for (j=0;j<8;j++)
-   1678                  {
-   1679                      memset(dot,0x01<<j,sizeof(dot));
-   1680                      TPPrintLine(dot);
-   1681                  }
-   1682              }
-   1683          }
+   1667          
+   1668          extern void TPSelfTest2(void)
+   1669          {//打印斜线
+   1670          	uint8_t dot[LineDot/8];
+   1671          	uint32_t i,j;
+   1672          	memset(dot, 0, sizeof(dot));
+   1673              for (i=0;i<100;i++)// 400
+   1674              {
+   1675                  for (j=0;j<8;j++)
+   1676                  {
+   1677                      memset(dot,0x01<<j,sizeof(dot));
+   1678                      TPPrintLine(dot);
+   1679                  }
+   1680              }
+   1681          }
+   1682          
+   1683          
    1684          
-   1685          
-   1686          
-   1687          void test_motor(void)
-   1688          {
-   1689          	int i,delay,cnt = 50000;
-   1690          	MOTOR_PWR_ON();
-   1691          	for(i=0; i<6; i++)
-   1692          	{
-   1693          		PRN_POWER_CHARGE();
-   1694          		delay = 30000;
-   1695          		while(delay--);
-   1696          		PRN_POWER_DISCHARGE();
-   1697          		delay = 10000;
-   1698          		while(delay--);
-   1699          	}
-   1700          
-   1701          	while (cnt)
-   1702          	{
-   1703          		TPForwardStep(1);
-   1704          		delay_ms(1);
-   1705                          cnt--;
-   1706          	}
-   1707          	MOTOR_PWR_OFF();
-   1708          }
+   1685          void test_motor(void)
+   1686          {
+   1687          	int i,delay,cnt = 50000;
+   1688          	MOTOR_PWR_ON();
+   1689          	for(i=0; i<6; i++)
+   1690          	{
+   1691          		PRN_POWER_CHARGE();
+   1692          		delay = 30000;
+   1693          		while(delay--);
+   1694          		PRN_POWER_DISCHARGE();
+   1695          		delay = 10000;
+   1696          		while(delay--);
+   1697          	}
+   1698          
+   1699          	while (cnt)
+   1700          	{
+   1701          		TPForwardStep(1);
+   1702          		delay_ms(1);
+   1703                          cnt--;
+   1704          	}
+   1705          	MOTOR_PWR_OFF();
+   1706          }
 
    Maximum stack usage in bytes:
 
@@ -1821,7 +1819,7 @@ E:\BT Printer\FW\src\App\TP.c
      TPDataShiftOut                                   28
      TPDataDMAShiftToPrn                              26
      TPCheckBuf                                      382
-     TPISRProc                                       904
+     TPISRProc                                       892
      TIM3_IRQ_Handle                                  28
      TPSetSpeed                                       48
      SetDesity                                        10
@@ -1859,9 +1857,9 @@ E:\BT Printer\FW\src\App\TP.c
      ?<Constant "System: HJ_PT486_KT100\n">           24
      ?<Constant "Firmware:%d.%02d.%02d \n">           24
      ?<Constant "Build date: %s\n">                   16
-     ?<Constant "Dec  8 2015">                        12
+     ?<Constant "Dec  9 2015">                        12
      ?<Constant "Build time: %s\n">                   16
-     ?<Constant "16:55:04">                           12
+     ?<Constant "16:16:50">                           12
      ?<Constant "[BT Module config]\n">               20
      ?<Constant "%d BT Module Support\n">             24
      ?<Constant "    Seq      |    Nam...">           36
@@ -1882,9 +1880,9 @@ E:\BT Printer\FW\src\App\TP.c
  
  1 177 bytes in section .bss
  1 182 bytes in section .rodata
- 4 882 bytes in section .text
+ 4 870 bytes in section .text
  
- 4 848 bytes of CODE  memory (+ 34 bytes shared)
+ 4 836 bytes of CODE  memory (+ 34 bytes shared)
  1 182 bytes of CONST memory
  1 177 bytes of DATA  memory
 

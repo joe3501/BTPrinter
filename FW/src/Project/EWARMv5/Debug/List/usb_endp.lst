@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     08/Dec/2015  15:12:29 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:55 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -62,7 +62,7 @@ E:\BT Printer\FW\src\usb_lib\usb_endp.c
      23          #include "usb_app_config.h"
      24          
      25          #ifdef DEBUG_VER
-     26          extern unsigned short debug_buffer[];
+     26          extern unsigned char debug_buffer[];
      27          extern unsigned int debug_cnt;
      28          #endif
      29          /* Private typedef -----------------------------------------------------------*/

@@ -28,15 +28,17 @@
 #include "stm32f10x_systick.h"
 #include "stm32f10x_lib.h"
 #include "usb_regs.h"
-#define		CHANNEL_TIMEOUT_TH		200		//当某一个串口通道在100ms内没有接收到数据时，认为此通道打印任务结束，此数据待调试	
+#define		CHANNEL_TIMEOUT_TH		200		//当某一个串口通道在200ms内没有接收到数据时，认为此通道打印任务结束，此数据待调试	
 
 #ifdef DEBUG_VER
-extern unsigned short debug_buffer[];
+extern unsigned char debug_buffer[];
 extern unsigned int debug_cnt;
 #endif
 
 unsigned char		spp_rec_buffer[MAX_PRINT_CHANNEL][SPP_BUFFER_LEN];
 struct ringbuffer	spp_ringbuf[MAX_PRINT_CHANNEL];
+
+extern uint32_t systick_cnt;
 
 /******************************************************************************
 **Function name:  Getchar
@@ -63,11 +65,14 @@ extern uint8_t Getchar(void)        //接收数据
 			{
 				if (ringbuffer_getchar(&spp_ringbuf[i],&c))
 				{
+					timeout = 0;
+					//debug_cnt = 0;
 					current_channel = i;
 #ifdef DEBUG_VER
 					//debug_buffer[0] = c;
 					//debug_cnt = 1;
 #endif
+					//trip1();
 					return c;
 				}
 			}
@@ -78,6 +83,7 @@ extern uint8_t Getchar(void)        //接收数据
 			if (ringbuffer_getchar(&spp_ringbuf[current_channel],&c))
 			{
 				timeout = 0;
+				//debug_cnt = 0;
 				if (ringbuffer_data_len(&spp_ringbuf[current_channel]) < RING_BUFF_EMPTY_TH)
 				{
 					if (current_channel != USB_PRINT_CHANNEL_OFFSET)
@@ -93,31 +99,36 @@ extern uint8_t Getchar(void)        //接收数据
 				//debug_buffer[debug_cnt] = c;
 				//debug_cnt++;
 #endif
+				//trip1();
 				return c;
 			}
 			else
 			{
-				delay = SysTick_GetCounter();
+				delay = systick_cnt;		//systick中断中维持的递增计数器
 				if (timeout == 0)
 				{
-					timeout = delay;
+					timeout = (delay!=0)?delay:1;
 				}
 				else
 				{
-					if (delay > timeout)
+					if (delay != timeout)
 					{
-						delay = delay-timeout;
-					}
-					else
-					{
-						delay += 0xffffffff-timeout;
-					}
+						if (delay > timeout)
+						{
+							delay = delay - timeout;
+						}
+						else
+						{
+							delay += 0xffffffff-timeout;
+						}
 
-					if (delay > (CHANNEL_TIMEOUT_TH/10))	//systick是10ms计数的
-					{
-						PrintBufToZero();
-						current_channel = -1;
-						//debug_cnt = 0;
+						if (delay > (CHANNEL_TIMEOUT_TH/10))	//systick是10ms计数的
+						{
+							//trip3();
+							PrintBufToZero();
+							current_channel = -1;
+							//debug_cnt = 0;
+						}
 					}
 				}
 			}

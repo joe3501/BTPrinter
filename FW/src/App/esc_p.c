@@ -48,7 +48,7 @@
 ESC_P_STS_T  esc_sts[MAX_PRINT_CHANNEL];
 signed char	 current_channel;		//当前正在处理的通道
 #ifdef DEBUG_VER
-extern unsigned short debug_buffer[];
+extern unsigned char debug_buffer[];
 extern unsigned int debug_cnt;
 #endif
 //倍宽转换
@@ -142,9 +142,9 @@ extern void esc_p(void)
 {
 	uint8_t cmd;
 	uint16_t  i,j,cnt,off;
-	uint8_t chs[25],n;
-        unsigned char tmp[LineDot/8];
-
+	uint8_t chs[25],n,k;
+    unsigned char tmp[LineDot/8];
+	 	
 	switch(cmd=Getchar())
 	{
 	case LF:	// line feed
@@ -362,6 +362,90 @@ extern void esc_p(void)
 					tmp[off/8] |= (1<<(off%8)); 
 				}
 				TPPrintLine(tmp);
+			}
+			break;
+		case '*':
+			//ESC * m nL nH d1,d2,...,dk
+			chs[1] = Getchar();
+			if ((chs[1] == 0)||(chs[1] == 1)||(chs[1] == 32)||(chs[1] == 33))
+			{
+				chs[2] = Getchar();
+				chs[3] = Getchar();
+				cnt = chs[3]<<8;
+				cnt |= chs[2];
+				if (chs[1]&0x20)
+				{
+					//24点高
+					for(i = 0,j=0;i < cnt;i++)
+					{
+						if (j<LineDot)
+						{
+							esc_sts[current_channel].dot[j][0] = Getchar();
+							esc_sts[current_channel].dot[j][1] = Getchar();
+							esc_sts[current_channel].dot[j][2] = Getchar();
+							j++;
+							if (chs[1]&0x01)
+							{
+								//双密度
+								esc_sts[current_channel].dot[j][0] = esc_sts[current_channel].dot[j-1][0];
+								esc_sts[current_channel].dot[j][1] = esc_sts[current_channel].dot[j-1][1];
+								esc_sts[current_channel].dot[j][2] = esc_sts[current_channel].dot[j-1][2];
+								j++;
+							}
+						}
+						else
+						{
+							Getchar();
+							Getchar();
+							Getchar();
+						}
+					}
+					n = 24;
+				}
+				else
+				{
+					//8点高
+					for(i = 0,j = 0;i < cnt;i++)
+					{
+						if (j<LineDot)
+						{
+							esc_sts[current_channel].dot[j][0] = Getchar();
+							j++;
+							if (chs[1]&0x01)
+							{
+								//双密度
+								esc_sts[current_channel].dot[j][0] = esc_sts[current_channel].dot[j-1][0];
+								j++;
+							}
+						}
+						else
+						{
+							Getchar();
+						}
+					}
+					n = 8;
+				}
+
+				//cnt = (cnt>LineDot)?LineDot:cnt;
+
+				for (j = 0; j < n;j++)
+				{
+					if ((j%8)==0)
+					{
+						k = 0x80;
+					}
+					memset(tmp,0,LineDot/8);
+					for (i=0;i<LineDot;i++)
+					{
+						tmp[i/8] |= ((esc_sts[current_channel].dot[i][j/8]&k)?0x80:0x00)>>(i%8);
+					}
+					TPPrintLine(tmp);
+					k >>=1;
+				}
+				
+
+				memset(esc_sts[current_channel].dot,0,LineDot*FONT_CN_A_HEIGHT*FONT_ENLARGE_MAX/8);
+
 			}
 			break;
 		case '{':
@@ -709,16 +793,13 @@ extern void esc_p(void)
 								if (chs[2]&0x01)
 								{
 									double_byte(&tmp[off],Getchar());
-                                                                        debug_buffer[debug_cnt++] = tmp[off];
-                                                                        debug_buffer[debug_cnt++] = tmp[off+1];
-                                                                        off+=2;
-                                                                        
+									off+=2;
+
 								}
 								else
 								{
 									tmp[off] = Getchar();
-									debug_buffer[debug_cnt++] = tmp[off];
-                                                                        off++;
+									off++;
 								}
 							}
 							else

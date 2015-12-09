@@ -3,7 +3,7 @@
 #include "PaperDetect.h"
 
 #ifdef DEBUG_VER
-extern unsigned short debug_buffer[];
+extern unsigned char debug_buffer[];
 extern unsigned int debug_cnt;
 #endif
 
@@ -63,8 +63,8 @@ int16_t TranRtoDegree(uint32_t res)
     }
 
 #ifdef DEBUG_VER
-	debug_buffer[debug_cnt] = degree;
-	debug_cnt++;
+	//debug_buffer[debug_cnt] = degree;
+	//debug_cnt++;
 #endif
 
     return (degree);

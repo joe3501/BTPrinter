@@ -25,7 +25,7 @@
 
 //#define	BT816_DEBUG
 #ifdef DEBUG_VER
-extern unsigned short debug_buffer[];
+extern unsigned char debug_buffer[];
 extern unsigned int debug_cnt;
 #endif
 
@@ -116,10 +116,10 @@ static void BT816_GPIO_config(unsigned int bt_channel,unsigned int baudrate)
 	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
-	GPIO_SetBits(GPIOB, GPIO_Pin_3);
-	GPIO_ResetBits(GPIOB, GPIO_Pin_4);
-	GPIO_ResetBits(GPIOB, GPIO_Pin_5);
-	GPIO_SetBits(GPIOB, GPIO_Pin_6);
+	GPIO_SetBits(GPIOB, GPIO_Pin_3);		//trip4
+	GPIO_SetBits(GPIOB, GPIO_Pin_4);		//trip3
+	GPIO_ResetBits(GPIOB, GPIO_Pin_5);		//trip2
+	GPIO_SetBits(GPIOB, GPIO_Pin_6);		//trip1
 
 #if(BT_MODULE_CONFIG & USE_BT1_MODULE)
 	if (bt_channel == BT1_MODULE)
@@ -872,11 +872,7 @@ int BT816_Channel1_RxISRHandler(unsigned char *res, unsigned int res_len)
 		//debug_cnt += res_len;
 #endif
 		DMA1_Channel5->CNDTR = BT816_RES_BUFFER_LEN;
-		if (ringbuffer_data_len(&spp_ringbuf[BT1_MODULE]) >= RING_BUFF_FULL_TH)
-		{
-			set_BT1_BUSY();
-		}
-		else
+		if (ringbuffer_data_len(&spp_ringbuf[BT1_MODULE]) < RING_BUFF_FULL_TH)
 		{
 			set_BT1_FREE();
 		}	
@@ -932,11 +928,7 @@ int BT816_Channel2_RxISRHandler(unsigned char *res, unsigned int res_len)
 		set_BT2_BUSY();
 		ringbuffer_put(&spp_ringbuf[BT2_MODULE],res,res_len);
 		DMA1_Channel6->CNDTR = BT816_RES_BUFFER_LEN;
-		if (ringbuffer_data_len(&spp_ringbuf[BT2_MODULE]) >= RING_BUFF_FULL_TH)
-		{
-			set_BT2_BUSY();
-		}
-		else
+		if (ringbuffer_data_len(&spp_ringbuf[BT2_MODULE]) < RING_BUFF_FULL_TH)
 		{
 			set_BT2_FREE();
 		}
@@ -991,11 +983,7 @@ int BT816_Channel3_RxISRHandler(unsigned char *res, unsigned int res_len)
 		set_BT3_BUSY();
 		ringbuffer_put(&spp_ringbuf[BT3_MODULE],res,res_len);
 		DMA1_Channel3->CNDTR = BT816_RES_BUFFER_LEN;
-		if (ringbuffer_data_len(&spp_ringbuf[BT3_MODULE]) >= RING_BUFF_FULL_TH)
-		{
-			set_BT3_BUSY();
-		}
-		else
+		if (ringbuffer_data_len(&spp_ringbuf[BT3_MODULE]) < RING_BUFF_FULL_TH)
 		{
 			set_BT3_FREE();
 		}
@@ -1051,11 +1039,7 @@ int BT816_Channel4_RxISRHandler(unsigned char *res, unsigned int res_len)
 		set_BT4_BUSY();
 		ringbuffer_put(&spp_ringbuf[BT4_MODULE],res,res_len);
 		DMA2_Channel3->CNDTR = BT816_RES_BUFFER_LEN;
-		if (ringbuffer_data_len(&spp_ringbuf[BT4_MODULE]) >= RING_BUFF_FULL_TH)
-		{
-			set_BT4_BUSY();
-		}
-		else
+		if (ringbuffer_data_len(&spp_ringbuf[BT4_MODULE]) < RING_BUFF_FULL_TH)
 		{
 			set_BT4_FREE();
 		}

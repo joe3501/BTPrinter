@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     04/Dec/2015  12:04:08 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  15:41:38 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -42,7 +42,7 @@ E:\BT Printer\FW\src\App\ThermalDetect.c
       3          #include "PaperDetect.h"
       4          
       5          #ifdef DEBUG_VER
-      6          extern unsigned short debug_buffer[];
+      6          extern unsigned char debug_buffer[];
       7          extern unsigned int debug_cnt;
       8          #endif
       9          
@@ -102,8 +102,8 @@ E:\BT Printer\FW\src\App\ThermalDetect.c
      63              }
      64          
      65          #ifdef DEBUG_VER
-     66          	debug_buffer[debug_cnt] = degree;
-     67          	debug_cnt++;
+     66          	//debug_buffer[debug_cnt] = degree;
+     67          	//debug_cnt++;
      68          #endif
      69          
      70              return (degree);
@@ -130,14 +130,14 @@ E:\BT Printer\FW\src\App\ThermalDetect.c
      -------------- -----
      TranVtoR         42
      restbl           52
-     TranRtoDegree   160
+     TranRtoDegree   132
      TPHTemperature   92
 
  
   52 bytes in section .rodata
- 294 bytes in section .text
+ 266 bytes in section .text
  
- 294 bytes of CODE  memory
+ 266 bytes of CODE  memory
   52 bytes of CONST memory
 
 Errors: none

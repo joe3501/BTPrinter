@@ -10,6 +10,7 @@
 uint8_t printersts,papercnt,platencnt,bm_cnt;
 
 uint16_t		AD_Value[10][2];		//分别存放缺纸检测的AD值和温度检测的AD值
+uint32_t		systick_cnt;
 
 
 #define PAPER_SNS          (1ul<<0)
@@ -114,6 +115,8 @@ void TPPaperSNSInit(void)
 	{
 		esc_sts[i].status4=0;
 	}
+
+	systick_cnt = 0;
 
 	ADC_SoftwareStartConvCmd(ADC1, ENABLE);			//开始转换
 }
@@ -297,6 +300,7 @@ uint8_t TPPaperReady(void)
 void SysTick_IRQ_Handle(void)
 {
 	int i;
+	systick_cnt++;
 	KeyScanProc();
 	TPBMSNSDetect();
 	TPPaperSNSDetect( PAPERSNS());

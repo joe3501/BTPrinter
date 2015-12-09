@@ -11,7 +11,7 @@ ActionState=1
 Enabled=0
 ShowSource=1
 [DebugChecksum]
-Checksum=-52974443
+Checksum=-1048836361
 [DisAssemblyWindow]
 NumStates=_ 1
 State 1=_ 1
@@ -55,6 +55,19 @@ SWOInfo_ITMPortsEnabled=0x00000000
 SWOInfo_ITMPortsTermIO=0x00000000
 SWOInfo_ITMPortsLogFile=0x00000000
 SWOInfo_ITMLogFile=$PROJ_DIR$\ITM.log
+[Disassemble mode]
+mode=0
+[Breakpoints]
+Bp0=_ "STD_CODE" "{D:\work\T6\FW\src\App\dialog.c}.2882.5@1" 0 0 0 0 "" 0 "" 0
+Bp1=_ "STD_CODE" "{D:\work\T6\FW\src\App\data_transfer.c}.983.4@1" 0 0 0 0 "" 0 "" 0
+Bp2=_ "STD_CODE" "{D:\work\T6\FW\src\App\app.c}.2075.4@1" 0 0 0 0 "" 0 "" 0
+Bp3=_ "STD_CODE" "{D:\work\T6\FW\src\Project\main.c}.287.2@1" 0 0 0 0 "" 0 "" 0
+Bp4=_ "STD_CODE" "{D:\work\T6\FW\src\App\app.c}.845.2@1" 0 0 0 0 "" 0 "" 0
+Bp5=_ "STD_CODE" "{D:\work\T6\FW\src\App\app.c}.3979.3@1" 0 0 0 0 "" 0 "" 0
+Bp6=_ "STD_CODE" "{E:\T6\FW\src\Drivers\EM3096_scan.c}.694.2@1" 0 0 0 0 "" 0 "" 0
+Bp7=_ "STD_CODE" "{$PROJ_DIR$}.2876.9@1" 0 0 0 0 "" 0 "" 0
+Bp8=_ "STD_CODE" "{E:\H520B\FW\src\App\record_m.c}.583.2@1" 0 0 0 0 "" 0 "" 0
+Count=9
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -81,18 +94,3 @@ ShowSource=1
 Enabled=0
 Source=4
 Graph=0
-[Disassemble mode]
-mode=0
-[Breakpoints]
-Bp0=_ "STD_CODE" "{D:\work\T6\FW\src\App\dialog.c}.2882.5@1" 0 0 0 0 "" 0 "" 0
-Bp1=_ "STD_CODE" "{D:\work\T6\FW\src\App\data_transfer.c}.983.4@1" 0 0 0 0 "" 0 "" 0
-Bp2=_ "STD_CODE" "{D:\work\T6\FW\src\App\app.c}.2075.4@1" 0 0 0 0 "" 0 "" 0
-Bp3=_ "STD_CODE" "{D:\work\T6\FW\src\Project\main.c}.287.2@1" 0 0 0 0 "" 0 "" 0
-Bp4=_ "STD_CODE" "{D:\work\T6\FW\src\App\app.c}.845.2@1" 0 0 0 0 "" 0 "" 0
-Bp5=_ "STD_CODE" "{D:\work\T6\FW\src\App\app.c}.3979.3@1" 0 0 0 0 "" 0 "" 0
-Bp6=_ "STD_CODE" "{E:\T6\FW\src\Drivers\EM3096_scan.c}.694.2@1" 0 0 0 0 "" 0 "" 0
-Bp7=_ "STD_CODE" "{$PROJ_DIR$}.2876.9@1" 0 0 0 0 "" 0 "" 0
-Bp8=_ "STD_CODE" "{E:\H520B\FW\src\App\record_m.c}.583.2@1" 0 0 0 0 "" 0 "" 0
-Bp9=_ "EMUL_DATA" "0x20000DF0@1296" 0 0 0 116 0 "" 0 ""
-Bp10=_ "EMUL_DATA" "0x20000DF0@1296" 0 0 0 116 0 "" 0 ""
-Count=11

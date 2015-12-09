@@ -1,10 +1,14 @@
 #ifndef _BT816_H_
 #define _BT816_H_
 
-#define		BT816_RES_BUFFER_LEN			256		//数据帧缓冲大小取决于蓝牙打印机APP拆包的大小
+#define		BT816_RES_BUFFER_LEN			512		//数据帧缓冲大小取决于蓝牙打印机APP拆包的大小
 													//也就是说假如打印机需要通过SPP发送一个很大的数据包下来，应该会拆分成
 													//小的数据包发送出来，每个蓝牙打印机APP的拆包机制可能不一样，所以此数据
 													//在内存能够允许的情况下尽量开大一下，对打印APP的兼容性会好很多。
+
+													//测试的时候发现会丢数据，就是因为这个DMA缓冲区开小了，导致蓝牙模块传输上来的数据丢掉了一部分。
+													//蓝牙因为流控被阻塞时，会将主机发送的赌赛在其内部的数据一次传输过来。测试的时候发现其一次最多传了384字节
+													//
 
 #define		SPP_BUFFER_LEN					1024	//这个是纯粹的串口环形缓冲区大小，由于缓冲区始终存在溢出的风险，而且目前貌似
 													//没有数据同步机制，接收缓冲区溢出发生时无法通知打印APP，所以可能存在丢失数据的风险。
@@ -87,12 +91,10 @@ typedef enum
 
 #define     set_BT1_BUSY()	do{\
 	GPIO_SetBits(GPIOB, GPIO_Pin_8);\
-	esc_sts[BT1_MODULE].prt_on |= 0x80;\
 	}while(0)
 
 #define     set_BT1_FREE()	do{\
 	GPIO_ResetBits(GPIOB, GPIO_Pin_8);\
-	esc_sts[BT1_MODULE].prt_on &= ~0x80;\
 	}while(0)
 
 #define     set_BT2_BUSY()	GPIO_SetBits(GPIOC, GPIO_Pin_1)
@@ -109,7 +111,6 @@ typedef enum
 	{\
 	case BT1_MODULE:\
 		GPIO_ResetBits(GPIOB, GPIO_Pin_8);\
-		esc_sts[BT1_MODULE].prt_on &= ~0x80;\
 		break;\
 	case BT2_MODULE:\
 		GPIO_ResetBits(GPIOC, GPIO_Pin_1);\
