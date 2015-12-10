@@ -6,7 +6,6 @@
 #include "TP.h"
 #include "BT816.h"
 
-//#define MAX_BT_CHANNEL		4		//最多支持4个连接通道
 
 #if defined(TM_T88II)
 #define FONT_A_WIDTH		(12)
@@ -109,6 +108,39 @@ typedef struct
 
 extern  ESC_P_STS_T  esc_sts[];
 extern signed char	 current_channel;		//当前正在处理的通道
+
+
+#ifdef PT_CHANNEL_ISOLATION
+#define CURRENT_ESC_STS				esc_sts[current_channel]
+#define ESC_P_INIT()				esc_p_init(current_channel)
+#define ESC_STS_STATUS_DEINIT()		do{\
+	for (int i = 0; i<MAX_PRINT_CHANNEL;i++)\
+	{\
+		esc_sts[i].status4=0;\
+	}\
+  }while(0)
+
+#define ESC_STS_STATUS_SET_FLAG(bitmask,n)	do{\
+	for (i = 0; i<MAX_PRINT_CHANNEL;i++)\
+	{\
+		esc_sts[i].status4 |= ((bitmask)<<(n));\
+	}\
+  }while(0)
+
+#define ESC_STS_STATUS_RESET_FLAG(bitmask,n)	do{\
+	for (i = 0; i<MAX_PRINT_CHANNEL;i++)\
+{\
+	esc_sts[i].status4 &= ~((bitmask)<<(n));\
+}\
+}while(0)
+#else
+#define CURRENT_ESC_STS				esc_sts[0]
+#define ESC_P_INIT()				esc_p_init(0)
+#define ESC_STS_STATUS_DEINIT()		esc_sts[0].status4=0
+#define ESC_STS_STATUS_SET_FLAG(bitmask,n)	esc_sts[i].status4 |= ((bitmask)<<(n))
+
+#define ESC_STS_STATUS_RESET_FLAG(bitmask,n)	esc_sts[i].status4 &= ~((bitmask)<<(n))
+#endif
 
 //======================================================================================================
 // 打印模式

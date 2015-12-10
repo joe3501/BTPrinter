@@ -987,7 +987,7 @@ static u8 *Get_Device_id(u16 Length)
 {
 	if (Length == 0)
 	{
-		pInformation->Ctrl_Info.Usb_wLength = strlen(device_id);
+		pInformation->Ctrl_Info.Usb_wLength = STRLEN(device_id);
 		return 0;
 	}
 	else

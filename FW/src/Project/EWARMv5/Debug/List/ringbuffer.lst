@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:22 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:19 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -12,17 +12,15 @@
 #                    \Obj\" --no_cse --no_unroll --no_inline                  #
 #                    --no_code_motion --no_tbaa --no_clustering               #
 #                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
-#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
-#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
-#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
-#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
-#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
-#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
-#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    -e --fpu=None -I "E:\BT Printer\FW\src\Project\EWARMv5\. #
+#                    .\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uC #
+#                    OS\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\ #
+#                    ..\uCOS\uCOS-II\Ports\" -I "E:\BT                        #
 #                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
 #                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
 #                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
@@ -108,17 +106,17 @@ E:\BT Printer\FW\src\Drivers\ringbuffer.c
      69              if (rb->buffer_size - rb->write_index > length)
      70              {
      71                  /* read_index - write_index = empty space */
-     72                  memcpy(&rb->buffer_ptr[rb->write_index], ptr, length);
+     72                  MEMCPY(&rb->buffer_ptr[rb->write_index], ptr, length);
      73                  /* this should not cause overflow because there is enough space for
      74                   * length of data in current mirror */
      75                  rb->write_index += length;
      76                  return length;
      77              }
      78          
-     79              memcpy(&rb->buffer_ptr[rb->write_index],
+     79              MEMCPY(&rb->buffer_ptr[rb->write_index],
      80                     &ptr[0],
      81                     rb->buffer_size - rb->write_index);
-     82              memcpy(&rb->buffer_ptr[0],
+     82              MEMCPY(&rb->buffer_ptr[0],
      83                     &ptr[rb->buffer_size - rb->write_index],
      84                     length - (rb->buffer_size - rb->write_index));
      85          
@@ -150,7 +148,7 @@ E:\BT Printer\FW\src\Drivers\ringbuffer.c
     111              if (rb->buffer_size - rb->write_index > length)
     112              {
     113                  /* read_index - write_index = empty space */
-    114                  memcpy(&rb->buffer_ptr[rb->write_index], ptr, length);
+    114                  MEMCPY(&rb->buffer_ptr[rb->write_index], ptr, length);
     115                  /* this should not cause overflow because there is enough space for
     116                   * length of data in current mirror */
     117                  rb->write_index += length;
@@ -161,10 +159,10 @@ E:\BT Printer\FW\src\Drivers\ringbuffer.c
     122                  return length;
     123              }
     124          
-    125              memcpy(&rb->buffer_ptr[rb->write_index],
+    125              MEMCPY(&rb->buffer_ptr[rb->write_index],
     126                     &ptr[0],
     127                     rb->buffer_size - rb->write_index);
-    128              memcpy(&rb->buffer_ptr[0],
+    128              MEMCPY(&rb->buffer_ptr[0],
     129                     &ptr[rb->buffer_size - rb->write_index],
     130                     length - (rb->buffer_size - rb->write_index));
     131          
@@ -206,17 +204,17 @@ E:\BT Printer\FW\src\Drivers\ringbuffer.c
     167              if (rb->buffer_size - rb->read_index > length)
     168              {
     169                  /* copy all of data */
-    170                  memcpy(ptr, &rb->buffer_ptr[rb->read_index], length);
+    170                  MEMCPY(ptr, &rb->buffer_ptr[rb->read_index], length);
     171                  /* this should not cause overflow because there is enough space for
     172                   * length of data in current mirror */
     173                  rb->read_index += length;
     174                  return length;
     175              }
     176          
-    177              memcpy(&ptr[0],
+    177              MEMCPY(&ptr[0],
     178                     &rb->buffer_ptr[rb->read_index],
     179                     rb->buffer_size - rb->read_index);
-    180              memcpy(&ptr[rb->buffer_size - rb->read_index],
+    180              MEMCPY(&ptr[rb->buffer_size - rb->read_index],
     181                     &rb->buffer_ptr[0],
     182                     length - (rb->buffer_size - rb->read_index));
     183          
@@ -331,7 +329,6 @@ E:\BT Printer\FW\src\Drivers\ringbuffer.c
 
      Function                 .cstack
      --------                 -------
-     memcpy                        8
      ringbuffer_data_len           8
      ringbuffer_get               16
      ringbuffer_getchar           16
@@ -350,7 +347,6 @@ E:\BT Printer\FW\src\Drivers\ringbuffer.c
      --------------                             -----
      ringbuffer_status                            40
      ringbuffer_data_len                          68
-     memcpy                                       14
      ringbuffer_init                              96
      ringbuffer_put                              194
      ringbuffer_put_force                        244
@@ -367,9 +363,9 @@ E:\BT Printer\FW\src\Drivers\ringbuffer.c
 
  
     68 bytes in section .rodata
- 1 234 bytes in section .text
+ 1 220 bytes in section .text
  
- 1 220 bytes of CODE  memory (+ 14 bytes shared)
+ 1 220 bytes of CODE  memory
     68 bytes of CONST memory
 
 Errors: none

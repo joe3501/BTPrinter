@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:25 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:22 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -46,456 +44,382 @@ E:\BT Printer\FW\src\Drivers\TimeBase.c
       7           * @note
       8          */
       9          #include "stm32f10x_lib.h" 
-     10          
+     10          #include "hw_platform.h"
      11          #include "TimeBase.h"
-     12          #include "JMemory.h"
-     13          #include <assert.h>
+     12          #include <assert.h>
+     13          
      14          
-     15          
-     16          static TimerIsrHook	timer_isr_hook;
-     17          
-     18          /**
-     19           * @brief     us 软延时
-     20           * @param[in] unsigned int time 延时参数
-     21          */
-     22          void delay_us(unsigned int time)
-     23          {    
-     24          	unsigned int i=0;  
-     25          	while(time--)
-     26          	{
-     27          		i=8;  
-     28          		while(i--) ;    
-     29          	}
-     30          }
-     31          
-     32          /**
-     33           * @brief     ms软延时
-     34           * @param[in] unsigned int time 延时参数
-     35          */
-     36          void delay_ms(unsigned int time)
-     37          {    
-     38          	unsigned int i=0;  
-     39          	while(time--)
-     40          	{
-     41          		i=10255; 
-     42          		while(i--) ;    
-     43          	}
-     44          }
-     45          /**
-     46           * @brief     初始化产生延时时基的计数器TIM2,设定计数器产生1ms的时基
-     47           * @param[in] none
-     48           * @param[out] none
-     49           * @return none
-     50           * @note   此初始化函数中调用了BSP_IntVectSet(BSP_INT_ID_TIM2, TIM2_UpdateISRHandler)这个函数，这个是设定TIM2的中断处理函数的
-     51           *				 在移植的时候需要根据不同工程中设置中断处理函数的方法来稍作修改。       
-     52          */
-     53          void TimeBase_Init(void)
-     54          {
-     55          	TIM_TimeBaseInitTypeDef						TIM_TimeBaseStructure;
-     56          	TIM_OCInitTypeDef							TIM_OCInitStructure;
-     57          	NVIC_InitTypeDef							NVIC_InitStructure;
-     58          
-     59          	//初始化结构体变量
-     60          	TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
-     61          	TIM_OCStructInit(&TIM_OCInitStructure);
-     62          
-     63          	/*开启相应时钟 */
-     64          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);  
-     65          
+     15          static TimerIsrHook	timer_isr_hook;
+     16          
+     17          /**
+     18           * @brief     us 软延时
+     19           * @param[in] unsigned int time 延时参数
+     20          */
+     21          void delay_us(unsigned int time)
+     22          {    
+     23          	unsigned int i=0;  
+     24          	while(time--)
+     25          	{
+     26          		i=8;  
+     27          		while(i--) ;    
+     28          	}
+     29          }
+     30          
+     31          /**
+     32           * @brief     ms软延时
+     33           * @param[in] unsigned int time 延时参数
+     34          */
+     35          void delay_ms(unsigned int time)
+     36          {    
+     37          	unsigned int i=0;  
+     38          	while(time--)
+     39          	{
+     40          		i=10255; 
+     41          		while(i--) ;    
+     42          	}
+     43          }
+     44          
+     45          
+     46          /**
+     47           * @brief     初始化产生延时时基的计数器TIM2,设定计数器产生1ms的时基
+     48           * @param[in] none
+     49           * @param[out] none
+     50           * @return none
+     51           * @note   此初始化函数中调用了BSP_IntVectSet(BSP_INT_ID_TIM2, TIM2_UpdateISRHandler)这个函数，这个是设定TIM2的中断处理函数的
+     52           *				 在移植的时候需要根据不同工程中设置中断处理函数的方法来稍作修改。       
+     53          */
+     54          void TimeBase_Init(void)
+     55          {
+     56          	TIM_TimeBaseInitTypeDef						TIM_TimeBaseStructure;
+     57          	TIM_OCInitTypeDef							TIM_OCInitStructure;
+     58          	NVIC_InitTypeDef							NVIC_InitStructure;
+     59          
+     60          	//初始化结构体变量
+     61          	TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
+     62          	TIM_OCStructInit(&TIM_OCInitStructure);
+     63          
+     64          	/*开启相应时钟 */
+     65          	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);  
      66          
-     67          	/* Time Base configuration */
-     68          	TIM_TimeBaseStructure.TIM_Prescaler			= 1;      //72M的计数频率
-     69          	TIM_TimeBaseStructure.TIM_CounterMode		= TIM_CounterMode_Up; //向上计数
-     70          	TIM_TimeBaseStructure.TIM_Period			= (72000/2-1);      
-     71          	TIM_TimeBaseStructure.TIM_ClockDivision		= 0x0;
-     72          
-     73          	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
-     74          
-     75          	/* Channel 1, 2, 3 and 4 Configuration in Timing mode */
-     76          	TIM_OCInitStructure.TIM_OCMode				= TIM_OCMode_Timing;
-     77          //   TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
-     78          //   TIM_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Disable;
-     79          	TIM_OCInitStructure.TIM_Pulse				= 0x0;
-     80          
-     81          	TIM_OC1Init(TIM2, &TIM_OCInitStructure);
-     82          
-     83          	/* Enable the TIM2 Interrupt */
-     84          	NVIC_InitStructure.NVIC_IRQChannel			= TIM2_IRQChannel;
-     85          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-     86          	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 7;
-     87          	NVIC_InitStructure.NVIC_IRQChannelCmd		= ENABLE;
-     88          	NVIC_Init(&NVIC_InitStructure);
-     89          
-     90          	//timer_isr_hook = (TimerIsrHook)0;
-     91          }
-     92          
-     93          #if 0
-     94          
-     95          /**
-     96           * @brief 开启定时器
-     97           * @param[in] TimerIsrHook hook_func		定时中断回调函数
-     98          */
-     99          void start_timer(TimerIsrHook hook_func)
-    100          {
-    101          	if (timer_isr_hook)
-    102          	{
-    103          		if (timer_isr_hook == hook_func)
-    104          		{
-    105          			return;
-    106          		}
-    107          		else
-    108          		{
-    109          			while(1);		//error
-    110          		}
-    111          	}
-    112          	timer_isr_hook = hook_func;
-    113          	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-    114          	/* TIM counter enable */
-    115          	TIM_Cmd(TIM2, ENABLE);
-    116          }
-    117          
-    118          
-    119          /**
-    120           * @brief 关闭定时器
-    121          */
-    122          void stop_timer(void)
-    123          {
-    124          	TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
-    125          	/* TIM counter enable */
-    126          	TIM_Cmd(TIM2, DISABLE);
-    127          	timer_isr_hook = (TimerIsrHook)0;
-    128          }
-    129          
-    130          
-    131          /**
-    132           * @brief TIM2的溢出中断ISR
-    133           * @param[in] none
-    134           * @return none
-    135           * @note  TIM2的中断服务函数调用
-    136          */
-    137          void TIM2_UpdateISRHandler(void)
-    138          {    
-    139          	if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
-    140          	{
-    141          		if (timer_isr_hook)
-    142          		{
-    143          			timer_isr_hook();
-    144          		}
-    145          		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-    146          	}
-    147          }
-    148          #endif
-    149          
-    150          
+     67          
+     68          	/* Time Base configuration */
+     69          	TIM_TimeBaseStructure.TIM_Prescaler			= 1;      //72M的计数频率
+     70          	TIM_TimeBaseStructure.TIM_CounterMode		= TIM_CounterMode_Up; //向上计数
+     71          	TIM_TimeBaseStructure.TIM_Period			= (72000/2-1);      
+     72          	TIM_TimeBaseStructure.TIM_ClockDivision		= 0x0;
+     73          
+     74          	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+     75          
+     76          	/* Channel 1, 2, 3 and 4 Configuration in Timing mode */
+     77          	TIM_OCInitStructure.TIM_OCMode				= TIM_OCMode_Timing;
+     78          //   TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
+     79          //   TIM_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Disable;
+     80          	TIM_OCInitStructure.TIM_Pulse				= 0x0;
+     81          
+     82          	TIM_OC1Init(TIM2, &TIM_OCInitStructure);
+     83          
+     84          	/* Enable the TIM2 Interrupt */
+     85          	NVIC_InitStructure.NVIC_IRQChannel			= TIM2_IRQChannel;
+     86          	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+     87          	NVIC_InitStructure.NVIC_IRQChannelSubPriority	= 7;
+     88          	NVIC_InitStructure.NVIC_IRQChannelCmd		= ENABLE;
+     89          	NVIC_Init(&NVIC_InitStructure);
+     90          
+     91          	//timer_isr_hook = (TimerIsrHook)0;
+     92          }
+     93          
+     94          #if(SOFT_TIMER_FUNC_ENABLE) 
+     95          #include "JMemory.h"
+     96          typedef struct v_timer_t
+     97          {
+     98          	unsigned char	mode;
+     99          	unsigned int	count;
+    100          	unsigned int	dly;
+    101          	TimerIsrHook	timer_hook;
+    102          	struct v_timer_t	*prev;
+    103          	struct v_timer_t	*next;
+    104          }V_TIMER;
+    105          
+    106          struct 
+    107          {
+    108          	V_TIMER		*v_timer_tail;
+    109          	unsigned int	v_timer_cnt;
+    110          }v_timer_list;
+    111          
+    112          /**
+    113           * @brief 开启定时器
+    114           * @param[in] unsigned char mode		V_TIMER_MODE_ONE_SHOT		or      V_TIMER_MODE_PERIODIC
+    115           * @param[in] unsigned int dly			在V_TIMER_MODE_ONE_SHOT模式下，表示延时时间
+    116           *										在V_TIMER_MODE_PERIODIC模式下，表示定时周期
+    117           * @param[in] TimerIsrHook hook_func	表示超时一次需要执行的回调函数
+    118           * @return 0：  堆空间不够
+    119           *         else  返回虚拟定时器的句柄
+    120           * @note 应用在调用此接口时不知道已经有多少个虚拟定时器挂在硬件定时器下，所以返回值相当于定时器句柄的作用
+    121           *       由于此虚拟定时器是基于硬件定时器TIME2实现的，TIMER2初始化为1ms中断，所以定时的最小单位为1ms
+    122          */
+    123          VTIMER_HANDLE start_timer(unsigned char mode,unsigned int dly, TimerIsrHook hook_func)
+    124          {
+    125          	V_TIMER	*p_vtimer;
+    126          	p_vtimer = (V_TIMER*)Jmalloc(sizeof(V_TIMER));
+    127          	if (p_vtimer == 0)
+    128          	{
+    129          		return 0;
+    130          	}
+    131          	p_vtimer->mode = mode;
+    132          	p_vtimer->dly = dly;
+    133          	p_vtimer->timer_hook = hook_func;
+    134          	p_vtimer->prev = 0;
+    135          	p_vtimer->next = 0;
+    136          	p_vtimer->count = 0;
+    137          
+    138          	if (v_timer_list.v_timer_cnt == 0)
+    139          	{
+    140          		TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
+    141          		/* TIM counter enable */
+    142          		TIM_Cmd(TIM2, ENABLE);
+    143          	}
+    144          	else
+    145          	{
+    146          		p_vtimer->prev = v_timer_list.v_timer_tail;
+    147          		v_timer_list.v_timer_tail->next = p_vtimer;
+    148          	}
+    149          	v_timer_list.v_timer_tail = p_vtimer;
+    150          	v_timer_list.v_timer_cnt ++;
     151          
-    152          typedef struct v_timer_t
-    153          {
-    154          	unsigned char	mode;
-    155          	unsigned int	count;
-    156          	unsigned int	dly;
-    157          	TimerIsrHook	timer_hook;
-    158          	struct v_timer_t	*prev;
-    159          	struct v_timer_t	*next;
-    160          }V_TIMER;
-    161          
-    162          struct 
-    163          {
-    164          	V_TIMER		*v_timer_tail;
-    165          	unsigned int	v_timer_cnt;
-    166          }v_timer_list;
-    167          
-    168          /**
-    169           * @brief 开启定时器
-    170           * @param[in] unsigned char mode		V_TIMER_MODE_ONE_SHOT		or      V_TIMER_MODE_PERIODIC
-    171           * @param[in] unsigned int dly			在V_TIMER_MODE_ONE_SHOT模式下，表示延时时间
-    172           *										在V_TIMER_MODE_PERIODIC模式下，表示定时周期
-    173           * @param[in] TimerIsrHook hook_func	表示超时一次需要执行的回调函数
-    174           * @return 0：  堆空间不够
-    175           *         else  返回虚拟定时器的句柄
-    176           * @note 应用在调用此接口时不知道已经有多少个虚拟定时器挂在硬件定时器下，所以返回值相当于定时器句柄的作用
-    177           *       由于此虚拟定时器是基于硬件定时器TIME2实现的，TIMER2初始化为1ms中断，所以定时的最小单位为1ms
-    178          */
-    179          VTIMER_HANDLE start_timer(unsigned char mode,unsigned int dly, TimerIsrHook hook_func)
-    180          {
-    181          	V_TIMER	*p_vtimer;
-    182          	p_vtimer = (V_TIMER*)Jmalloc(sizeof(V_TIMER));
-    183          	if (p_vtimer == 0)
-    184          	{
-    185          		return 0;
-    186          	}
-    187          	p_vtimer->mode = mode;
-    188          	p_vtimer->dly = dly;
-    189          	p_vtimer->timer_hook = hook_func;
-    190          	p_vtimer->prev = 0;
-    191          	p_vtimer->next = 0;
-    192          	p_vtimer->count = 0;
+    152          	return (VTIMER_HANDLE)p_vtimer;
+    153          }
+    154          
+    155          /**
+    156           * @brief 判断虚拟定时器的句柄是否合法，检查给定的虚拟定时器句柄（实际是每个定时器控制块的指针）是否在定时器链表中
+    157           * @param[in]  VTIMER_HANDLE v_timer_h
+    158          */
+    159          static int check_vtimer_handle(VTIMER_HANDLE v_timer_h)
+    160          {
+    161          	V_TIMER	*p_vtimer;
+    162          
+    163          	p_vtimer = v_timer_list.v_timer_tail;
+    164          	while (p_vtimer)
+    165          	{
+    166          		if (p_vtimer == (V_TIMER*)v_timer_h)
+    167          		{
+    168          			return 1;
+    169          		}
+    170          		p_vtimer = p_vtimer->prev;
+    171          	}
+    172          
+    173          	return 0;
+    174          }
+    175          
+    176          /**
+    177           * @brief 重置某定时器
+    178           * @param[in]  VTIMER_HANDLE v_timer_h
+    179          */
+    180          int reset_timer(VTIMER_HANDLE v_timer_h,unsigned char mode,unsigned int dly, TimerIsrHook hook_func)
+    181          {
+    182          	if (check_vtimer_handle(v_timer_h) == 0)
+    183          	{
+    184          		return -1;
+    185          	}
+    186          
+    187          	V_TIMER	*p_vtimer = (V_TIMER*)v_timer_h;
+    188          
+    189          	p_vtimer->count = 0;
+    190          	p_vtimer->mode = mode;
+    191          	p_vtimer->dly = dly;
+    192          	p_vtimer->timer_hook = hook_func;
     193          
-    194          	if (v_timer_list.v_timer_cnt == 0)
-    195          	{
-    196          		TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-    197          		/* TIM counter enable */
-    198          		TIM_Cmd(TIM2, ENABLE);
-    199          	}
-    200          	else
-    201          	{
-    202          		p_vtimer->prev = v_timer_list.v_timer_tail;
-    203          		v_timer_list.v_timer_tail->next = p_vtimer;
-    204          	}
-    205          	v_timer_list.v_timer_tail = p_vtimer;
-    206          	v_timer_list.v_timer_cnt ++;
+    194          	return 0;
+    195          }
+    196          
+    197          /**
+    198           * @brief 关闭某定时器
+    199           * @param[in]  VTIMER_HANDLE v_timer_h
+    200          */
+    201          int stop_timer(VTIMER_HANDLE v_timer_h)
+    202          {
+    203          	if (check_vtimer_handle(v_timer_h) == 0)
+    204          	{
+    205          		return 0;
+    206          	}
     207          
-    208          	return (VTIMER_HANDLE)p_vtimer;
-    209          }
-    210          
-    211          /**
-    212           * @brief 判断虚拟定时器的句柄是否合法，检查给定的虚拟定时器句柄（实际是每个定时器控制块的指针）是否在定时器链表中
-    213           * @param[in]  VTIMER_HANDLE v_timer_h
-    214          */
-    215          static int check_vtimer_handle(VTIMER_HANDLE v_timer_h)
-    216          {
-    217          	V_TIMER	*p_vtimer;
-    218          
-    219          	p_vtimer = v_timer_list.v_timer_tail;
-    220          	while (p_vtimer)
-    221          	{
-    222          		if (p_vtimer == (V_TIMER*)v_timer_h)
-    223          		{
-    224          			return 1;
-    225          		}
-    226          		p_vtimer = p_vtimer->prev;
-    227          	}
-    228          
-    229          	return 0;
-    230          }
-    231          
-    232          /**
-    233           * @brief 重置某定时器
-    234           * @param[in]  VTIMER_HANDLE v_timer_h
-    235          */
-    236          int reset_timer(VTIMER_HANDLE v_timer_h,unsigned char mode,unsigned int dly, TimerIsrHook hook_func)
-    237          {
-    238          	if (check_vtimer_handle(v_timer_h) == 0)
-    239          	{
-    240          		return -1;
-    241          	}
-    242          
-    243          	V_TIMER	*p_vtimer = (V_TIMER*)v_timer_h;
-    244          
-    245          	p_vtimer->count = 0;
-    246          	p_vtimer->mode = mode;
-    247          	p_vtimer->dly = dly;
-    248          	p_vtimer->timer_hook = hook_func;
-    249          
-    250          	return 0;
-    251          }
-    252          
-    253          /**
-    254           * @brief 关闭某定时器
-    255           * @param[in]  VTIMER_HANDLE v_timer_h
-    256          */
-    257          int stop_timer(VTIMER_HANDLE v_timer_h)
-    258          {
-    259          	if (check_vtimer_handle(v_timer_h) == 0)
-    260          	{
-    261          		return 0;
-    262          	}
-    263          
-    264          	V_TIMER	*p_vtimer = (V_TIMER*)v_timer_h;
-    265          
-    266          	if (p_vtimer->next)
-    267          	{
-    268          		p_vtimer->next->prev = p_vtimer->prev;
-    269          	}
-    270          	else
-    271          	{
-    272          		v_timer_list.v_timer_tail = p_vtimer->prev;
-    273          	}
-    274          	
-    275          	if(p_vtimer->prev)
-    276          	{
-    277          		p_vtimer->prev->next = p_vtimer->next;
-    278          	}
-    279          
-    280          	v_timer_list.v_timer_cnt--;
-    281          	Jfree(p_vtimer);
-    282          	
-    283          	if (v_timer_list.v_timer_cnt == 0)
-    284          	{
-    285          		TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
-    286          		/* TIM counter enable */
-    287          		TIM_Cmd(TIM2, DISABLE);
-    288          	}
-    289          
-    290          	return 0;
-    291          }
+    208          	V_TIMER	*p_vtimer = (V_TIMER*)v_timer_h;
+    209          
+    210          	if (p_vtimer->next)
+    211          	{
+    212          		p_vtimer->next->prev = p_vtimer->prev;
+    213          	}
+    214          	else
+    215          	{
+    216          		v_timer_list.v_timer_tail = p_vtimer->prev;
+    217          	}
+    218          	
+    219          	if(p_vtimer->prev)
+    220          	{
+    221          		p_vtimer->prev->next = p_vtimer->next;
+    222          	}
+    223          
+    224          	v_timer_list.v_timer_cnt--;
+    225          	Jfree(p_vtimer);
+    226          	
+    227          	if (v_timer_list.v_timer_cnt == 0)
+    228          	{
+    229          		TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
+    230          		/* TIM counter enable */
+    231          		TIM_Cmd(TIM2, DISABLE);
+    232          	}
+    233          
+    234          	return 0;
+    235          }
+    236          
+    237          
+    238          /**
+    239           * @brief 强制开启硬定时器
+    240          */
+    241          void start_real_timer(void)
+    242          {
+    243          	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
+    244          	/* TIM counter enable */
+    245          	TIM_Cmd(TIM2, ENABLE);
+    246          	return;
+    247          }
+    248          
+    249          /**
+    250           * @brief 强制关闭硬定时器
+    251          */
+    252          void stop_real_timer(void)
+    253          {
+    254          	TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
+    255          	/* TIM counter enable */
+    256          	TIM_Cmd(TIM2, DISABLE);
+    257          	return;
+    258          }
+    259          
+    260          /**
+    261           * @brief TIM2的溢出中断ISR
+    262           * @param[in] none
+    263           * @return none
+    264           * @note  TIM2的中断服务函数调用
+    265          */
+    266          void TIM2_UpdateISRHandler(void)
+    267          {    
+    268          	V_TIMER *p_vtimer;
+    269          	if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+    270          	{
+    271          		p_vtimer = v_timer_list.v_timer_tail;
+    272          		while (p_vtimer)
+    273          		{
+    274          			p_vtimer->count++;
+    275          			if (p_vtimer->count == p_vtimer->dly)
+    276          			{
+    277          				if (p_vtimer->mode == V_TIMER_MODE_ONE_SHOT)
+    278          				{
+    279          					if (p_vtimer->next)
+    280          					{
+    281          						p_vtimer->next->prev = p_vtimer->prev;
+    282          					}
+    283          					else
+    284          					{
+    285          						v_timer_list.v_timer_tail = p_vtimer->prev;
+    286          					}
+    287          
+    288          					if(p_vtimer->prev)
+    289          					{
+    290          						p_vtimer->prev->next = p_vtimer->next;
+    291          					}
     292          
-    293          
-    294          /**
-    295           * @brief 强制开启硬定时器
-    296          */
-    297          void start_real_timer(void)
-    298          {
-    299          	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-    300          	/* TIM counter enable */
-    301          	TIM_Cmd(TIM2, ENABLE);
-    302          	return;
-    303          }
-    304          
-    305          /**
-    306           * @brief 强制关闭硬定时器
-    307          */
-    308          void stop_real_timer(void)
-    309          {
-    310          	TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
-    311          	/* TIM counter enable */
-    312          	TIM_Cmd(TIM2, DISABLE);
-    313          	return;
-    314          }
-    315          
-    316          /**
-    317           * @brief TIM2的溢出中断ISR
-    318           * @param[in] none
-    319           * @return none
-    320           * @note  TIM2的中断服务函数调用
-    321          */
-    322          void TIM2_UpdateISRHandler(void)
-    323          {    
-    324          	V_TIMER *p_vtimer;
-    325          	if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
-    326          	{
-    327          		p_vtimer = v_timer_list.v_timer_tail;
-    328          		while (p_vtimer)
-    329          		{
-    330          			p_vtimer->count++;
-    331          			if (p_vtimer->count == p_vtimer->dly)
-    332          			{
-    333          				if (p_vtimer->mode == V_TIMER_MODE_ONE_SHOT)
-    334          				{
-    335          					if (p_vtimer->next)
-    336          					{
-    337          						p_vtimer->next->prev = p_vtimer->prev;
-    338          					}
-    339          					else
-    340          					{
-    341          						v_timer_list.v_timer_tail = p_vtimer->prev;
-    342          					}
-    343          
-    344          					if(p_vtimer->prev)
-    345          					{
-    346          						p_vtimer->prev->next = p_vtimer->next;
-    347          					}
-    348          
-    349          					v_timer_list.v_timer_cnt--;
-    350          					Jfree(p_vtimer);
-    351          
-    352          					if (v_timer_list.v_timer_cnt == 0)
-    353          					{
-    354          						TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
-    355          						/* TIM counter enable */
-    356          						TIM_Cmd(TIM2, DISABLE);
-    357          					}
-    358          				}
-    359          				else
-    360          				{
-    361          					p_vtimer->count = 0;
-    362          				}
-    363          
-    364          				if (p_vtimer->timer_hook)
-    365          				{
-    366          					p_vtimer->timer_hook();
-    367          				}
-    368          			}
-    369          			p_vtimer = p_vtimer->prev;
-    370          		}
-    371          		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-    372          	}
-    373          }
-    374          
-    375          
-    376          //===============================================利用timer提供的接口实现延时功能================================
-    377          static int Delay_end_flag;
-    378          //利用timer实现延时功能时的中断钩子函数
-    379          void delay_func_hook(void)
-    380          {
-    381          	Delay_end_flag = 1;
-    382          }
-    383          
-    384          /**
-    385           * @brief 开始利用TIM2定时计数
-    386           * @param[in] unsigned int nTime   单位ms
-    387           * @return  none
-    388          */
-    389          void StartDelay(unsigned short nTime)
-    390          {
-    391          	int	ret;
-    392              Delay_end_flag = 0;
-    393          	ret = start_timer(V_TIMER_MODE_ONE_SHOT,nTime,delay_func_hook);
-    394          	assert(ret != 0);
-    395          }
-    396          
-    397          
-    398          /**
-    399           * @brief 判断延时时间是否到
-    400           * @param[in] none
-    401           * @return 1: 定时到
-    402           *        0: 定时未到
-    403          */
-    404          unsigned char DelayIsEnd(void)
-    405          {
-    406          	return	Delay_end_flag; 
-    407          }
+    293          					v_timer_list.v_timer_cnt--;
+    294          					Jfree(p_vtimer);
+    295          
+    296          					if (v_timer_list.v_timer_cnt == 0)
+    297          					{
+    298          						TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
+    299          						/* TIM counter enable */
+    300          						TIM_Cmd(TIM2, DISABLE);
+    301          					}
+    302          				}
+    303          				else
+    304          				{
+    305          					p_vtimer->count = 0;
+    306          				}
+    307          
+    308          				if (p_vtimer->timer_hook)
+    309          				{
+    310          					p_vtimer->timer_hook();
+    311          				}
+    312          			}
+    313          			p_vtimer = p_vtimer->prev;
+    314          		}
+    315          		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+    316          	}
+    317          }
+    318          
+    319          
+    320          //===============================================利用timer提供的接口实现延时功能================================
+    321          static int Delay_end_flag;
+    322          //利用timer实现延时功能时的中断钩子函数
+    323          void delay_func_hook(void)
+    324          {
+    325          	Delay_end_flag = 1;
+    326          }
+    327          
+    328          /**
+    329           * @brief 开始利用TIM2定时计数
+    330           * @param[in] unsigned int nTime   单位ms
+    331           * @return  none
+    332          */
+    333          void StartDelay(unsigned short nTime)
+    334          {
+    335          	int	ret;
+    336              Delay_end_flag = 0;
+    337          	ret = start_timer(V_TIMER_MODE_ONE_SHOT,nTime,delay_func_hook);
+    338          	assert(ret != 0);
+    339          }
+    340          
+    341          
+    342          /**
+    343           * @brief 判断延时时间是否到
+    344           * @param[in] none
+    345           * @return 1: 定时到
+    346           *        0: 定时未到
+    347          */
+    348          unsigned char DelayIsEnd(void)
+    349          {
+    350          	return	Delay_end_flag; 
+    351          }
+    352          #else
+    353          void TIM2_UpdateISRHandler(void)
+    354          {
+    355          	if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+    356          	{
+    357          		//@todo....
+    358          		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+    359          	}
+    360          }
+    361          #endif
 
    Maximum stack usage in bytes:
 
      Function              .cstack
      --------              -------
-     DelayIsEnd                 0
-     StartDelay                 8
      TIM2_UpdateISRHandler      8
      TimeBase_Init             40
-     check_vtimer_handle        0
-     delay_func_hook            0
      delay_ms                   0
      delay_us                   0
-     reset_timer               24
-     start_real_timer           8
-     start_timer               24
-     stop_real_timer            8
-     stop_timer                 8
 
 
    Section sizes:
 
-     Function/Label                             Bytes
-     --------------                             -----
-     delay_us                                     24
-     delay_ms                                     26
-     TimeBase_Init                               116
-     v_timer_list                                  8
-     start_timer                                 104
-     check_vtimer_handle                          24
-     reset_timer                                  40
-     stop_timer                                  100
-     start_real_timer                             26
-     stop_real_timer                              26
-     TIM2_UpdateISRHandler                       154
-     Delay_end_flag                                4
-     delay_func_hook                               8
-     StartDelay                                   56
-     DelayIsEnd                                    8
-     ??DataTable15                                 4
-     ??DataTable18                                 4
-     ?<Constant "ret != 0">                       12
-     ?<Constant "E:\\BT Printer\\FW\\src\\...">   40
+     Function/Label        Bytes
+     --------------        -----
+     delay_us                24
+     delay_ms                26
+     TimeBase_Init          116
+     TIM2_UpdateISRHandler   28
 
  
-  12 bytes in section .bss
-  52 bytes in section .rodata
- 720 bytes in section .text
+ 194 bytes in section .text
  
- 720 bytes of CODE  memory
-  52 bytes of CONST memory
-  12 bytes of DATA  memory
+ 194 bytes of CODE memory
 
 Errors: none
 Warnings: 1

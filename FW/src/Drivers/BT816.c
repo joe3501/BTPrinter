@@ -692,7 +692,7 @@ static void send_data_to_BT(unsigned int bt_channel,const unsigned char *pData, 
 		DMA_Cmd(DMA1_Channel4, DISABLE);
 
 		/* set buffer address */
-		memcpy(BT816_send_buff[BT1_MODULE],pData,length);
+		MEMCPY(BT816_send_buff[BT1_MODULE],pData,length);
 
 		DMA1_Channel4->CMAR = (u32)&BT816_send_buff[BT1_MODULE][0];
 		/* set size */
@@ -723,7 +723,7 @@ static void send_data_to_BT(unsigned int bt_channel,const unsigned char *pData, 
 		DMA_Cmd(DMA1_Channel7, DISABLE);
 
 		/* set buffer address */
-		memcpy(BT816_send_buff[BT2_MODULE],pData,length);
+		MEMCPY(BT816_send_buff[BT2_MODULE],pData,length);
 
 		DMA1_Channel7->CMAR = (u32)&BT816_send_buff[BT2_MODULE][0];
 		/* set size */
@@ -754,7 +754,7 @@ static void send_data_to_BT(unsigned int bt_channel,const unsigned char *pData, 
 		DMA_Cmd(DMA1_Channel2, DISABLE);
 
 		/* set buffer address */
-		memcpy(BT816_send_buff[BT3_MODULE],pData,length);
+		MEMCPY(BT816_send_buff[BT3_MODULE],pData,length);
 
 		DMA1_Channel2->CMAR = (u32)&BT816_send_buff[BT3_MODULE][0];
 		/* set size */
@@ -784,7 +784,7 @@ static void send_data_to_BT(unsigned int bt_channel,const unsigned char *pData, 
 	DMA_Cmd(DMA2_Channel5, DISABLE);
 
 	/* set buffer address */
-	memcpy(BT816_send_buff[BT4_MODULE],pData,length);
+	MEMCPY(BT816_send_buff[BT4_MODULE],pData,length);
 
 	DMA2_Channel5->CMAR = (u32)&BT816_send_buff[BT4_MODULE][0];
 	/* set size */
@@ -868,7 +868,7 @@ int BT816_Channel1_RxISRHandler(unsigned char *res, unsigned int res_len)
 		set_BT1_BUSY();
 		ringbuffer_put(&spp_ringbuf[BT1_MODULE],res,res_len);
 #ifdef DEBUG_VER
-		//memcpy(debug_buffer+debug_cnt,res,res_len);
+		//MEMCPY(debug_buffer+debug_cnt,res,res_len);
 		//debug_cnt += res_len;
 #endif
 		DMA1_Channel5->CNDTR = BT816_RES_BUFFER_LEN;
@@ -1198,7 +1198,7 @@ int BT816_Reset(void)
 				{
 					if (stat == 2)
 					{
-						if (memcmp(token,"BDTP",4)==0)
+						if (MEMCMP(token,"BDTP",4)==0)
 						{
 							if (token_value[0] != '0')
 							{
@@ -1206,18 +1206,18 @@ int BT816_Reset(void)
 							}
 						}
 #ifdef DEBUG_VER
-						else if (memcmp(token,"BDVER",5)==0)
+						else if (MEMCMP(token,"BDVER",5)==0)
 						{
 							token_value[j]=0;
 							printf("BlueTooth Module Ver:%s\r\n",token_value);
 						}
-						else if (memcmp(token,"BDADDR",6)==0)
+						else if (MEMCMP(token,"BDADDR",6)==0)
 						{
 							token_value[j]=0;
 							printf("BlueTooth Module Addr:%s\r\n",token_value);
 						}
 #endif
-						else if (memcmp(token,"BDMODE",6)==0)
+						else if (MEMCMP(token,"BDMODE",6)==0)
 						{
 #ifdef HID_MODE
 							if (token_value[0] != '2')
@@ -1273,14 +1273,14 @@ int BT816_query_version(unsigned int bt_channel,unsigned char *ver_buffer)
 
 	assert(ver_buffer != 0);
 	ver_buffer[0] = 0;
-	memcpy(buffer,"AT+VER\x0d\x0a",8);
+	MEMCPY(buffer,"AT+VER\x0d\x0a",8);
 	ret = BT816_write_cmd(bt_channel,(const unsigned char*)buffer,8,EXPECT_RES_FORMAT2_TYPE);
 	if (ret)
 	{
 		return ret;
 	}
 
-	if (memcmp(&BT816_res[bt_channel].DataBuffer[3],"VER=",4) == 0)
+	if (MEMCMP(&BT816_res[bt_channel].DataBuffer[3],"VER=",4) == 0)
 	{
 		for (i = 0; i < ((BT816_res[bt_channel].DataLength-9) > 20)?20:(BT816_res[bt_channel].DataLength-9);i++)
 		{
@@ -1313,7 +1313,7 @@ int BT816_query_name(unsigned int bt_channel,unsigned char *name)
 
 	assert(name != 0);
 	name[0] = 0;
-	memcpy(buffer,"AT+NAME\x0d\x0a",9);
+	MEMCPY(buffer,"AT+NAME\x0d\x0a",9);
 
 	ret = BT816_write_cmd(bt_channel,(const unsigned char*)buffer,9,EXPECT_RES_FORMAT2_TYPE);
 	if (ret)
@@ -1321,7 +1321,7 @@ int BT816_query_name(unsigned int bt_channel,unsigned char *name)
 		return ret;
 	}
 
-	if (memcmp(&BT816_res[bt_channel].DataBuffer[3],"NAME",4) == 0)
+	if (MEMCMP(&BT816_res[bt_channel].DataBuffer[3],"NAME",4) == 0)
 	{
 		for (i = 0; i < ((BT816_res[bt_channel].DataLength-10) > 20)?20:(BT816_res[bt_channel].DataLength-10);i++)
 		{
@@ -1352,18 +1352,18 @@ int BT816_set_name(unsigned int bt_channel,unsigned char *name)
 	int		len;
 
 	assert(name != 0);
-	memcpy(buffer,"AT+NAME=",8);
-	len = strlen((char const*)name);
+	MEMCPY(buffer,"AT+NAME=",8);
+	len = STRLEN((char const*)name);
 	if (len>22)
 	{
-		memcpy(buffer+8,name,22);
+		MEMCPY(buffer+8,name,22);
 		buffer[30] = 0x0d;
 		buffer[31] = 0x0a;
 		len = 32;
 	}
 	else
 	{
-		memcpy(buffer+8,name,len);
+		MEMCPY(buffer+8,name,len);
 		buffer[8+len] = 0x0d;
 		buffer[9+len] = 0x0a;
 		len += 10;
@@ -1385,18 +1385,18 @@ int BT816_set_pin(unsigned int bt_channel,unsigned char *pin)
 	int		len;
 
 	assert(pin != 0);
-	memcpy(buffer,"AT+PIN=",7);
-	len = strlen((char const*)pin);
+	MEMCPY(buffer,"AT+PIN=",7);
+	len = STRLEN((char const*)pin);
 	if (len>8)
 	{
-		memcpy(buffer+7,pin,8);
+		MEMCPY(buffer+7,pin,8);
 		buffer[15] = 0x0d;
 		buffer[16] = 0x0a;
 		len = 17;
 	}
 	else
 	{
-		memcpy(buffer+7,pin,len);
+		MEMCPY(buffer+7,pin,len);
 		buffer[7+len] = 0x0d;
 		buffer[8+len] = 0x0a;
 		len += 9;
@@ -1561,7 +1561,7 @@ int BT816_init(void)
 		return -4;
 	}
 
-	if (memcmp(str,"HJ Pr",5) != 0)
+	if (MEMCMP(str,"HJ Pr",5) != 0)
 	{
 		if (BT816_set_name(BT1_MODULE,"HJ Printer1"))
 		{
@@ -1574,7 +1574,7 @@ int BT816_init(void)
 		return -4;
 	}
 
-	if (memcmp(str,"HJ Pr",5) != 0)
+	if (MEMCMP(str,"HJ Pr",5) != 0)
 	{
 		if (BT816_set_name(BT2_MODULE,"HJ Printer2"))
 		{
@@ -1587,7 +1587,7 @@ int BT816_init(void)
 		return -4;
 	}
 
-	if (memcmp(str,"HJ Pr",5) != 0)
+	if (MEMCMP(str,"HJ Pr",5) != 0)
 	{
 		if (BT816_set_name(BT3_MODULE,"HJ Printer3"))
 		{
@@ -1600,7 +1600,7 @@ int BT816_init(void)
 		return -4;
 	}
 
-	if (memcmp(str,"HJ Pr",5) != 0)
+	if (MEMCMP(str,"HJ Pr",5) != 0)
 	{
 		if (BT816_set_name(BT4_MODULE,"HJ Printer4"))
 		{
@@ -1610,7 +1610,7 @@ int BT816_init(void)
 
 #endif
 
-	memset(spp_rec_buffer,0,MAX_BT_CHANNEL*SPP_BUFFER_LEN);
+	MEMSET(spp_rec_buffer,0,MAX_BT_CHANNEL*SPP_BUFFER_LEN);
 	RESET_BT1_DMA();
 	RESET_BT2_DMA();
 	RESET_BT3_DMA();
@@ -1618,4 +1618,32 @@ int BT816_init(void)
 	return 0;
 }
 
+void set_BT_free(unsigned char ch)
+{
+	switch(ch)
+	{
+#if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+	case BT1_MODULE:
+	GPIO_ResetBits(GPIOB, GPIO_Pin_8);
+	break;
+#endif
+#if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+	case BT2_MODULE:
+	GPIO_ResetBits(GPIOC, GPIO_Pin_1);
+	break;
+#endif
+#if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+	case BT3_MODULE:
+	GPIO_ResetBits(GPIOE, GPIO_Pin_15);
+	break;
+#endif
+#if(BT_MODULE_CONFIG & USE_BT4_MODULE)
+	case BT4_MODULE:
+	GPIO_ResetBits(GPIOD, GPIO_Pin_0);
+	break;
+#endif
+	default:
+	break;
+	}
+}
 #endif

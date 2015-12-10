@@ -14,8 +14,8 @@ define symbol __ICFEDIT_region_VENDOR_end__   = 0x20000010;
 
 
 /*-Sizes-*/
-define symbol __ICFEDIT_size_cstack__ = 0x800;
-define symbol __ICFEDIT_size_heap__   = 0x400;
+define symbol __ICFEDIT_size_cstack__ = 0x400;
+define symbol __ICFEDIT_size_heap__   = 0;
 /**** End of ICF editor section. ###ICF###*/
 
 

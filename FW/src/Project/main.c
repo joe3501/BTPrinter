@@ -35,7 +35,7 @@
 #define SysCtrl_SLEEPDEEP_Set		((u32)0x00000004)
 
 #ifdef DEBUG_VER
-unsigned char	debug_buffer[8000*2];
+unsigned char	debug_buffer[2];
 unsigned int	debug_cnt;
 #endif
 
@@ -126,8 +126,8 @@ int main(void)
         //while(1);
 
 #ifdef DEBUG_VER
-	memset(debug_buffer,0,8000*2);
-	debug_cnt = 0;
+	//MEMSET(debug_buffer,0,8000*2);
+	//debug_cnt = 0;
 
 	printf("BTPrinter startup...\r\n");
 	if (HSEStartUpStatus == SUCCESS)

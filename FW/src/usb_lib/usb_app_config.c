@@ -111,7 +111,7 @@ void usb_device_init(unsigned char device_type)
 {
 	if (device_type == USB_PRINTER)
 	{
-		memset(spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],0,SPP_BUFFER_LEN);
+		MEMSET(spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],0,SPP_BUFFER_LEN);
 		ringbuffer_init(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],SPP_BUFFER_LEN);
 	}
 
@@ -195,7 +195,7 @@ void usb_SendData(unsigned char *pData, int length)
 		{
 			length = G_SEND_BUF_LENGTH;
 		}
-		memcpy(g_send_buff,pData,length);
+		MEMCPY(g_send_buff,pData,length);
 	}//USB_Masstorage
 #endif
 #endif

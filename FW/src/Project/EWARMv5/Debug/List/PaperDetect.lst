@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:51 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:21 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -45,323 +43,315 @@ E:\BT Printer\FW\src\App\PaperDetect.c
       6          #include "Event.h"
       7          #include "KeyScan.h"
       8          #include "uart.h"
-      9          
-     10          uint8_t printersts,papercnt,platencnt,bm_cnt;
-     11          
-     12          uint16_t		AD_Value[10][2];		//分别存放缺纸检测的AD值和温度检测的AD值
-     13          uint32_t		systick_cnt;
-     14          
+      9          #include "config.h"
+     10          
+     11          uint8_t printersts,papercnt,platencnt,bm_cnt;
+     12          
+     13          uint16_t		AD_Value[10][2];		//分别存放缺纸检测的AD值和温度检测的AD值
+     14          uint32_t		systick_cnt;
      15          
-     16          #define PAPER_SNS          (1ul<<0)
-     17          #define PAPER_READY        (1ul<<1)
-     18          #define BLACKMARKR_FLAG    (1ul<<3)
-     19          
+     16          
+     17          #define PAPER_SNS          (1ul<<0)
+     18          #define PAPER_READY        (1ul<<1)
+     19          #define BLACKMARKR_FLAG    (1ul<<3)
      20          
-     21          #define AD_BLACKMARK_HIGH  (0X0200UL)
-     22          #define AD_BLACKMARK_LOW   (0X0130UL)
-     23          #define PAPER_AD_LTHRESHOLD  (AD_BLACKMARK_LOW)
-     24          
+     21          
+     22          #define AD_BLACKMARK_HIGH  (0X0200UL)
+     23          #define AD_BLACKMARK_LOW   (0X0130UL)
+     24          #define PAPER_AD_LTHRESHOLD  (AD_BLACKMARK_LOW)
      25          
-     26          #define PAPER_SNS_VALUE		((AD_Value[0][PAPER_SNS_OFFSET]+AD_Value[1][PAPER_SNS_OFFSET]+AD_Value[2][PAPER_SNS_OFFSET]+AD_Value[3][PAPER_SNS_OFFSET]\
-     27          							+AD_Value[4][PAPER_SNS_OFFSET]+AD_Value[5][PAPER_SNS_OFFSET]+AD_Value[6][PAPER_SNS_OFFSET]+AD_Value[7][PAPER_SNS_OFFSET]\
-     28          							+AD_Value[8][PAPER_SNS_OFFSET]+AD_Value[9][PAPER_SNS_OFFSET])/10)
-     29          
+     26          
+     27          #define PAPER_SNS_VALUE		((AD_Value[0][PAPER_SNS_OFFSET]+AD_Value[1][PAPER_SNS_OFFSET]+AD_Value[2][PAPER_SNS_OFFSET]+AD_Value[3][PAPER_SNS_OFFSET]\
+     28          							+AD_Value[4][PAPER_SNS_OFFSET]+AD_Value[5][PAPER_SNS_OFFSET]+AD_Value[6][PAPER_SNS_OFFSET]+AD_Value[7][PAPER_SNS_OFFSET]\
+     29          							+AD_Value[8][PAPER_SNS_OFFSET]+AD_Value[9][PAPER_SNS_OFFSET])/10)
      30          
-     31          #define BMSNS()     ((PAPER_SNS_VALUE < ((uint16_t)AD_BLACKMARK_HIGH))&&(PAPER_SNS_VALUE > ((uint16_t)AD_BLACKMARK_LOW))?1:0)
-     32          #define PAPERSNS()  ((PAPER_SNS_VALUE<PAPER_AD_LTHRESHOLD)?1:0)
-     33          
+     31          
+     32          #define BMSNS()     ((PAPER_SNS_VALUE < ((uint16_t)AD_BLACKMARK_HIGH))&&(PAPER_SNS_VALUE > ((uint16_t)AD_BLACKMARK_LOW))?1:0)
+     33          #define PAPERSNS()  ((PAPER_SNS_VALUE<PAPER_AD_LTHRESHOLD)?1:0)
      34          
      35          
      36          
-     37          //======================================================================================================
-     38          void TPPaperSNSInit(void)
-     39          {
-     40          	int i;
-     41          	GPIO_InitTypeDef		gpio_init;
-     42          	ADC_InitTypeDef		adc_init;
-     43          	DMA_InitTypeDef		DMA_InitStructure;
-     44          
+     37          
+     38          //======================================================================================================
+     39          void TPPaperSNSInit(void)
+     40          {
+     41          	int i;
+     42          	GPIO_InitTypeDef		gpio_init;
+     43          	ADC_InitTypeDef		adc_init;
+     44          	DMA_InitTypeDef		DMA_InitStructure;
      45          
-     46          	//配置ADC的IO
-     47          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
-     48          	RCC_ADCCLKConfig(RCC_PCLK2_Div6);		//72M/6 = 12M; 
-     49          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC, ENABLE);
-     50          
-     51          	//PA.6 -- TEMP_SNS  &  PC.0 -- PEPER_SNS
-     52          	gpio_init.GPIO_Pin  = GPIO_Pin_6;
-     53          	gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
-     54          	gpio_init.GPIO_Mode = GPIO_Mode_AIN;
-     55          	GPIO_Init(GPIOA, &gpio_init);
-     56          
-     57          	gpio_init.GPIO_Pin  = GPIO_Pin_0;
-     58          	gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
-     59          	gpio_init.GPIO_Mode = GPIO_Mode_AIN;
-     60          	GPIO_Init(GPIOC, &gpio_init);
-     61          
+     46          
+     47          	//配置ADC的IO
+     48          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+     49          	RCC_ADCCLKConfig(RCC_PCLK2_Div6);		//72M/6 = 12M; 
+     50          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC, ENABLE);
+     51          
+     52          	//PA.6 -- TEMP_SNS  &  PC.0 -- PEPER_SNS
+     53          	gpio_init.GPIO_Pin  = GPIO_Pin_6;
+     54          	gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
+     55          	gpio_init.GPIO_Mode = GPIO_Mode_AIN;
+     56          	GPIO_Init(GPIOA, &gpio_init);
+     57          
+     58          	gpio_init.GPIO_Pin  = GPIO_Pin_0;
+     59          	gpio_init.GPIO_Speed = GPIO_Speed_50MHz;
+     60          	gpio_init.GPIO_Mode = GPIO_Mode_AIN;
+     61          	GPIO_Init(GPIOC, &gpio_init);
      62          
-     63          	//配置ADC，2个通道
-     64          	adc_init.ADC_Mode               = ADC_Mode_Independent;		//
-     65          	adc_init.ADC_ScanConvMode       = ENABLE;
-     66          	adc_init.ADC_ContinuousConvMode = ENABLE;
-     67          	adc_init.ADC_ExternalTrigConv   = ADC_ExternalTrigConv_None;
-     68          	adc_init.ADC_DataAlign          = ADC_DataAlign_Right;
-     69          	adc_init.ADC_NbrOfChannel       = 2;
-     70          	ADC_Init(ADC1, &adc_init);
-     71          
-     72          	ADC_RegularChannelConfig(ADC1, ADC_Channel_6, 1, ADC_SampleTime_239Cycles5);
-     73          	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 2, ADC_SampleTime_239Cycles5);
-     74          	ADC_Cmd(ADC1, ENABLE);
-     75          
-     76          	// 下面是ADC自动校准，开机后需执行一次，保证精度
-     77          	// Enable ADC1 reset calibaration register 
-     78          	ADC_ResetCalibration(ADC1);
-     79          	// Check the end of ADC1 reset calibration register
-     80          	while(ADC_GetResetCalibrationStatus(ADC1));
-     81          
-     82          	// Start ADC1 calibaration
-     83          	ADC_StartCalibration(ADC1);
-     84          	// Check the end of ADC1 calibration
-     85          	while(ADC_GetCalibrationStatus(ADC1));
-     86          	// ADC自动校准结束---------------
-     87          	DMA_DeInit(DMA1_Channel1); //将DMA的通道1寄存器重设为缺省值
-     88          
-     89          	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
-     90          	//配置DMA，自动将AD转换结果保存到内存 
-     91          	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)&ADC1->DR; //DMA外设ADC基地址 
-     92          	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)&AD_Value; //DMA内存基地址  
-     93          	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC; //内存作为数据传输的目的地 
-     94          	DMA_InitStructure.DMA_BufferSize = 2*10; //DMA通道的DMA缓存的大小  
-     95          	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable; //外设地址寄存器不变 
-     96          	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable; //内存地址寄存器递增 
-     97          	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord; //数据宽度为16位  
-     98          	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord; //数据宽度为16位  
-     99          	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular; //工作在循环缓存模式  
-    100          	DMA_InitStructure.DMA_Priority = DMA_Priority_High; //DMA通道 x拥有高优先级  
-    101          	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable; //DMA通道x没有设置为内存到内存传输  
-    102          	DMA_Init(DMA1_Channel1, &DMA_InitStructure); //根据DMA_InitStruct中指定的参数初始化DMA的通道 
-    103          
-    104          	ADC_DMACmd(ADC1,ENABLE);
-    105          	DMA_Cmd(DMA1_Channel1,ENABLE);
-    106          
-    107          	//配置SYSTICK定时器，缺纸检测等任务在SYSTICK定时器的中断处理程序中周期的调用执行
-    108          	SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK_Div8);	//9M的tick频率
-    109          	SysTick_SetReload(90000);			//中断频率为10ms
-    110          	NVIC_SystemHandlerPriorityConfig(SystemHandler_SysTick,1,4);
-    111          	SysTick_ITConfig(ENABLE);
-    112          	SysTick_CounterCmd(DISABLE);
-    113          
-    114          	for (i = 0; i<MAX_PRINT_CHANNEL;i++)
-    115          	{
-    116          		esc_sts[i].status4=0;
-    117          	}
+     63          
+     64          	//配置ADC，2个通道
+     65          	adc_init.ADC_Mode               = ADC_Mode_Independent;		//
+     66          	adc_init.ADC_ScanConvMode       = ENABLE;
+     67          	adc_init.ADC_ContinuousConvMode = ENABLE;
+     68          	adc_init.ADC_ExternalTrigConv   = ADC_ExternalTrigConv_None;
+     69          	adc_init.ADC_DataAlign          = ADC_DataAlign_Right;
+     70          	adc_init.ADC_NbrOfChannel       = 2;
+     71          	ADC_Init(ADC1, &adc_init);
+     72          
+     73          	ADC_RegularChannelConfig(ADC1, ADC_Channel_6, 1, ADC_SampleTime_239Cycles5);
+     74          	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 2, ADC_SampleTime_239Cycles5);
+     75          	ADC_Cmd(ADC1, ENABLE);
+     76          
+     77          	// 下面是ADC自动校准，开机后需执行一次，保证精度
+     78          	// Enable ADC1 reset calibaration register 
+     79          	ADC_ResetCalibration(ADC1);
+     80          	// Check the end of ADC1 reset calibration register
+     81          	while(ADC_GetResetCalibrationStatus(ADC1));
+     82          
+     83          	// Start ADC1 calibaration
+     84          	ADC_StartCalibration(ADC1);
+     85          	// Check the end of ADC1 calibration
+     86          	while(ADC_GetCalibrationStatus(ADC1));
+     87          	// ADC自动校准结束---------------
+     88          	DMA_DeInit(DMA1_Channel1); //将DMA的通道1寄存器重设为缺省值
+     89          
+     90          	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+     91          	//配置DMA，自动将AD转换结果保存到内存 
+     92          	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)&ADC1->DR; //DMA外设ADC基地址 
+     93          	DMA_InitStructure.DMA_MemoryBaseAddr = (u32)&AD_Value; //DMA内存基地址  
+     94          	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC; //内存作为数据传输的目的地 
+     95          	DMA_InitStructure.DMA_BufferSize = 2*10; //DMA通道的DMA缓存的大小  
+     96          	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable; //外设地址寄存器不变 
+     97          	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable; //内存地址寄存器递增 
+     98          	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord; //数据宽度为16位  
+     99          	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord; //数据宽度为16位  
+    100          	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular; //工作在循环缓存模式  
+    101          	DMA_InitStructure.DMA_Priority = DMA_Priority_High; //DMA通道 x拥有高优先级  
+    102          	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable; //DMA通道x没有设置为内存到内存传输  
+    103          	DMA_Init(DMA1_Channel1, &DMA_InitStructure); //根据DMA_InitStruct中指定的参数初始化DMA的通道 
+    104          
+    105          	ADC_DMACmd(ADC1,ENABLE);
+    106          	DMA_Cmd(DMA1_Channel1,ENABLE);
+    107          
+    108          	//配置SYSTICK定时器，缺纸检测等任务在SYSTICK定时器的中断处理程序中周期的调用执行
+    109          	SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK_Div8);	//9M的tick频率
+    110          	SysTick_SetReload(90000);			//中断频率为10ms
+    111          	NVIC_SystemHandlerPriorityConfig(SystemHandler_SysTick,1,4);
+    112          	SysTick_ITConfig(ENABLE);
+    113          	SysTick_CounterCmd(DISABLE);
+    114          
+    115          	ESC_STS_STATUS_DEINIT();
+    116          
+    117          	systick_cnt = 0;
     118          
-    119          	systick_cnt = 0;
-    120          
-    121          	ADC_SoftwareStartConvCmd(ADC1, ENABLE);			//开始转换
-    122          }
-    123          
-    124          void PaperStartSns(void)
-    125          {
-    126          	int i;
-    127          
-    128              	if(!PAPERSNS()) //
-    129                 {
-    130                      printersts &= ~PAPER_SNS;
-    131                      printersts |= PAPER_READY;
-    132          			for (i = 0; i<MAX_PRINT_CHANNEL;i++)
-    133          			{
-    134          				esc_sts[i].status4 &=~(0x03<<5);
-    135          			}
-    136                 }
-    137                 else // paper out
-    138                 {
-    139                      printersts |= PAPER_SNS;
-    140                      printersts &= ~PAPER_READY;
-    141          			for (i = 0; i<MAX_PRINT_CHANNEL;i++)
-    142          			{
-    143          				esc_sts[i].status4 |= (0x03<<5);
-    144          			}
-    145                 }
-    146          
-    147          		SysTick_CounterCmd(ENABLE);
-    148          
-    149          }
-    150          
-    151          void TPBMSNSDetect(void)
-    152          {
-    153                  if(BMSNS())         //?????????????1
-    154                  {
-    155                      if((printersts & (1 << 2)) == 0)        // previous head out
-    156                      {
-    157                          printersts |= (1<<2);
-    158                          bm_cnt = 1;  //10ms
-    159          
-    160                      }
-    161                      else if(bm_cnt )
-    162                      {
-    163                          if((--bm_cnt ) == 0)
-    164                          {
-    165                              if((printersts & BLACKMARKR_FLAG) == 0)
-    166                              {
-    167                                  printersts |= BLACKMARKR_FLAG; // set head
-    168                                  event_post(evtBmDetect);
-    169                              }
-    170                          }
+    119          	ADC_SoftwareStartConvCmd(ADC1, ENABLE);			//开始转换
+    120          }
+    121          
+    122          void PaperStartSns(void)
+    123          {
+    124          	int i;
+    125          
+    126              	if(!PAPERSNS()) //
+    127                 {
+    128                      printersts &= ~PAPER_SNS;
+    129                      printersts |= PAPER_READY;
+    130          			ESC_STS_STATUS_RESET_FLAG(0x03,5);
+    131                 }
+    132                 else // paper out
+    133                 {
+    134                      printersts |= PAPER_SNS;
+    135                      printersts &= ~PAPER_READY;
+    136          			ESC_STS_STATUS_SET_FLAG(0x03,5);
+    137                 }
+    138          
+    139          		SysTick_CounterCmd(ENABLE);
+    140          
+    141          }
+    142          
+    143          void TPBMSNSDetect(void)
+    144          {
+    145                  if(BMSNS())         //?????????????1
+    146                  {
+    147                      if((printersts & (1 << 2)) == 0)        // previous head out
+    148                      {
+    149                          printersts |= (1<<2);
+    150                          bm_cnt = 1;  //10ms
+    151          
+    152                      }
+    153                      else if(bm_cnt )
+    154                      {
+    155                          if((--bm_cnt ) == 0)
+    156                          {
+    157                              if((printersts & BLACKMARKR_FLAG) == 0)
+    158                              {
+    159                                  printersts |= BLACKMARKR_FLAG; // set head
+    160                                  event_post(evtBmDetect);
+    161                              }
+    162                          }
+    163                      }
+    164                  }
+    165                  else
+    166                  {
+    167                      if(printersts & (1 << 2))   // previous head
+    168                      {
+    169                          printersts &= ~(1<<2);
+    170                          bm_cnt = 1;
     171                      }
-    172                  }
-    173                  else
-    174                  {
-    175                      if(printersts & (1 << 2))   // previous head
-    176                      {
-    177                          printersts &= ~(1<<2);
-    178                          bm_cnt = 1;
-    179                      }
-    180                      else if(bm_cnt)
-    181                      {
-    182                          if((--bm_cnt) == 0)
-    183                          {
-    184                              if((printersts & BLACKMARKR_FLAG))
-    185                              {
-    186                                  printersts &= ~BLACKMARKR_FLAG;    // set head
-    187                                  event_post(evtBmNotDetect);
-    188                              }
-    189                          }
-    190                      }
-    191          
-    192                  }
-    193          }
-    194          
-    195          void TPPaperSNSDetect(uint8_t c)//488?????,486?????
-    196          {
-    197          	if(!c)
-    198          	{
-    199          		if((printersts & (1 << 0)) == 0)		// previous paper out
-    200          		{
-    201          			printersts |= (1<<0);  //xxx1
-    202          			papercnt = 2;	// 20ms
-    203          		}
-    204          		else if(papercnt)
-    205          		{
-    206          			if((--papercnt) == 0)
-    207          			{
-    208          				if((printersts & (1 << 1)) == 0)
-    209          				{
-    210          					printersts |= PAPER_READY;	// set paper in //xx1x
-    211          					event_post(evtPaperIn);
-    212          
-    213          
-    214          				}
-    215          			}
+    172                      else if(bm_cnt)
+    173                      {
+    174                          if((--bm_cnt) == 0)
+    175                          {
+    176                              if((printersts & BLACKMARKR_FLAG))
+    177                              {
+    178                                  printersts &= ~BLACKMARKR_FLAG;    // set head
+    179                                  event_post(evtBmNotDetect);
+    180                              }
+    181                          }
+    182                      }
+    183          
+    184                  }
+    185          }
+    186          
+    187          void TPPaperSNSDetect(uint8_t c)//488?????,486?????
+    188          {
+    189          	if(!c)
+    190          	{
+    191          		if((printersts & (1 << 0)) == 0)		// previous paper out
+    192          		{
+    193          			printersts |= (1<<0);  //xxx1
+    194          			papercnt = 2;	// 20ms
+    195          		}
+    196          		else if(papercnt)
+    197          		{
+    198          			if((--papercnt) == 0)
+    199          			{
+    200          				if((printersts & (1 << 1)) == 0)
+    201          				{
+    202          					printersts |= PAPER_READY;	// set paper in //xx1x
+    203          					event_post(evtPaperIn);
+    204          
+    205          
+    206          				}
+    207          			}
+    208          		}
+    209          	}
+    210          	else
+    211          	{
+    212          		if(printersts & (1 << 0))	// previous paper in
+    213          		{
+    214          			printersts &= ~(1<<0);  //xxx0
+    215          			papercnt = 2;	// 20ms
     216          		}
-    217          	}
-    218          	else
-    219          	{
-    220          		if(printersts & (1 << 0))	// previous paper in
-    221          		{
-    222          			printersts &= ~(1<<0);  //xxx0
-    223          			papercnt = 2;	// 20ms
-    224          		}
-    225          		else if(papercnt)
-    226          		{
-    227          			if((--papercnt) == 0)
-    228          			{
-    229          				if((printersts & (1 << 1)))
-    230          				{
-    231          					printersts &= ~(1 << 1);	// set paper out xx0x
-    232          					event_post(evtPaperOut);
-    233          
-    234          				}
-    235          			}
-    236          		}
-    237          	}
-    238          
-    239          }
-    240          //======================================================================================================
-    241          //=================================================================================================
-    242          uint8_t TPPrinterMark(void)
-    243          {
-    244          	if(printersts & BLACKMARKR_FLAG)
-    245          	{
-    246                   return FALSE;
-    247              }
-    248          	else
-    249          	{
-    250                   return TRUE;
-    251              }
-    252          }
-    253          //======================================================================================================
-    254          
-    255          uint8_t TPPrinterReady(void)
-    256          {
-    257             // return TRUE;
-    258          
-    259          	if(printersts & PAPER_READY)
-    260          	{
-    261          		return TRUE;
-    262          	}
-    263          	else
-    264              {
-    265          	    return FALSE;
-    266          	}
-    267          
-    268          }
-    269          
-    270          uint8_t TPPrinterReady_ext(void)
-    271          {
-    272          	// return TRUE;
-    273          
-    274          	if(PAPERSNS())
-    275          	{
-    276          		return FALSE;
-    277          	}
-    278          	else
-    279          	{
-    280          		return TRUE;
-    281          	}
-    282          
-    283          }
-    284          
-    285          uint8_t TPPaperReady(void)
-    286           {
-    287          
-    288          	if(printersts & PAPER_READY)
-    289          	{
-    290          		return TRUE;
-    291          	}
-    292          	else
-    293              {
-    294          	    return FALSE;
-    295          	}
-    296          
-    297          }
-    298          
-    299          //================================================================================================
-    300          void SysTick_IRQ_Handle(void)
-    301          {
-    302          	int i;
-    303          	systick_cnt++;
-    304          	KeyScanProc();
-    305          	TPBMSNSDetect();
-    306          	TPPaperSNSDetect( PAPERSNS());
-    307          	for (i = 0; i < MAX_BT_CHANNEL;i++)
-    308          	{
-    309          		BT816_connect_status(i);
-    310          	}
-    311          #ifdef HW_VER_LCD
-    312          	//LCD_Refresh();
-    313          #else
-    314          	//LedScanProc();
+    217          		else if(papercnt)
+    218          		{
+    219          			if((--papercnt) == 0)
+    220          			{
+    221          				if((printersts & (1 << 1)))
+    222          				{
+    223          					printersts &= ~(1 << 1);	// set paper out xx0x
+    224          					event_post(evtPaperOut);
+    225          
+    226          				}
+    227          			}
+    228          		}
+    229          	}
+    230          
+    231          }
+    232          //======================================================================================================
+    233          //=================================================================================================
+    234          uint8_t TPPrinterMark(void)
+    235          {
+    236          	if(printersts & BLACKMARKR_FLAG)
+    237          	{
+    238                   return FALSE;
+    239              }
+    240          	else
+    241          	{
+    242                   return TRUE;
+    243              }
+    244          }
+    245          //======================================================================================================
+    246          
+    247          uint8_t TPPrinterReady(void)
+    248          {
+    249             // return TRUE;
+    250          
+    251          	if(printersts & PAPER_READY)
+    252          	{
+    253          		return TRUE;
+    254          	}
+    255          	else
+    256              {
+    257          	    return FALSE;
+    258          	}
+    259          
+    260          }
+    261          
+    262          uint8_t TPPrinterReady_ext(void)
+    263          {
+    264          	// return TRUE;
+    265          
+    266          	if(PAPERSNS())
+    267          	{
+    268          		return FALSE;
+    269          	}
+    270          	else
+    271          	{
+    272          		return TRUE;
+    273          	}
+    274          
+    275          }
+    276          
+    277          uint8_t TPPaperReady(void)
+    278           {
+    279          
+    280          	if(printersts & PAPER_READY)
+    281          	{
+    282          		return TRUE;
+    283          	}
+    284          	else
+    285              {
+    286          	    return FALSE;
+    287          	}
+    288          
+    289          }
+    290          
+    291          //================================================================================================
+    292          void SysTick_IRQ_Handle(void)
+    293          {
+    294          	int i;
+    295          	systick_cnt++;
+    296          	KeyScanProc();
+    297          	TPBMSNSDetect();
+    298          	TPPaperSNSDetect( PAPERSNS());
+    299          	for (i = 0; i < MAX_BT_CHANNEL;i++)
+    300          	{
+    301          		BT816_connect_status(i);
+    302          	}
+    303          #ifdef HW_VER_LCD
+    304          	//LCD_Refresh();
+    305          #else
+    306          	//LedScanProc();
+    307          
+    308          #endif
+    309          	return;
+    310          }
+    311          
+    312          
+    313          
+    314          
     315          
-    316          #endif
-    317          	return;
-    318          }
-    319          
-    320          
-    321          
-    322          
-    323          
-    324          
-    325          
+    316          
+    317          
 
    Maximum stack usage in bytes:
 
@@ -388,8 +378,8 @@ E:\BT Printer\FW\src\App\PaperDetect.c
      bm_cnt                1
      AD_Value             40
      systick_cnt           4
-     TPPaperSNSInit      384
-     PaperStartSns       240
+     TPPaperSNSInit      368
+     PaperStartSns       212
      TPBMSNSDetect       328
      TPPaperSNSDetect    180
      TPPrinterMark        18
@@ -404,10 +394,10 @@ E:\BT Printer\FW\src\App\PaperDetect.c
 
  
     48 bytes in section .bss
- 1 404 bytes in section .text
+ 1 360 bytes in section .text
  
- 1 404 bytes of CODE memory
+ 1 360 bytes of CODE memory
     48 bytes of DATA memory
 
 Errors: none
-Warnings: none
+Warnings: 4

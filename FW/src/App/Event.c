@@ -85,17 +85,10 @@ extern void event_proc(void)
     case evtKeyDownHold7000msMode:
         break;
 	case evtPaperOut:
-		for (i = 0; i< MAX_PRINT_CHANNEL;i++)
-		{
-			esc_sts[i].status4 |= (0x03<<5);
-		}
-        
+		ESC_STS_STATUS_SET_FLAG(0x03,5);
 		break;
 	case evtPaperIn:
-		for (i = 0; i< MAX_PRINT_CHANNEL;i++)
-		{
-			esc_sts[i].status4 &= ~(0x03<<5);
-		}
+		ESC_STS_STATUS_RESET_FLAG(0x03,5);
         Wake_up();
         break;
     case evtBmDetect:

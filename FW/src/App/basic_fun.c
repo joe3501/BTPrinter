@@ -291,11 +291,11 @@ void str_to_bcd_field(unsigned char *str,unsigned char *bcd_field,unsigned int l
 	unsigned int	i,j = 0;
 	unsigned int	str_len;
 
-	str_len = strlen((char const*)str);
+	str_len = STRLEN((char const*)str);
 	if (str_len < len*2)
 	{
 		i = len - ((str_len+1)/2);
-		memset(bcd_field,0,i);
+		MEMSET(bcd_field,0,i);
 		if (str_len%2 != 0 )
 		{
 			//奇数长度
@@ -507,7 +507,7 @@ void ascii_to_keyreport2(unsigned char ascii,unsigned char*report)
 {
 	int i;
 
-	memset(report,0,9);
+	MEMSET(report,0,9);
 
 	for(i = 0; i < sizeof(UsbKeyValue_Ascii_Tbl)/sizeof(TUSBKeyValue_Ascii); i++)
 	{
@@ -535,7 +535,7 @@ unsigned char ascii_to_keyreport2_ext(unsigned char *ascii,unsigned char len,uns
 	unsigned char special_key;
 	unsigned char last_ascii = 0;
 
-	memset(report,0,9);
+	MEMSET(report,0,9);
 
 	//if(len > 6) len = 6;		//一次传6个键值，发现手机操作系统会丢键值
 	if(len > 1) len = 1;
@@ -585,7 +585,7 @@ void build_time_dis_str(unsigned char *date_time_bcd,unsigned char *dis_str,unsi
 	unsigned char tmp[15];
 
 	bcd_field_to_str(date_time_bcd,7,tmp);
-	memcpy(dis_str,tmp,4);
+	MEMCPY(dis_str,tmp,4);
 	if (mode)
 	{
 		dis_str[4] ='-';
@@ -594,7 +594,7 @@ void build_time_dis_str(unsigned char *date_time_bcd,unsigned char *dis_str,unsi
 	{
 		dis_str[4] ='/';
 	}
-	memcpy(dis_str+5,tmp+4,2);
+	MEMCPY(dis_str+5,tmp+4,2);
 	if (mode)
 	{
 		dis_str[7] ='-';
@@ -603,13 +603,13 @@ void build_time_dis_str(unsigned char *date_time_bcd,unsigned char *dis_str,unsi
 	{
 		dis_str[7] ='/';
 	}
-	memcpy(dis_str+8,tmp+6,2);
+	MEMCPY(dis_str+8,tmp+6,2);
 	dis_str[10]= ' ';
-	memcpy(dis_str+11,tmp+8,2);
+	MEMCPY(dis_str+11,tmp+8,2);
 	dis_str[13] = ':';
-	memcpy(dis_str+14,tmp+10,2);
+	MEMCPY(dis_str+14,tmp+10,2);
 	dis_str[16] = ':';
-	memcpy(dis_str+17,tmp+12,2);
+	MEMCPY(dis_str+17,tmp+12,2);
 	dis_str[19] = 0;
 }
 
@@ -737,3 +737,352 @@ char *F2S(float d, char* str)
 	str[++index] = '\0';  
 	return(str);  
 }  
+
+
+/**
+ * This function will set the content of memory to specified value
+ *
+ * @param s the address of source memory
+ * @param c the value shall be set in content
+ * @param count the copied length
+ *
+ * @return the address of source memory
+ */
+void *kt_memset(void *s, int c, unsigned int count)
+{
+#ifdef KT_TINY_SIZE
+    char *xs = (char *)s;
+
+    while (count--)
+        *xs++ = c;
+
+    return s;
+#else
+#define LBLOCKSIZE      (sizeof(unsigned int))
+#define UNALIGNED(X)    ((unsigned int)X & (LBLOCKSIZE - 1))
+#define TOO_SMALL(LEN)  ((LEN) < LBLOCKSIZE)
+
+    int i;
+    char *m = (char *)s;
+    unsigned int buffer;
+    unsigned int *aligned_addr;
+    unsigned int d = c & 0xff;
+
+    if (!TOO_SMALL(count) && !UNALIGNED(s))
+    {
+        /* If we get this far, we know that n is large and m is word-aligned. */
+        aligned_addr = (unsigned int *)s;
+
+        /* Store D into each char sized location in BUFFER so that
+         * we can set large blocks quickly.
+         */
+        if (LBLOCKSIZE == 4)
+        {
+            buffer = (d << 8) | d;
+            buffer |= (buffer << 16);
+        }
+        else
+        {
+            buffer = 0;
+            for (i = 0; i < LBLOCKSIZE; i ++)
+                buffer = (buffer << 8) | d;
+        }
+
+        while (count >= LBLOCKSIZE * 4)
+        {
+            *aligned_addr++ = buffer;
+            *aligned_addr++ = buffer;
+            *aligned_addr++ = buffer;
+            *aligned_addr++ = buffer;
+            count -= 4 * LBLOCKSIZE;
+        }
+
+        while (count >= LBLOCKSIZE)
+        {
+            *aligned_addr++ = buffer;
+            count -= LBLOCKSIZE;
+        }
+
+        /* Pick up the remainder with a bytewise loop. */
+        m = (char *)aligned_addr;
+    }
+
+    while (count--)
+    {
+        *m++ = (char)d;
+    }
+
+    return s;
+
+#undef LBLOCKSIZE
+#undef UNALIGNED
+#undef TOO_SMALL
+#endif
+}
+
+/**
+ * This function will copy memory content from source address to destination
+ * address.
+ *
+ * @param dst the address of destination memory
+ * @param src  the address of source memory
+ * @param count the copied length
+ *
+ * @return the address of destination memory
+ */
+void *kt_memcpy(void *dst, const void *src, unsigned int count)
+{
+#ifdef KT_TINY_SIZE
+    char *tmp = (char *)dst, *s = (char *)src;
+
+    while (count--)
+        *tmp++ = *s++;
+
+    return dst;
+#else
+
+#define UNALIGNED(X, Y)                                               \
+                        (((unsigned int)X & (sizeof(unsigned int) - 1)) | \
+                         ((unsigned int)Y & (sizeof(unsigned int) - 1)))
+#define BIGBLOCKSIZE    (sizeof(unsigned int) << 2)
+#define LITTLEBLOCKSIZE (sizeof(unsigned int))
+#define TOO_SMALL(LEN)  ((LEN) < BIGBLOCKSIZE)
+
+    char *dst_ptr = (char *)dst;
+    char *src_ptr = (char *)src;
+    unsigned int *aligned_dst;
+    unsigned int *aligned_src;
+    int len = count;
+
+    /* If the size is small, or either SRC or DST is unaligned,
+    then punt into the byte copy loop.  This should be rare. */
+    if (!TOO_SMALL(len) && !UNALIGNED(src_ptr, dst_ptr))
+    {
+        aligned_dst = (unsigned int *)dst_ptr;
+        aligned_src = (unsigned int *)src_ptr;
+
+        /* Copy 4X long words at a time if possible. */
+        while (len >= BIGBLOCKSIZE)
+        {
+            *aligned_dst++ = *aligned_src++;
+            *aligned_dst++ = *aligned_src++;
+            *aligned_dst++ = *aligned_src++;
+            *aligned_dst++ = *aligned_src++;
+            len -= BIGBLOCKSIZE;
+        }
+
+        /* Copy one long word at a time if possible. */
+        while (len >= LITTLEBLOCKSIZE)
+        {
+            *aligned_dst++ = *aligned_src++;
+            len -= LITTLEBLOCKSIZE;
+        }
+
+        /* Pick up any residual with a byte copier. */
+        dst_ptr = (char *)aligned_dst;
+        src_ptr = (char *)aligned_src;
+    }
+
+    while (len--)
+        *dst_ptr++ = *src_ptr++;
+
+    return dst;
+#undef UNALIGNED
+#undef BIGBLOCKSIZE
+#undef LITTLEBLOCKSIZE
+#undef TOO_SMALL
+#endif
+}
+
+/**
+ * This function will move memory content from source address to destination
+ * address.
+ *
+ * @param dest the address of destination memory
+ * @param src  the address of source memory
+ * @param n the copied length
+ *
+ * @return the address of destination memory
+ */
+void *kt_memmove(void *dest, const void *src, unsigned int n)
+{
+    char *tmp = (char *)dest, *s = (char *)src;
+
+    if (s < tmp && tmp < s + n)
+    {
+        tmp += n;
+        s += n;
+
+        while (n--)
+            *(--tmp) = *(--s);
+    }
+    else
+    {
+        while (n--)
+            *tmp++ = *s++;
+    }
+
+    return dest;
+}
+
+/**
+ * This function will compare two areas of memory
+ *
+ * @param cs one area of memory
+ * @param ct znother area of memory
+ * @param count the size of the area
+ *
+ * @return the result
+ */
+unsigned int kt_memcmp(const void *cs, const void *ct, unsigned int count)
+{
+    const unsigned char *su1, *su2;
+    int res = 0;
+
+    for (su1 = cs, su2 = ct; 0 < count; ++su1, ++su2, count--)
+        if ((res = *su1 - *su2) != 0)
+            break;
+
+    return res;
+}
+
+/**
+ * This function will return the first occurrence of a string.
+ *
+ * @param s1 the source string
+ * @param s2 the find string
+ *
+ * @return the first occurrence of a s2 in s1, or kt_NULL if no found.
+ */
+char *kt_strstr(const char *s1, const char *s2)
+{
+    int l1, l2;
+
+    l2 = kt_strlen(s2);
+    if (!l2)
+        return (char *)s1;
+    l1 = kt_strlen(s1);
+    while (l1 >= l2)
+    {
+        l1 --;
+        if (!kt_memcmp(s1, s2, l2))
+            return (char *)s1;
+        s1 ++;
+    }
+
+    return NULL;
+}
+
+/**
+ * This function will compare two strings while ignoring differences in case
+ *
+ * @param a the string to be compared
+ * @param b the string to be compared
+ *
+ * @return the result
+ */
+unsigned int kt_strcasecmp(const char *a, const char *b)
+{
+    int ca, cb;
+
+    do
+    {
+        ca = *a++ & 0xff;
+        cb = *b++ & 0xff;
+        if (ca >= 'A' && ca <= 'Z')
+            ca += 'a' - 'A';
+        if (cb >= 'A' && cb <= 'Z')
+            cb += 'a' - 'A';
+    }
+    while (ca == cb && ca != '\0');
+
+    return ca - cb;
+}
+
+/**
+ * This function will copy string no more than n bytes.
+ *
+ * @param dst the string to copy
+ * @param src the string to be copied
+ * @param n the maximum copied length
+ *
+ * @return the result
+ */
+char *kt_strncpy(char *dst, const char *src, unsigned int n)
+{
+    if (n != 0)
+    {
+        char *d = dst;
+        const char *s = src;
+
+        do
+        {
+            if ((*d++ = *s++) == 0)
+            {
+                /* NUL pad the remaining n-1 bytes */
+                while (--n != 0)
+                    *d++ = 0;
+                break;
+            }
+        } while (--n != 0);
+    }
+
+    return (dst);
+}
+
+/**
+ * This function will compare two strings with specified maximum length
+ *
+ * @param cs the string to be compared
+ * @param ct the string to be compared
+ * @param count the maximum compare length
+ *
+ * @return the result
+ */
+unsigned int kt_strncmp(const char *cs, const char *ct, unsigned int count)
+{
+    register signed char __res = 0;
+
+    while (count)
+    {
+        if ((__res = *cs - *ct++) != 0 || !*cs++)
+            break;
+        count --;
+    }
+
+    return __res;
+}
+
+/**
+ * This function will compare two strings without specified length
+ *
+ * @param cs the string to be compared
+ * @param ct the string to be compared
+ *
+ * @return the result
+ */
+unsigned int kt_strcmp(const char *cs, const char *ct)
+{
+    while (*cs && *cs == *ct)
+        cs++, ct++;
+
+    return (*cs - *ct);
+}
+
+/**
+ * This function will return the length of a string, which terminate will
+ * null character.
+ *
+ * @param s the string
+ *
+ * @return the length of string
+ */
+unsigned int kt_strlen(const char *s)
+{
+    const char *sc;
+
+    for (sc = s; *sc != '\0'; ++sc) /* nothing */
+        ;
+
+    return sc - s;
+}

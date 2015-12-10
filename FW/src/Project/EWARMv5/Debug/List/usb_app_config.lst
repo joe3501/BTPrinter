@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:50 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:18 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -12,17 +12,15 @@
 #                    \Obj\" --no_cse --no_unroll --no_inline                  #
 #                    --no_code_motion --no_tbaa --no_clustering               #
 #                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
-#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
-#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
-#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
-#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
-#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
-#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
-#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    -e --fpu=None -I "E:\BT Printer\FW\src\Project\EWARMv5\. #
+#                    .\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uC #
+#                    OS\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\ #
+#                    ..\uCOS\uCOS-II\Ports\" -I "E:\BT                        #
 #                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
 #                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
 #                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
@@ -150,7 +148,7 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
     111          {
     112          	if (device_type == USB_PRINTER)
     113          	{
-    114          		memset(spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],0,SPP_BUFFER_LEN);
+    114          		MEMSET(spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],0,SPP_BUFFER_LEN);
     115          		ringbuffer_init(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],SPP_BUFFER_LEN);
     116          	}
     117          
@@ -234,7 +232,7 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
     195          		{
     196          			length = G_SEND_BUF_LENGTH;
     197          		}
-    198          		memcpy(g_send_buff,pData,length);
+    198          		MEMCPY(g_send_buff,pData,length);
     199          	}//USB_Masstorage
     200          #endif
     201          #endif
@@ -299,7 +297,6 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
 
      Function              .cstack
      --------              -------
-     memset                     8
      usb_Get_SerialNum          8
      usb_Interrupts_Config      8
      usb_SendData               8
@@ -312,7 +309,6 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
 
      Function/Label             Bytes
      --------------             -----
-     memset                       20
      g_mass_storage_device_type    1
      g_usb_type                    1
      usb_SetClock                 28
@@ -324,10 +320,10 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
 
  
    2 bytes in section .bss
- 304 bytes in section .text
+ 284 bytes in section .text
  
- 284 bytes of CODE memory (+ 20 bytes shared)
+ 284 bytes of CODE memory
    2 bytes of DATA memory
 
 Errors: none
-Warnings: 3
+Warnings: 4

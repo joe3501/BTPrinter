@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:53 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:25 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -72,7 +70,7 @@ E:\BT Printer\FW\src\Project\main.c
      35          #define SysCtrl_SLEEPDEEP_Set		((u32)0x00000004)
      36          
      37          #ifdef DEBUG_VER
-     38          unsigned char	debug_buffer[8000*2];
+     38          unsigned char	debug_buffer[2];
      39          unsigned int	debug_cnt;
      40          #endif
      41          
@@ -163,8 +161,8 @@ E:\BT Printer\FW\src\Project\main.c
     126                  //while(1);
     127          
     128          #ifdef DEBUG_VER
-    129          	memset(debug_buffer,0,8000*2);
-    130          	debug_cnt = 0;
+    129          	//MEMSET(debug_buffer,0,8000*2);
+    130          	//debug_cnt = 0;
     131          
     132          	printf("BTPrinter startup...\r\n");
     133          	if (HSEStartUpStatus == SUCCESS)
@@ -465,7 +463,6 @@ E:\BT Printer\FW\src\Project\main.c
      Unconfigure_All        8
      enter_u_disk_mode      8
      main                   8
-     memset                 8
      system_error_tip       0
 
 
@@ -473,34 +470,33 @@ E:\BT Printer\FW\src\Project\main.c
 
      Function/Label                         Bytes
      --------------                         -----
-     memset                                    20
-     debug_buffer                           16000
-     debug_cnt                                  4
-     HSEStartUpStatus                           1
-     system_error_tip                           2
-     enter_u_disk_mode                         60
-     main                                     276
-     RCC_Configuration                        136
-     Unconfigure_All                           32
-     GPIO_AllAinConfig                         80
-     EnterLowPowerMode                         34
-     ExitLowPowerMode                          12
-     NVIC_DisableIRQ                           20
-     NVIC_EnableIRQ                            32
-     ??DataTable5                               4
-     ??DataTable6                               4
-     ?<Constant "BTPrinter startup...\r\n">    24
-     ?<Constant "HSE OK!\r\n">                 12
-     ?<Constant "HSE Failed!\r\n">             16
+     debug_buffer                              2
+     debug_cnt                                 4
+     HSEStartUpStatus                          1
+     system_error_tip                          2
+     enter_u_disk_mode                        60
+     main                                    248
+     RCC_Configuration                       136
+     Unconfigure_All                          32
+     GPIO_AllAinConfig                        80
+     EnterLowPowerMode                        34
+     ExitLowPowerMode                         12
+     NVIC_DisableIRQ                          20
+     NVIC_EnableIRQ                           32
+     ??DataTable5                              4
+     ??DataTable6                              4
+     ?<Constant "BTPrinter startup...\r\n">   24
+     ?<Constant "HSE OK!\r\n">                12
+     ?<Constant "HSE Failed!\r\n">            16
 
  
- 16 005 bytes in section .bss
-     52 bytes in section .rodata
-    712 bytes in section .text
+   7 bytes in section .bss
+  52 bytes in section .rodata
+ 664 bytes in section .text
  
-    692 bytes of CODE  memory (+ 20 bytes shared)
-     52 bytes of CONST memory
- 16 005 bytes of DATA  memory
+ 664 bytes of CODE  memory
+  52 bytes of CONST memory
+   7 bytes of DATA  memory
 
 Errors: none
-Warnings: 1
+Warnings: 2

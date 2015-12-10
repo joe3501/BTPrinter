@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:38:10 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:28 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -381,7 +379,7 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
     342          	/* Send ReadAddr low nibble address byte to read from */
     343          	spi_flash_send_byte(lba & 0xFF);
     344          
-    345          	memset((void *)buf, 0 , 512);
+    345          	MEMSET((void *)buf, 0 , 512);
     346          	for(i=0; i<secnum * 512; i++)
     347          	{
     348          		*buf	= spi_flash_send_byte(Dummy_Byte);
@@ -832,72 +830,72 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
     793          		if (((sector_offset+i)/8) == current_cache_block)
     794          		{
     795          			//如果当前要写的Sector位于已经被缓存的Block（4K Block）,那么直接将要写的数据写入缓存即可
-    796          			memcpy(buffer+((sector_offset+i)%8)*512,pBuffer+512*i,512);
-    797          			continue;
-    798          		}
-    799          
-    800          		//需要先将被缓存的数据写入SPI FLASH
-    801          		if(spi_flash_post_write())
-    802          		{
-    803          			return -2;
-    804          		}
+    796          			MEMCPY(buffer+((sector_offset+i)%8)*512,pBuffer+512*i,512);
+    797          		}
+    798          		else
+    799          		{
+    800          			//需要先将被缓存的数据写入SPI FLASH
+    801          			if(spi_flash_post_write())
+    802          			{
+    803          				return -2;
+    804          			}
     805          
-    806          		//将要写入的Sectro所在的Block全部读入缓存
-    807          		if(spi_flash_rpage((sector_offset+i)&0xfffffff8,8,buffer)){
-    808          			return -3;		//读取失败
-    809          		}
+    806          			//将要写入的Sectro所在的Block全部读入缓存
+    807          			if(spi_flash_rpage((sector_offset+i)&0xfffffff8,8,buffer)){
+    808          				return -3;		//读取失败
+    809          			}
     810          
-    811          		//往缓存写入新的数据
-    812          		tmp = (sector_offset+i)%8; 
-    813          		memcpy(buffer+tmp*512,pBuffer+i*512,512);
-    814          		current_cache_block = (sector_offset+i)/8;	//标记当前缓存的Block
-    815          	}
-    816          	
-    817          
-    818          	return 0;
-    819          }
-    820          
-    821          //此函数一次读1或者多个Sector（512字节）的数据
-    822          int spi_flash_read(unsigned int sector_offset,unsigned char *pBuffer,unsigned int sector_cnt)
-    823          {
-    824          	int i;//,tmp;
-    825          	unsigned int	cnt;
-    826          
-    827          	if (sector_offset >= (flasize/512)){
-    828          		return -1;	//起始偏移超出容量
-    829          	}
-    830          
-    831          	cnt = sector_cnt;
-    832          	if ((sector_offset + cnt) > (flasize/512))
-    833          	{
-    834          		cnt = (flasize/512) - sector_offset;
-    835          	}
-    836          
-    837          	for (i = 0; i < cnt;i++)
-    838          	{
-    839          		if (((sector_offset+i)/8) == current_cache_block)
-    840          		{
-    841          			//如果当前要读的Sector位于已经被缓存的Block（4K Block）,那么直接读缓存数据即可
-    842          			memcpy(pBuffer+512*i,buffer+((sector_offset+i)%8)*512,512);
-    843          			continue;
+    811          			//往缓存写入新的数据
+    812          			tmp = (sector_offset+i)%8; 
+    813          			MEMCPY(buffer+tmp*512,pBuffer+i*512,512);
+    814          			current_cache_block = (sector_offset+i)/8;	//标记当前缓存的Block
+    815          		}
+    816          	}
+    817          	
+    818          
+    819          	return 0;
+    820          }
+    821          
+    822          //此函数一次读1或者多个Sector（512字节）的数据
+    823          int spi_flash_read(unsigned int sector_offset,unsigned char *pBuffer,unsigned int sector_cnt)
+    824          {
+    825          	int i;//,tmp;
+    826          	unsigned int	cnt;
+    827          
+    828          	if (sector_offset >= (flasize/512)){
+    829          		return -1;	//起始偏移超出容量
+    830          	}
+    831          
+    832          	cnt = sector_cnt;
+    833          	if ((sector_offset + cnt) > (flasize/512))
+    834          	{
+    835          		cnt = (flasize/512) - sector_offset;
+    836          	}
+    837          
+    838          	for (i = 0; i < cnt;i++)
+    839          	{
+    840          		if (((sector_offset+i)/8) == current_cache_block)
+    841          		{
+    842          			//如果当前要读的Sector位于已经被缓存的Block（4K Block）,那么直接读缓存数据即可
+    843          			MEMCPY(pBuffer+512*i,buffer+((sector_offset+i)%8)*512,512);
     844          		}
-    845          
-    846          		if(spi_flash_rpage(sector_offset+i,1,pBuffer+512*i)){
-    847          			return -3;		//读取失败
-    848          		}
-    849          	}
-    850          
-    851          	return 0;
-    852          }
-    853          /******************* (C) COPYRIGHT 2010 netcom *****END OF FILE****/
+    845          		else
+    846          		{
+    847          			if(spi_flash_rpage(sector_offset+i,1,pBuffer+512*i)){
+    848          				return -3;		//读取失败
+    849          			}
+    850          		}
+    851          	}
+    852          
+    853          	return 0;
+    854          }
+    855          /******************* (C) COPYRIGHT 2010 netcom *****END OF FILE****/
 
    Maximum stack usage in bytes:
 
      Function                     .cstack
      --------                     -------
      get_spi_flash_capacity            0
-     memcpy                            8
-     memset                            8
      spi_flash_close                   8
      spi_flash_erase                   8
      spi_flash_eraseblock              8
@@ -924,8 +922,6 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
 
      Function/Label               Bytes
      --------------               -----
-     memcpy                         14
-     memset                         20
      id_array                       64
      flash_state                     1
      flasize                         4
@@ -964,9 +960,9 @@ E:\BT Printer\FW\src\Drivers\spi_flash.c
  
  4 113 bytes in section .bss
     64 bytes in section .rodata
- 2 324 bytes in section .text
+ 2 290 bytes in section .text
  
- 2 290 bytes of CODE  memory (+ 34 bytes shared)
+ 2 290 bytes of CODE  memory
     64 bytes of CONST memory
  4 113 bytes of DATA  memory
 

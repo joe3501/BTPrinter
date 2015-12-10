@@ -6,6 +6,7 @@
 #include "Event.h"
 #include "KeyScan.h"
 #include "uart.h"
+#include "config.h"
 
 uint8_t printersts,papercnt,platencnt,bm_cnt;
 
@@ -111,10 +112,7 @@ void TPPaperSNSInit(void)
 	SysTick_ITConfig(ENABLE);
 	SysTick_CounterCmd(DISABLE);
 
-	for (i = 0; i<MAX_PRINT_CHANNEL;i++)
-	{
-		esc_sts[i].status4=0;
-	}
+	ESC_STS_STATUS_DEINIT();
 
 	systick_cnt = 0;
 
@@ -129,19 +127,13 @@ void PaperStartSns(void)
        {
             printersts &= ~PAPER_SNS;
             printersts |= PAPER_READY;
-			for (i = 0; i<MAX_PRINT_CHANNEL;i++)
-			{
-				esc_sts[i].status4 &=~(0x03<<5);
-			}
+			ESC_STS_STATUS_RESET_FLAG(0x03,5);
        }
        else // paper out
        {
             printersts |= PAPER_SNS;
             printersts &= ~PAPER_READY;
-			for (i = 0; i<MAX_PRINT_CHANNEL;i++)
-			{
-				esc_sts[i].status4 |= (0x03<<5);
-			}
+			ESC_STS_STATUS_SET_FLAG(0x03,5);
        }
 
 		SysTick_CounterCmd(ENABLE);

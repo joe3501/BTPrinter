@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:25 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:21 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -12,17 +12,15 @@
 #                    \Obj\" --no_cse --no_unroll --no_inline                  #
 #                    --no_code_motion --no_tbaa --no_clustering               #
 #                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
-#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
-#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
-#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
-#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
-#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
-#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
-#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    -e --fpu=None -I "E:\BT Printer\FW\src\Project\EWARMv5\. #
+#                    .\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uC #
+#                    OS\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\ #
+#                    ..\uCOS\uCOS-II\Ports\" -I "E:\BT                        #
 #                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
 #                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
 #                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
@@ -50,129 +48,130 @@ E:\BT Printer\FW\src\App\Terminal_Para_m.c
      11          #include <string.h>
      12          #include "crc32.h"
      13          #include "record_mod.h"
-     14          
+     14          #include "basic_fun.h"
      15          
      16          
-     17          /* private Variable -----------------------------------------------*/
-     18          /* external Variable -----------------------------------------------*/
-     19          
-     20          /* Global Variable -----------------------------------------------*/
-     21          //定义终端的系统参数
-     22          TTerminalPara		g_param;				//终端参数
-     23          
-     24          static unsigned char param_mod_state = 0;
-     25          
-     26          /* Private function prototypes -----------------------------------------------*/
-     27          /* Private function  -----------------------------------------------*/
-     28          
-     29          /**
-     30          * @brief	从保存终端系统参数的存储模块中读取参数保存到全局变量中
-     31          * @param[in]  none				
-     32          * @param[out] 存储终端参数的全局变量
-     33          * @return     unsigned char  0  :SUCCESS   else : 错误代码
-     34          * @note                  
-     35          */
-     36          int ReadTerminalPara(void)
-     37          {
-     38          	unsigned long			checkvalue;
-     39          	int		ret;
-     40          
-     41          	if (param_mod_state == 0)
-     42          	{
-     43          		ret = param_init(sizeof(TTerminalPara));
-     44          		if (ret)
-     45          		{
-     46          			if (ret == -3 || ret == -4 || ret == -6)
-     47          			{
-     48          				ret = param_format(sizeof(TTerminalPara));
-     49          				if (ret)
-     50          				{
-     51          					return ret;
-     52          				}
-     53          			}
-     54          			else
-     55          			{
-     56          				return ret;
-     57          			}
-     58          		}
-     59          
-     60          		param_mod_state = 1;
-     61          	}
-     62          
-     63          	ret = param_read((unsigned char*)&g_param,sizeof(TTerminalPara));
-     64          	if(ret)
-     65          	{
-     66          		return ret;
-     67          	}
-     68          
+     17          
+     18          /* private Variable -----------------------------------------------*/
+     19          /* external Variable -----------------------------------------------*/
+     20          
+     21          /* Global Variable -----------------------------------------------*/
+     22          //定义终端的系统参数
+     23          TTerminalPara		g_param;				//终端参数
+     24          
+     25          static unsigned char param_mod_state = 0;
+     26          
+     27          /* Private function prototypes -----------------------------------------------*/
+     28          /* Private function  -----------------------------------------------*/
+     29          
+     30          /**
+     31          * @brief	从保存终端系统参数的存储模块中读取参数保存到全局变量中
+     32          * @param[in]  none				
+     33          * @param[out] 存储终端参数的全局变量
+     34          * @return     unsigned char  0  :SUCCESS   else : 错误代码
+     35          * @note                  
+     36          */
+     37          int ReadTerminalPara(void)
+     38          {
+     39          	unsigned long			checkvalue;
+     40          	int		ret;
+     41          
+     42          	if (param_mod_state == 0)
+     43          	{
+     44          		ret = param_init(sizeof(TTerminalPara));
+     45          		if (ret)
+     46          		{
+     47          			if (ret == -3 || ret == -4 || ret == -6)
+     48          			{
+     49          				ret = param_format(sizeof(TTerminalPara));
+     50          				if (ret)
+     51          				{
+     52          					return ret;
+     53          				}
+     54          			}
+     55          			else
+     56          			{
+     57          				return ret;
+     58          			}
+     59          		}
+     60          
+     61          		param_mod_state = 1;
+     62          	}
+     63          
+     64          	ret = param_read((unsigned char*)&g_param,sizeof(TTerminalPara));
+     65          	if(ret)
+     66          	{
+     67          		return ret;
+     68          	}
      69          
      70          
-     71          #if 1
-     72          	//计算校验值是否正确
-     73          	checkvalue = crc32(0,(unsigned char*)&g_param.line_after_mark,sizeof(TTerminalPara) - 4);
-     74          	if (g_param.checkvalue != checkvalue)
-     75          	{
-     76          		//参数的校验值不对
-     77          		return 2;
-     78          	}
-     79          
-     80          	// 检查参数是否正确
-     81          	if ((g_param.endtag[0] != 0x55)||(g_param.endtag[1] != 0xAA)||(g_param.endtag[2] != 0x5A)||(g_param.struct_ver != 1))
-     82          	{
-     83          		//参数的结束标记不对
-     84          		return 3;
-     85          	}
-     86          
+     71          
+     72          #if 1
+     73          	//计算校验值是否正确
+     74          	checkvalue = crc32(0,(unsigned char*)&g_param.line_after_mark,sizeof(TTerminalPara) - 4);
+     75          	if (g_param.checkvalue != checkvalue)
+     76          	{
+     77          		//参数的校验值不对
+     78          		return 2;
+     79          	}
+     80          
+     81          	// 检查参数是否正确
+     82          	if ((g_param.endtag[0] != 0x55)||(g_param.endtag[1] != 0xAA)||(g_param.endtag[2] != 0x5A)||(g_param.struct_ver != 1))
+     83          	{
+     84          		//参数的结束标记不对
+     85          		return 3;
+     86          	}
      87          
-     88          	//检查其余参数是否正确
-     89          	//@todo....
-     90          #endif
-     91          	return 0;	
-     92          }
-     93          
-     94          /**
-     95          * @brief	将用户变更后的终端系统参数保存到存储模块
-     96          * @param[in]   none				
-     97          * @param[in] 存储终端参数的全局变量
-     98          * @return     none
-     99          * @note   此函数中实现的是将参数保存到PSAM卡中                
-    100          */
-    101          int SaveTerminalPara(void)
-    102          {
-    103          	int					ret;
-    104          
-    105          	// 重新计算校验        
-    106          	g_param.checkvalue = crc32(0,(unsigned char*)&g_param.line_after_mark, sizeof(TTerminalPara)-4);
-    107          
-    108          	ret = param_write((unsigned char*)&g_param,sizeof(TTerminalPara));
-    109          	return ret;
-    110          }
-    111          
+     88          
+     89          	//检查其余参数是否正确
+     90          	//@todo....
+     91          #endif
+     92          	return 0;	
+     93          }
+     94          
+     95          /**
+     96          * @brief	将用户变更后的终端系统参数保存到存储模块
+     97          * @param[in]   none				
+     98          * @param[in] 存储终端参数的全局变量
+     99          * @return     none
+    100          * @note   此函数中实现的是将参数保存到PSAM卡中                
+    101          */
+    102          int SaveTerminalPara(void)
+    103          {
+    104          	int					ret;
+    105          
+    106          	// 重新计算校验        
+    107          	g_param.checkvalue = crc32(0,(unsigned char*)&g_param.line_after_mark, sizeof(TTerminalPara)-4);
+    108          
+    109          	ret = param_write((unsigned char*)&g_param,sizeof(TTerminalPara));
+    110          	return ret;
+    111          }
     112          
-    113          /**
-    114          * @brief 建立默认的测试参数并保存
-    115          */
-    116          int DefaultTerminalPara(void)
-    117          {
-    118          	unsigned char		*pSrc;
-    119          	//unsigned char		i,tmp[2];
-    120          
-    121          	pSrc				= (unsigned char *)&g_param;
-    122          	//先清空所有参数
-    123          	memset(pSrc,0,sizeof(TTerminalPara));
-    124          	//设置结束标记
-    125          	g_param.endtag[0]		= 0x55;
-    126          	g_param.endtag[1]		= 0xAA;
-    127          	g_param.endtag[2]		= 0x5A;
-    128          	//设置参数结构版本号
-    129          	g_param.struct_ver		= 0x01;
-    130          	//构造默认的终端参数
-    131          	g_param.character_code_page = 0;
-    132          	g_param.max_mark_length	=	250;
-    133          	g_param.line_after_mark	=	32;   //32*0.0625=1mm
-    134          	return SaveTerminalPara();
-    135          }
-    136          
+    113          
+    114          /**
+    115          * @brief 建立默认的测试参数并保存
+    116          */
+    117          int DefaultTerminalPara(void)
+    118          {
+    119          	unsigned char		*pSrc;
+    120          	//unsigned char		i,tmp[2];
+    121          
+    122          	pSrc				= (unsigned char *)&g_param;
+    123          	//先清空所有参数
+    124          	MEMSET(pSrc,0,sizeof(TTerminalPara));
+    125          	//设置结束标记
+    126          	g_param.endtag[0]		= 0x55;
+    127          	g_param.endtag[1]		= 0xAA;
+    128          	g_param.endtag[2]		= 0x5A;
+    129          	//设置参数结构版本号
+    130          	g_param.struct_ver		= 0x01;
+    131          	//构造默认的终端参数
+    132          	g_param.character_code_page = 0;
+    133          	g_param.max_mark_length	=	250;
+    134          	g_param.line_after_mark	=	32;   //32*0.0625=1mm
+    135          	return SaveTerminalPara();
+    136          }
+    137          
 
    Maximum stack usage in bytes:
 
@@ -181,14 +180,12 @@ E:\BT Printer\FW\src\App\Terminal_Para_m.c
      DefaultTerminalPara      8
      ReadTerminalPara         8
      SaveTerminalPara         8
-     memset                   8
 
 
    Section sizes:
 
      Function/Label      Bytes
      --------------      -----
-     memset                20
      g_param               64
      param_mod_state        1
      ReadTerminalPara     152
@@ -199,9 +196,9 @@ E:\BT Printer\FW\src\App\Terminal_Para_m.c
 
  
   65 bytes in section .bss
- 274 bytes in section .text
+ 254 bytes in section .text
  
- 254 bytes of CODE memory (+ 20 bytes shared)
+ 254 bytes of CODE memory
   65 bytes of DATA memory
 
 Errors: none

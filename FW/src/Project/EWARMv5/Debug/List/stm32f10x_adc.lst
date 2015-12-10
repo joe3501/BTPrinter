@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:29 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:28 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -12,17 +12,15 @@
 #                    \Obj\" --no_cse --no_unroll --no_inline                  #
 #                    --no_code_motion --no_tbaa --no_clustering               #
 #                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
-#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
-#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
-#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
-#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
-#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
-#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
-#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    -e --fpu=None -I "E:\BT Printer\FW\src\Project\EWARMv5\. #
+#                    .\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uC #
+#                    OS\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\ #
+#                    ..\uCOS\uCOS-II\Ports\" -I "E:\BT                        #
 #                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
 #                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
 #                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #

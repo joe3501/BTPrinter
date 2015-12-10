@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:54 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:27 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -442,7 +440,7 @@ E:\BT Printer\FW\src\App\res_spi_new.c
     403          			}
     404          			
     405          			spi_flash_read(desFlashAddress/512,tempbuf,1);
-    406          			if(memcmp(res_buffer,tempbuf,512)!=0)
+    406          			if(MEMCMP(res_buffer,tempbuf,512)!=0)
     407          			{
     408          				f_close(&resource_file);
     409          				return -1;
@@ -471,7 +469,7 @@ E:\BT Printer\FW\src\App\res_spi_new.c
     432          				}
     433          				
     434          				spi_flash_read(desFlashAddress/512,tempbuf,1);
-    435          				if(memcmp(res_buffer,tempbuf,512)!=0)
+    435          				if(MEMCMP(res_buffer,tempbuf,512)!=0)
     436          				{
     437          					f_close(&resource_file);
     438          					return -1;
@@ -537,18 +535,18 @@ E:\BT Printer\FW\src\App\res_spi_new.c
     498          		if (((offset&0x1ff)+size) > 512)
     499          		{
     500          			len1 = 512-(offset&0x1ff);
-    501          			memcpy(pBuf,pData,len1);
+    501          			MEMCPY(pBuf,pData,len1);
     502          			len2 = size - len1;
     503          			pData = read_resdata(pInfo->address + (offset/512) + 1);
-    504          			memcpy(pBuf+len1,pData,len2);
+    504          			MEMCPY(pBuf+len1,pData,len2);
     505          		}
     506          		else
     507          		{
-    508          			memcpy(pBuf,pData,size);
+    508          			MEMCPY(pBuf,pData,size);
     509          		}
     510          	}//12
     511          
-    512          	//memset(pBuf,0x01,size);
+    512          	//MEMSET(pBuf,0x01,size);
     513          
     514          }
 
@@ -557,7 +555,6 @@ E:\BT Printer\FW\src\App\res_spi_new.c
      Function       .cstack
      --------       -------
      font_data_read     24
-     memcpy              8
      read_resdata        8
      res_init           16
      res_loadres        16
@@ -570,7 +567,6 @@ E:\BT Printer\FW\src\App\res_spi_new.c
 
      Function/Label                             Bytes
      --------------                             -----
-     memcpy                                       14
      fonta_en                                   3456
      fontb_en                                   1536
      fontc_en                                     28
@@ -597,9 +593,9 @@ E:\BT Printer\FW\src\App\res_spi_new.c
  1 628 bytes in section .bss
     32 bytes in section .data
  5 136 bytes in section .rodata
- 1 046 bytes in section .text
+ 1 032 bytes in section .text
  
- 1 032 bytes of CODE  memory (+ 14 bytes shared)
+ 1 032 bytes of CODE  memory
  5 136 bytes of CONST memory
  1 660 bytes of DATA  memory
 

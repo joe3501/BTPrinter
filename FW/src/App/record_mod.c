@@ -256,7 +256,7 @@ static int rec_copy4kblk(unsigned int desadd, unsigned int srcadd, unsigned int 
 		desadd += 16;
 	}
 	// 将剩余的字节复制
-	memset(tmpbuf,0xFF,16);
+	MEMSET(tmpbuf,0xFF,16);
 	spi_flash_raddr(srcadd, len, tmpbuf);
 	if (0 != spi_flash_waddr(desadd, 16, tmpbuf))
 	{
@@ -1047,7 +1047,7 @@ int record_read(unsigned char rectype, int index, unsigned char *record, unsigne
 			spi_flash_raddr(tmpadd+2+256*i, 256, record+1+256*i);
 			spi_flash_raddr(tmpadd+1+recordsize+3*i, 3, ecckey_read);
 			calculate_ecc(record+1+256*i,256,ecckey_cal);
-			if (0 != memcmp(ecckey_cal,ecckey_read,3))
+			if (0 != MEMCMP(ecckey_cal,ecckey_read,3))
 			{
 				correct_data(record+1+256*i, ecckey_read, ecckey_cal,256);
 			}
@@ -1056,15 +1056,15 @@ int record_read(unsigned char rectype, int index, unsigned char *record, unsigne
 		}
 		if (recordsizetmp != 0)
 		{
-			memset(eccdata_tmp, 0, 256);
+			MEMSET(eccdata_tmp, 0, 256);
 			spi_flash_raddr(tmpadd+2+256*i, recordsizetmp, eccdata_tmp);
 			spi_flash_raddr(tmpadd+1+recordsize+3*i, 3, ecckey_read);
 			calculate_ecc(eccdata_tmp, 256, ecckey_cal);
-			if (0 != memcmp(ecckey_cal,ecckey_read,3))
+			if (0 != MEMCMP(ecckey_cal,ecckey_read,3))
 			{
 				correct_data(eccdata_tmp, ecckey_read, ecckey_cal, 256);
 			}
-			memcpy(record+1+256*i, eccdata_tmp, recordsizetmp);
+			MEMCPY(record+1+256*i, eccdata_tmp, recordsizetmp);
 		}
 		return 0;
 	}
@@ -1244,10 +1244,10 @@ int record_replace(unsigned char rectype, int index, unsigned char *pNewData)
 				return -5;		// 写Flash出错
 			}
 			spi_flash_raddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_read);
-			if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+			if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
 			{
 				spi_flash_raddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_read);
-				if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+				if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
 				{
 					return -5;
 				}
@@ -1257,18 +1257,18 @@ int record_replace(unsigned char rectype, int index, unsigned char *pNewData)
 		}
 		if (recordsizetmp != 0)
 		{
-			memset(eccdata_tmp, 0, 256);
-			memcpy(eccdata_tmp,pNewData+1+i*256,recordsizetmp);
+			MEMSET(eccdata_tmp, 0, 256);
+			MEMCPY(eccdata_tmp,pNewData+1+i*256,recordsizetmp);
 			calculate_ecc(eccdata_tmp, 256, ecckey_cal);
 			if (0 != spi_flash_waddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_cal))	// 写校验码
 			{
 				return -5;		// 写Flash出错
 			}
 			spi_flash_raddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_read);
-			if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+			if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
 			{
 				spi_flash_raddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_read);
-				if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+				if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
 				{
 					return -5;
 				}
@@ -1526,10 +1526,10 @@ int record_write(unsigned char rectype, unsigned char *record, unsigned int len)
 				return -5;		// 写Flash出错
 			}
 			spi_flash_raddr(recordheadpt+1+recordsize+i*3, 3, ecckey_read);
-			if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+			if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
 			{
 				spi_flash_raddr(recordheadpt+1+recordsize+i*3, 3, ecckey_read);
-				if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+				if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
 				{
 					goto Rollback;
 				}
@@ -1539,18 +1539,18 @@ int record_write(unsigned char rectype, unsigned char *record, unsigned int len)
 		}
 		if (recordsizetmp != 0)
 		{
-			memset(eccdata_tmp, 0, 256);
-			memcpy(eccdata_tmp,record+1+i*256,recordsizetmp);
+			MEMSET(eccdata_tmp, 0, 256);
+			MEMCPY(eccdata_tmp,record+1+i*256,recordsizetmp);
 			calculate_ecc(eccdata_tmp, 256, ecckey_cal);
 			if (0 != spi_flash_waddr(recordheadpt+1+recordsize+i*3, 3, ecckey_cal))	// 写校验码
 			{
 				return -5;		// 写Flash出错
 			}
 			spi_flash_raddr(recordheadpt+1+recordsize+i*3, 3, ecckey_read);
-			if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+			if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
 			{
 				spi_flash_raddr(recordheadpt+1+recordsize+i*3, 3, ecckey_read);
-				if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+				if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
 				{
 					goto Rollback;
 				}

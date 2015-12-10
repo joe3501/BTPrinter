@@ -69,17 +69,17 @@ size_t ringbuffer_put(struct ringbuffer *rb,
     if (rb->buffer_size - rb->write_index > length)
     {
         /* read_index - write_index = empty space */
-        memcpy(&rb->buffer_ptr[rb->write_index], ptr, length);
+        MEMCPY(&rb->buffer_ptr[rb->write_index], ptr, length);
         /* this should not cause overflow because there is enough space for
          * length of data in current mirror */
         rb->write_index += length;
         return length;
     }
 
-    memcpy(&rb->buffer_ptr[rb->write_index],
+    MEMCPY(&rb->buffer_ptr[rb->write_index],
            &ptr[0],
            rb->buffer_size - rb->write_index);
-    memcpy(&rb->buffer_ptr[0],
+    MEMCPY(&rb->buffer_ptr[0],
            &ptr[rb->buffer_size - rb->write_index],
            length - (rb->buffer_size - rb->write_index));
 
@@ -111,7 +111,7 @@ size_t ringbuffer_put_force(struct ringbuffer *rb,
     if (rb->buffer_size - rb->write_index > length)
     {
         /* read_index - write_index = empty space */
-        memcpy(&rb->buffer_ptr[rb->write_index], ptr, length);
+        MEMCPY(&rb->buffer_ptr[rb->write_index], ptr, length);
         /* this should not cause overflow because there is enough space for
          * length of data in current mirror */
         rb->write_index += length;
@@ -122,10 +122,10 @@ size_t ringbuffer_put_force(struct ringbuffer *rb,
         return length;
     }
 
-    memcpy(&rb->buffer_ptr[rb->write_index],
+    MEMCPY(&rb->buffer_ptr[rb->write_index],
            &ptr[0],
            rb->buffer_size - rb->write_index);
-    memcpy(&rb->buffer_ptr[0],
+    MEMCPY(&rb->buffer_ptr[0],
            &ptr[rb->buffer_size - rb->write_index],
            length - (rb->buffer_size - rb->write_index));
 
@@ -167,17 +167,17 @@ size_t ringbuffer_get(struct ringbuffer *rb,
     if (rb->buffer_size - rb->read_index > length)
     {
         /* copy all of data */
-        memcpy(ptr, &rb->buffer_ptr[rb->read_index], length);
+        MEMCPY(ptr, &rb->buffer_ptr[rb->read_index], length);
         /* this should not cause overflow because there is enough space for
          * length of data in current mirror */
         rb->read_index += length;
         return length;
     }
 
-    memcpy(&ptr[0],
+    MEMCPY(&ptr[0],
            &rb->buffer_ptr[rb->read_index],
            rb->buffer_size - rb->read_index);
-    memcpy(&ptr[rb->buffer_size - rb->read_index],
+    MEMCPY(&ptr[rb->buffer_size - rb->read_index],
            &rb->buffer_ptr[0],
            length - (rb->buffer_size - rb->read_index));
 

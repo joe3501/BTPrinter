@@ -25,7 +25,7 @@ static int  p_allocate_addr[ALLOCATE_ADDR_TABLE_SIZE];		//每次动态申请的地址都会
 
 void JMemory_init(void)
 {
-	memset((void*)p_allocate_addr,0,ALLOCATE_ADDR_TABLE_SIZE*sizeof(int));
+	MEMSET((void*)p_allocate_addr,0,ALLOCATE_ADDR_TABLE_SIZE*sizeof(int));
 }
 
 void * Jmalloc(int size)

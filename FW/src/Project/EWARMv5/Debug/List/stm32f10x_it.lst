@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:55 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:30 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -12,17 +12,15 @@
 #                    \Obj\" --no_cse --no_unroll --no_inline                  #
 #                    --no_code_motion --no_tbaa --no_clustering               #
 #                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
-#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
-#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Full. #
-#                    h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I      #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
-#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
-#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
-#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
-#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
-#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
-#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
+#                    -e --fpu=None -I "E:\BT Printer\FW\src\Project\EWARMv5\. #
+#                    .\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\ #
+#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC #
+#                    -CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uC #
+#                    OS\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\ #
+#                    ..\uCOS\uCOS-II\Ports\" -I "E:\BT                        #
 #                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
 #                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
 #                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
@@ -1091,12 +1089,12 @@ E:\BT Printer\FW\src\Project\stm32f10x_it.c
      CAN_RX1_IRQHandler              0
      CAN_SCE_IRQHandler              0
      DMA1_Channel1_IRQHandler        0
-     DMA1_Channel2_IRQHandler        8
+     DMA1_Channel2_IRQHandler        0
      DMA1_Channel3_IRQHandler        0
      DMA1_Channel4_IRQHandler        8
      DMA1_Channel5_IRQHandler        0
      DMA1_Channel6_IRQHandler        0
-     DMA1_Channel7_IRQHandler        8
+     DMA1_Channel7_IRQHandler        0
      DMA2_Channel1_IRQHandler        0
      DMA2_Channel2_IRQHandler        0
      DMA2_Channel3_IRQHandler        0
@@ -1147,8 +1145,8 @@ E:\BT Printer\FW\src\Project\stm32f10x_it.c
      UART4_IRQHandler                8
      UART5_IRQHandler                0
      USART1_IRQHandler               8
-     USART2_IRQHandler               8
-     USART3_IRQHandler               8
+     USART2_IRQHandler               0
+     USART3_IRQHandler               0
      USBWakeUp_IRQHandler            0
      USB_HP_CAN_TX_IRQHandler        8
      USB_LP_CAN_RX0_IRQHandler       8
@@ -1183,12 +1181,12 @@ E:\BT Printer\FW\src\Project\stm32f10x_it.c
      EXTI3_IRQHandler                        2
      EXTI4_IRQHandler                        2
      DMA1_Channel1_IRQHandler                2
-     DMA1_Channel2_IRQHandler               32
+     DMA1_Channel2_IRQHandler                2
      DMA1_Channel3_IRQHandler                2
      DMA1_Channel4_IRQHandler               36
      DMA1_Channel5_IRQHandler                2
      DMA1_Channel6_IRQHandler                2
-     DMA1_Channel7_IRQHandler               36
+     DMA1_Channel7_IRQHandler                2
      ADC1_2_IRQHandler                       2
      USB_HP_CAN_TX_IRQHandler                8
      USB_LP_CAN_RX0_IRQHandler               8
@@ -1209,8 +1207,8 @@ E:\BT Printer\FW\src\Project\stm32f10x_it.c
      SPI1_IRQHandler                         2
      SPI2_IRQHandler                         2
      USART1_IRQHandler                     108
-     USART2_IRQHandler                     108
-     USART3_IRQHandler                     108
+     USART2_IRQHandler                       2
+     USART3_IRQHandler                       2
      EXTI15_10_IRQHandler                    2
      RTCAlarm_IRQHandler                     2
      USBWakeUp_IRQHandler                    2
@@ -1248,9 +1246,9 @@ E:\BT Printer\FW\src\Project\stm32f10x_it.c
 
  
  180 bytes in section .rodata
- 990 bytes in section .text
+ 714 bytes in section .text
  
- 990 bytes of CODE  memory
+ 714 bytes of CODE  memory
  180 bytes of CONST memory
 
 Errors: none

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:52 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:22 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -330,11 +328,11 @@ E:\BT Printer\FW\src\App\basic_fun.c
     291          	unsigned int	i,j = 0;
     292          	unsigned int	str_len;
     293          
-    294          	str_len = strlen((char const*)str);
+    294          	str_len = STRLEN((char const*)str);
     295          	if (str_len < len*2)
     296          	{
     297          		i = len - ((str_len+1)/2);
-    298          		memset(bcd_field,0,i);
+    298          		MEMSET(bcd_field,0,i);
     299          		if (str_len%2 != 0 )
     300          		{
     301          			//奇数长度
@@ -546,7 +544,7 @@ E:\BT Printer\FW\src\App\basic_fun.c
     507          {
     508          	int i;
     509          
-    510          	memset(report,0,9);
+    510          	MEMSET(report,0,9);
     511          
     512          	for(i = 0; i < sizeof(UsbKeyValue_Ascii_Tbl)/sizeof(TUSBKeyValue_Ascii); i++)
     513          	{
@@ -574,7 +572,7 @@ E:\BT Printer\FW\src\App\basic_fun.c
     535          	unsigned char special_key;
     536          	unsigned char last_ascii = 0;
     537          
-    538          	memset(report,0,9);
+    538          	MEMSET(report,0,9);
     539          
     540          	//if(len > 6) len = 6;		//一次传6个键值，发现手机操作系统会丢键值
     541          	if(len > 1) len = 1;
@@ -624,7 +622,7 @@ E:\BT Printer\FW\src\App\basic_fun.c
     585          	unsigned char tmp[15];
     586          
     587          	bcd_field_to_str(date_time_bcd,7,tmp);
-    588          	memcpy(dis_str,tmp,4);
+    588          	MEMCPY(dis_str,tmp,4);
     589          	if (mode)
     590          	{
     591          		dis_str[4] ='-';
@@ -633,7 +631,7 @@ E:\BT Printer\FW\src\App\basic_fun.c
     594          	{
     595          		dis_str[4] ='/';
     596          	}
-    597          	memcpy(dis_str+5,tmp+4,2);
+    597          	MEMCPY(dis_str+5,tmp+4,2);
     598          	if (mode)
     599          	{
     600          		dis_str[7] ='-';
@@ -642,13 +640,13 @@ E:\BT Printer\FW\src\App\basic_fun.c
     603          	{
     604          		dis_str[7] ='/';
     605          	}
-    606          	memcpy(dis_str+8,tmp+6,2);
+    606          	MEMCPY(dis_str+8,tmp+6,2);
     607          	dis_str[10]= ' ';
-    608          	memcpy(dis_str+11,tmp+8,2);
+    608          	MEMCPY(dis_str+11,tmp+8,2);
     609          	dis_str[13] = ':';
-    610          	memcpy(dis_str+14,tmp+10,2);
+    610          	MEMCPY(dis_str+14,tmp+10,2);
     611          	dis_str[16] = ':';
-    612          	memcpy(dis_str+17,tmp+12,2);
+    612          	MEMCPY(dis_str+17,tmp+12,2);
     613          	dis_str[19] = 0;
     614          }
     615          
@@ -776,6 +774,355 @@ E:\BT Printer\FW\src\App\basic_fun.c
     737          	str[++index] = '\0';  
     738          	return(str);  
     739          }  
+    740          
+    741          
+    742          /**
+    743           * This function will set the content of memory to specified value
+    744           *
+    745           * @param s the address of source memory
+    746           * @param c the value shall be set in content
+    747           * @param count the copied length
+    748           *
+    749           * @return the address of source memory
+    750           */
+    751          void *kt_memset(void *s, int c, unsigned int count)
+    752          {
+    753          #ifdef KT_TINY_SIZE
+    754              char *xs = (char *)s;
+    755          
+    756              while (count--)
+    757                  *xs++ = c;
+    758          
+    759              return s;
+    760          #else
+    761          #define LBLOCKSIZE      (sizeof(unsigned int))
+    762          #define UNALIGNED(X)    ((unsigned int)X & (LBLOCKSIZE - 1))
+    763          #define TOO_SMALL(LEN)  ((LEN) < LBLOCKSIZE)
+    764          
+    765              int i;
+    766              char *m = (char *)s;
+    767              unsigned int buffer;
+    768              unsigned int *aligned_addr;
+    769              unsigned int d = c & 0xff;
+    770          
+    771              if (!TOO_SMALL(count) && !UNALIGNED(s))
+    772              {
+    773                  /* If we get this far, we know that n is large and m is word-aligned. */
+    774                  aligned_addr = (unsigned int *)s;
+    775          
+    776                  /* Store D into each char sized location in BUFFER so that
+    777                   * we can set large blocks quickly.
+    778                   */
+    779                  if (LBLOCKSIZE == 4)
+    780                  {
+    781                      buffer = (d << 8) | d;
+    782                      buffer |= (buffer << 16);
+    783                  }
+    784                  else
+    785                  {
+    786                      buffer = 0;
+    787                      for (i = 0; i < LBLOCKSIZE; i ++)
+    788                          buffer = (buffer << 8) | d;
+    789                  }
+    790          
+    791                  while (count >= LBLOCKSIZE * 4)
+    792                  {
+    793                      *aligned_addr++ = buffer;
+    794                      *aligned_addr++ = buffer;
+    795                      *aligned_addr++ = buffer;
+    796                      *aligned_addr++ = buffer;
+    797                      count -= 4 * LBLOCKSIZE;
+    798                  }
+    799          
+    800                  while (count >= LBLOCKSIZE)
+    801                  {
+    802                      *aligned_addr++ = buffer;
+    803                      count -= LBLOCKSIZE;
+    804                  }
+    805          
+    806                  /* Pick up the remainder with a bytewise loop. */
+    807                  m = (char *)aligned_addr;
+    808              }
+    809          
+    810              while (count--)
+    811              {
+    812                  *m++ = (char)d;
+    813              }
+    814          
+    815              return s;
+    816          
+    817          #undef LBLOCKSIZE
+    818          #undef UNALIGNED
+    819          #undef TOO_SMALL
+    820          #endif
+    821          }
+    822          
+    823          /**
+    824           * This function will copy memory content from source address to destination
+    825           * address.
+    826           *
+    827           * @param dst the address of destination memory
+    828           * @param src  the address of source memory
+    829           * @param count the copied length
+    830           *
+    831           * @return the address of destination memory
+    832           */
+    833          void *kt_memcpy(void *dst, const void *src, unsigned int count)
+    834          {
+    835          #ifdef KT_TINY_SIZE
+    836              char *tmp = (char *)dst, *s = (char *)src;
+    837          
+    838              while (count--)
+    839                  *tmp++ = *s++;
+    840          
+    841              return dst;
+    842          #else
+    843          
+    844          #define UNALIGNED(X, Y)                                               \
+    845                                  (((unsigned int)X & (sizeof(unsigned int) - 1)) | \
+    846                                   ((unsigned int)Y & (sizeof(unsigned int) - 1)))
+    847          #define BIGBLOCKSIZE    (sizeof(unsigned int) << 2)
+    848          #define LITTLEBLOCKSIZE (sizeof(unsigned int))
+    849          #define TOO_SMALL(LEN)  ((LEN) < BIGBLOCKSIZE)
+    850          
+    851              char *dst_ptr = (char *)dst;
+    852              char *src_ptr = (char *)src;
+    853              unsigned int *aligned_dst;
+    854              unsigned int *aligned_src;
+    855              int len = count;
+    856          
+    857              /* If the size is small, or either SRC or DST is unaligned,
+    858              then punt into the byte copy loop.  This should be rare. */
+    859              if (!TOO_SMALL(len) && !UNALIGNED(src_ptr, dst_ptr))
+    860              {
+    861                  aligned_dst = (unsigned int *)dst_ptr;
+    862                  aligned_src = (unsigned int *)src_ptr;
+    863          
+    864                  /* Copy 4X long words at a time if possible. */
+    865                  while (len >= BIGBLOCKSIZE)
+    866                  {
+    867                      *aligned_dst++ = *aligned_src++;
+    868                      *aligned_dst++ = *aligned_src++;
+    869                      *aligned_dst++ = *aligned_src++;
+    870                      *aligned_dst++ = *aligned_src++;
+    871                      len -= BIGBLOCKSIZE;
+    872                  }
+    873          
+    874                  /* Copy one long word at a time if possible. */
+    875                  while (len >= LITTLEBLOCKSIZE)
+    876                  {
+    877                      *aligned_dst++ = *aligned_src++;
+    878                      len -= LITTLEBLOCKSIZE;
+    879                  }
+    880          
+    881                  /* Pick up any residual with a byte copier. */
+    882                  dst_ptr = (char *)aligned_dst;
+    883                  src_ptr = (char *)aligned_src;
+    884              }
+    885          
+    886              while (len--)
+    887                  *dst_ptr++ = *src_ptr++;
+    888          
+    889              return dst;
+    890          #undef UNALIGNED
+    891          #undef BIGBLOCKSIZE
+    892          #undef LITTLEBLOCKSIZE
+    893          #undef TOO_SMALL
+    894          #endif
+    895          }
+    896          
+    897          /**
+    898           * This function will move memory content from source address to destination
+    899           * address.
+    900           *
+    901           * @param dest the address of destination memory
+    902           * @param src  the address of source memory
+    903           * @param n the copied length
+    904           *
+    905           * @return the address of destination memory
+    906           */
+    907          void *kt_memmove(void *dest, const void *src, unsigned int n)
+    908          {
+    909              char *tmp = (char *)dest, *s = (char *)src;
+    910          
+    911              if (s < tmp && tmp < s + n)
+    912              {
+    913                  tmp += n;
+    914                  s += n;
+    915          
+    916                  while (n--)
+    917                      *(--tmp) = *(--s);
+    918              }
+    919              else
+    920              {
+    921                  while (n--)
+    922                      *tmp++ = *s++;
+    923              }
+    924          
+    925              return dest;
+    926          }
+    927          
+    928          /**
+    929           * This function will compare two areas of memory
+    930           *
+    931           * @param cs one area of memory
+    932           * @param ct znother area of memory
+    933           * @param count the size of the area
+    934           *
+    935           * @return the result
+    936           */
+    937          unsigned int kt_memcmp(const void *cs, const void *ct, unsigned int count)
+    938          {
+    939              const unsigned char *su1, *su2;
+    940              int res = 0;
+    941          
+    942              for (su1 = cs, su2 = ct; 0 < count; ++su1, ++su2, count--)
+    943                  if ((res = *su1 - *su2) != 0)
+    944                      break;
+    945          
+    946              return res;
+    947          }
+    948          
+    949          /**
+    950           * This function will return the first occurrence of a string.
+    951           *
+    952           * @param s1 the source string
+    953           * @param s2 the find string
+    954           *
+    955           * @return the first occurrence of a s2 in s1, or kt_NULL if no found.
+    956           */
+    957          char *kt_strstr(const char *s1, const char *s2)
+    958          {
+    959              int l1, l2;
+    960          
+    961              l2 = kt_strlen(s2);
+    962              if (!l2)
+    963                  return (char *)s1;
+    964              l1 = kt_strlen(s1);
+    965              while (l1 >= l2)
+    966              {
+    967                  l1 --;
+    968                  if (!kt_memcmp(s1, s2, l2))
+    969                      return (char *)s1;
+    970                  s1 ++;
+    971              }
+    972          
+    973              return NULL;
+    974          }
+    975          
+    976          /**
+    977           * This function will compare two strings while ignoring differences in case
+    978           *
+    979           * @param a the string to be compared
+    980           * @param b the string to be compared
+    981           *
+    982           * @return the result
+    983           */
+    984          unsigned int kt_strcasecmp(const char *a, const char *b)
+    985          {
+    986              int ca, cb;
+    987          
+    988              do
+    989              {
+    990                  ca = *a++ & 0xff;
+    991                  cb = *b++ & 0xff;
+    992                  if (ca >= 'A' && ca <= 'Z')
+    993                      ca += 'a' - 'A';
+    994                  if (cb >= 'A' && cb <= 'Z')
+    995                      cb += 'a' - 'A';
+    996              }
+    997              while (ca == cb && ca != '\0');
+    998          
+    999              return ca - cb;
+   1000          }
+   1001          
+   1002          /**
+   1003           * This function will copy string no more than n bytes.
+   1004           *
+   1005           * @param dst the string to copy
+   1006           * @param src the string to be copied
+   1007           * @param n the maximum copied length
+   1008           *
+   1009           * @return the result
+   1010           */
+   1011          char *kt_strncpy(char *dst, const char *src, unsigned int n)
+   1012          {
+   1013              if (n != 0)
+   1014              {
+   1015                  char *d = dst;
+   1016                  const char *s = src;
+   1017          
+   1018                  do
+   1019                  {
+   1020                      if ((*d++ = *s++) == 0)
+   1021                      {
+   1022                          /* NUL pad the remaining n-1 bytes */
+   1023                          while (--n != 0)
+   1024                              *d++ = 0;
+   1025                          break;
+   1026                      }
+   1027                  } while (--n != 0);
+   1028              }
+   1029          
+   1030              return (dst);
+   1031          }
+   1032          
+   1033          /**
+   1034           * This function will compare two strings with specified maximum length
+   1035           *
+   1036           * @param cs the string to be compared
+   1037           * @param ct the string to be compared
+   1038           * @param count the maximum compare length
+   1039           *
+   1040           * @return the result
+   1041           */
+   1042          unsigned int kt_strncmp(const char *cs, const char *ct, unsigned int count)
+   1043          {
+   1044              register signed char __res = 0;
+   1045          
+   1046              while (count)
+   1047              {
+   1048                  if ((__res = *cs - *ct++) != 0 || !*cs++)
+   1049                      break;
+   1050                  count --;
+   1051              }
+   1052          
+   1053              return __res;
+   1054          }
+   1055          
+   1056          /**
+   1057           * This function will compare two strings without specified length
+   1058           *
+   1059           * @param cs the string to be compared
+   1060           * @param ct the string to be compared
+   1061           *
+   1062           * @return the result
+   1063           */
+   1064          unsigned int kt_strcmp(const char *cs, const char *ct)
+   1065          {
+   1066              while (*cs && *cs == *ct)
+   1067                  cs++, ct++;
+   1068          
+   1069              return (*cs - *ct);
+   1070          }
+   1071          
+   1072          /**
+   1073           * This function will return the length of a string, which terminate will
+   1074           * null character.
+   1075           *
+   1076           * @param s the string
+   1077           *
+   1078           * @return the length of string
+   1079           */
+   1080          unsigned int kt_strlen(const char *s)
+   1081          {
+   1082              const char *sc;
+   1083          
+   1084              for (sc = s; *sc != '\0'; ++sc) /* nothing */
+   1085                  ;
+   1086          
+   1087              return sc - s;
+   1088          }
 
    Maximum stack usage in bytes:
 
@@ -793,8 +1140,16 @@ E:\BT Printer\FW\src\App\basic_fun.c
      if_include_unicode_character      0
      if_last_char_valid                0
      itoascii                          8
-     memcpy                            8
-     memset                            8
+     kt_memcmp                         8
+     kt_memcpy                         8
+     kt_memmove                        8
+     kt_memset                         8
+     kt_strcasecmp                     0
+     kt_strcmp                         0
+     kt_strlen                         0
+     kt_strncmp                        8
+     kt_strncpy                        8
+     kt_strstr                        24
      str_to_bcd_field                 32
 
 
@@ -802,8 +1157,6 @@ E:\BT Printer\FW\src\App\basic_fun.c
 
      Function/Label               Bytes
      --------------               -----
-     memcpy                         14
-     memset                         20
      itoascii                       68
      hex_to_str                    152
      HexToBCD                       88
@@ -817,11 +1170,21 @@ E:\BT Printer\FW\src\App\basic_fun.c
      if_last_char_valid             36
      if_include_unicode_character   24
      F2S                           324
+     kt_memset                      22
+     kt_memcpy                      26
+     kt_memmove                     60
+     kt_memcmp                      34
+     kt_strstr                      62
+     kt_strcasecmp                  40
+     kt_strncpy                     48
+     kt_strncmp                     52
+     kt_strcmp                      28
+     kt_strlen                      16
 
  
- 1 306 bytes in section .text
+ 1 660 bytes in section .text
  
- 1 272 bytes of CODE memory (+ 34 bytes shared)
+ 1 660 bytes of CODE memory
 
 Errors: none
-Warnings: 1
+Warnings: 2

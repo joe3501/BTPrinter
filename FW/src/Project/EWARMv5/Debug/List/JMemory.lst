@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:24 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:21 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -63,7 +61,7 @@ E:\BT Printer\FW\src\App\JMemory.c
      25          
      26          void JMemory_init(void)
      27          {
-     28          	memset((void*)p_allocate_addr,0,ALLOCATE_ADDR_TABLE_SIZE*sizeof(int));
+     28          	MEMSET((void*)p_allocate_addr,0,ALLOCATE_ADDR_TABLE_SIZE*sizeof(int));
      29          }
      30          
      31          void * Jmalloc(int size)
@@ -128,14 +126,12 @@ E:\BT Printer\FW\src\App\JMemory.c
      Jfree             8
      Jfree_all         8
      Jmalloc           8
-     memset            8
 
 
    Section sizes:
 
      Function/Label  Bytes
      --------------  -----
-     memset            20
      p_allocate_addr  400
      JMemory_init      16
      Jmalloc           48
@@ -145,10 +141,10 @@ E:\BT Printer\FW\src\App\JMemory.c
 
  
  400 bytes in section .bss
- 160 bytes in section .text
+ 140 bytes in section .text
  
- 140 bytes of CODE memory (+ 20 bytes shared)
+ 140 bytes of CODE memory
  400 bytes of DATA memory
 
 Errors: none
-Warnings: none
+Warnings: 1

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:54 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:25 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -192,31 +190,31 @@ E:\BT Printer\FW\src\usb_lib\mass_mal.c
     153          			#ifdef DUMMY_FAT_FS
     154          				if (Memory_Offset < (MBR_LBA*Mass_Block_Size[lun]+512))
     155          				{
-    156          					memcpy(Readbuff,dummy_MBR+Memory_Offset-MBR_LBA*Mass_Block_Size[lun],Transfer_Length);
+    156          					MEMCPY(Readbuff,dummy_MBR+Memory_Offset-MBR_LBA*Mass_Block_Size[lun],Transfer_Length);
     157          				}
     158          				else if ((Memory_Offset >= DBR_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (DBR_LBA*Mass_Block_Size[lun]+512)))
     159          				{
-    160          					memcpy(Readbuff,dummy_DBR+Memory_Offset-DBR_LBA*Mass_Block_Size[lun],Transfer_Length);
+    160          					MEMCPY(Readbuff,dummy_DBR+Memory_Offset-DBR_LBA*Mass_Block_Size[lun],Transfer_Length);
     161          				}
     162          				else if ((Memory_Offset >= FAT1_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (FAT1_LBA*Mass_Block_Size[lun]+512)))
     163          				{
-    164          					memcpy(Readbuff,dummy_FAT+Memory_Offset-FAT1_LBA*Mass_Block_Size[lun],Transfer_Length);
+    164          					MEMCPY(Readbuff,dummy_FAT+Memory_Offset-FAT1_LBA*Mass_Block_Size[lun],Transfer_Length);
     165          				}
     166          				else if ((Memory_Offset >= FAT2_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (FAT2_LBA*Mass_Block_Size[lun]+512)))
     167          				{
-    168          					memcpy(Readbuff,dummy_FAT+Memory_Offset-FAT2_LBA*Mass_Block_Size[lun],Transfer_Length);
+    168          					MEMCPY(Readbuff,dummy_FAT+Memory_Offset-FAT2_LBA*Mass_Block_Size[lun],Transfer_Length);
     169          				}
     170          				else if ((Memory_Offset >= FDT_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (FDT_LBA*Mass_Block_Size[lun]+512)))
     171          				{
-    172          					memcpy(Readbuff,dummy_FDT+Memory_Offset-FDT_LBA*Mass_Block_Size[lun],Transfer_Length);
+    172          					MEMCPY(Readbuff,dummy_FDT+Memory_Offset-FDT_LBA*Mass_Block_Size[lun],Transfer_Length);
     173          				}
     174          				else if ((Memory_Offset >= DB_FILE_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (DB_FILE_LBA*Mass_Block_Size[lun]+IF_FILE_SIZE)))
     175          				{
-    176          					memcpy(Readbuff,g_send_buff + Memory_Offset-DB_FILE_LBA*Mass_Block_Size[lun],Transfer_Length);
+    176          					MEMCPY(Readbuff,g_send_buff + Memory_Offset-DB_FILE_LBA*Mass_Block_Size[lun],Transfer_Length);
     177          				}
     178          				else
     179          				{
-    180          					memset(Readbuff,0,Transfer_Length);
+    180          					MEMSET(Readbuff,0,Transfer_Length);
     181          				}
     182          				break;
     183          			#endif
@@ -383,4 +381,4 @@ E:\BT Printer\FW\src\usb_lib\mass_mal.c
   28 bytes of DATA memory
 
 Errors: none
-Warnings: none
+Warnings: 2

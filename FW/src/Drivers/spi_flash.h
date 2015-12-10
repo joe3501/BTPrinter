@@ -24,6 +24,7 @@
 #define _SPI_FLASH_H_
 #include "stm32f10x_lib.h"
 #include "spi_flash_config.h"
+#include "basic_fun.h"
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/

@@ -45,7 +45,12 @@
 #define US		(0x1f)
 #define SP		(0x20)
 
+#ifdef PT_CHANNEL_ISOLATION
 ESC_P_STS_T  esc_sts[MAX_PRINT_CHANNEL];
+#else
+ESC_P_STS_T  esc_sts[1];
+#endif
+
 signed char	 current_channel;		//当前正在处理的通道
 #ifdef DEBUG_VER
 extern unsigned char debug_buffer[];
@@ -101,7 +106,7 @@ extern void esc_p_init(unsigned int n)
 	esc_sts[n].start_dot = 0;
 	esc_sts[n].smoothing_mode = 0;	// 平滑模式
 	esc_sts[n].dot_minrow = ARRAY_SIZE(esc_sts[n].dot[0]);
-	memset(esc_sts[n].dot, 0 ,sizeof(esc_sts[n].dot));
+	MEMSET(esc_sts[n].dot, 0 ,sizeof(esc_sts[n].dot));
 	for(i=0; i<8; i++)
 	{
 		esc_sts[n].tab[i] = 9+8*i;
@@ -131,10 +136,14 @@ extern void esc_p_init(unsigned int n)
 extern esc_init(void)
 {
 	int i;
+#ifdef PT_CHANNEL_ISOLATION
 	for (i = 0; i < MAX_PRINT_CHANNEL; i++)
 	{
 		esc_p_init(i);
 	}
+#else
+	esc_p_init(0);
+#endif
 	current_channel = -1;
 }
 
@@ -161,7 +170,7 @@ extern void esc_p(void)
 		case SP:
 			chs[1] = Getchar();
 			//ESC SP n 设置字符右间距    //note  暂时还不理解右间距与字符间距有什么区别，先与字符间距同样处理
-			esc_sts[current_channel].charspace = chs[1];
+			CURRENT_ESC_STS.charspace = chs[1];
 			break;
 		case '!':
 			chs[1] = Getchar();
@@ -181,11 +190,11 @@ extern void esc_p(void)
 			//6	-	-	暂无定义
 			//7	off	0x00	解除下划线模式
 			//	on	0x80	设置下划线模式
-			esc_sts[current_channel].revert = ((chs[1]&(1<<1))?1:0);
-			esc_sts[current_channel].italic = ((chs[1]&(1<<2))?1:0);
-			esc_sts[current_channel].larger |= ((chs[1]&(1<<4))?1:0);
-			esc_sts[current_channel].larger |= ((chs[1]&(1<<5))?1:0)<<4;
-			esc_sts[current_channel].underline |= (((chs[1]&(1<<7))?1:0)|0x80);
+			CURRENT_ESC_STS.revert = ((chs[1]&(1<<1))?1:0);
+			CURRENT_ESC_STS.italic = ((chs[1]&(1<<2))?1:0);
+			CURRENT_ESC_STS.larger |= ((chs[1]&(1<<4))?1:0);
+			CURRENT_ESC_STS.larger |= ((chs[1]&(1<<5))?1:0)<<4;
+			CURRENT_ESC_STS.underline |= (((chs[1]&(1<<7))?1:0)|0x80);
 			break;
 		case '$':
 			//ESC $ nl nh  设置绝对打印位置
@@ -193,7 +202,7 @@ extern void esc_p(void)
 			chs[2] = Getchar();
 			if (((chs[2]<<8)|chs[1]) < LineDot)
 			{
-				esc_sts[current_channel].start_dot = ((chs[2]<<8)|chs[1]);
+				CURRENT_ESC_STS.start_dot = ((chs[2]<<8)|chs[1]);
 			}
 			break;
 		case 0x2D:
@@ -204,37 +213,38 @@ extern void esc_p(void)
 			{
 				if(chs[1]&0x03)
 				{
-					esc_sts[current_channel].underline &= ~0x03;
-					esc_sts[current_channel].underline |= (chs[1]&0x03);
+					CURRENT_ESC_STS.underline &= ~0x03;
+					CURRENT_ESC_STS.underline |= (chs[1]&0x03);
 				}
 
 				if (chs[1]&0x30)
 				{
-					esc_sts[current_channel].underline |= 0x80;
+					CURRENT_ESC_STS.underline |= 0x80;
 				}
 				else
 				{
-					esc_sts[current_channel].underline &= ~0x80;
+					CURRENT_ESC_STS.underline &= ~0x80;
 				}
 			}
 			break;
 		case '2':
 			//ESC 2   设置默认行间距
-			esc_sts[current_channel].linespace = 30;	//此数据是否是默认的3.75mm间距还有待测试！！！
+			CURRENT_ESC_STS.linespace = 30;	//此数据是否是默认的3.75mm间距还有待测试！！！
 			break;
 		case '3':
 			//ESC 3 n  设置默认行间距
 			chs[1] = Getchar();
-			esc_sts[current_channel].linespace = chs[1];
+			CURRENT_ESC_STS.linespace = chs[1];
 			break;
 		case '@':
 			//ESC @  初始化打印机
-			esc_p_init(current_channel);
+			ESC_P_INIT();
 			//PrintBufToZero();		//这条命令挺奇葩的，小度掌柜经常卡住就是这个原因，不需要清除打印缓冲区
 			break;
 		case 'D':
 			//ESC D n1....nk NULL 设置横向跳格位置
-			memset(esc_sts[current_channel].tab,0,8);
+			MEMSET(CURRENT_ESC_STS.tab,0,8);
+
 			for (i = 0;i < 8;i++)
 			{
 				chs[1+i] = Getchar();
@@ -246,13 +256,13 @@ extern void esc_p(void)
 				{
 					if (i == 0)
 					{
-						esc_sts[current_channel].tab[i] = chs[1+i];
+						CURRENT_ESC_STS.tab[i] = chs[1+i];
 					}
 					else
 					{
 						if (chs[1+i] > chs[i])
 						{
-							esc_sts[current_channel].tab[i] = chs[1+i];
+							CURRENT_ESC_STS.tab[i] = chs[1+i];
 						}
 					}	
 				}
@@ -268,8 +278,8 @@ extern void esc_p(void)
 			//ESC J n 打印并走纸
 			chs[1] = Getchar();
 			PrintCurrentBuffer_0(0);
-			TPFeedLine(chs[1]*esc_sts[current_channel].v_motionunit);
-			esc_sts[current_channel].start_dot = 0;
+			TPFeedLine(chs[1]*CURRENT_ESC_STS.v_motionunit);
+			CURRENT_ESC_STS.start_dot = 0;
 			break;
 		case 'a':
 			//ESC a n  选择对齐方式
@@ -281,7 +291,7 @@ extern void esc_p(void)
 			chs[1] = Getchar();
 			if ((chs[1] == 0)|| (chs[1] == 1) || (chs[1] == 2) || (chs[1] == 48) || (chs[1] == 49) || (chs[1] == 50))
 			{
-				esc_sts[current_channel].align = chs[1]&0x03;
+				CURRENT_ESC_STS.align = chs[1]&0x03;
 			}
 			break;
 		case 'c':
@@ -303,14 +313,14 @@ extern void esc_p(void)
 		case 'd':
 			//ESC d n 打印并向前走纸n 行
 			chs[1] = Getchar();
-			esc_sts[current_channel].start_dot = 0;
+			CURRENT_ESC_STS.start_dot = 0;
 			PrintCurrentBuffer_0(0);
 			TPFeedLine(chs[1]);
 			break;
 		case 'e':
 			//ESC e n Print and reverse feed n lines
 			chs[1] = Getchar();
-			esc_sts[current_channel].start_dot = 0;
+			CURRENT_ESC_STS.start_dot = 0;
 			PrintCurrentBuffer_0(0);
 			//TPFeedLine(chs[1]);
 			//@todo...反向走纸
@@ -350,7 +360,7 @@ extern void esc_p(void)
 			chs[2] = Getchar();
 			cnt = chs[2]<<8;
 			cnt |= chs[1];
-			memset(tmp,0,sizeof(tmp));
+			MEMSET(tmp,0,sizeof(tmp));
 			if (cnt<=LineDot)
 			{
 				for (i = 0; i < cnt;i++)
@@ -380,16 +390,16 @@ extern void esc_p(void)
 					{
 						if (j<LineDot)
 						{
-							esc_sts[current_channel].dot[j][0] = Getchar();
-							esc_sts[current_channel].dot[j][1] = Getchar();
-							esc_sts[current_channel].dot[j][2] = Getchar();
+							CURRENT_ESC_STS.dot[j][0] = Getchar();
+							CURRENT_ESC_STS.dot[j][1] = Getchar();
+							CURRENT_ESC_STS.dot[j][2] = Getchar();
 							j++;
 							if (chs[1]&0x01)
 							{
 								//双密度
-								esc_sts[current_channel].dot[j][0] = esc_sts[current_channel].dot[j-1][0];
-								esc_sts[current_channel].dot[j][1] = esc_sts[current_channel].dot[j-1][1];
-								esc_sts[current_channel].dot[j][2] = esc_sts[current_channel].dot[j-1][2];
+								CURRENT_ESC_STS.dot[j][0] = CURRENT_ESC_STS.dot[j-1][0];
+								CURRENT_ESC_STS.dot[j][1] = CURRENT_ESC_STS.dot[j-1][1];
+								CURRENT_ESC_STS.dot[j][2] = CURRENT_ESC_STS.dot[j-1][2];
 								j++;
 							}
 						}
@@ -409,12 +419,12 @@ extern void esc_p(void)
 					{
 						if (j<LineDot)
 						{
-							esc_sts[current_channel].dot[j][0] = Getchar();
+							CURRENT_ESC_STS.dot[j][0] = Getchar();
 							j++;
 							if (chs[1]&0x01)
 							{
 								//双密度
-								esc_sts[current_channel].dot[j][0] = esc_sts[current_channel].dot[j-1][0];
+								CURRENT_ESC_STS.dot[j][0] = CURRENT_ESC_STS.dot[j-1][0];
 								j++;
 							}
 						}
@@ -434,17 +444,17 @@ extern void esc_p(void)
 					{
 						k = 0x80;
 					}
-					memset(tmp,0,LineDot/8);
+					MEMSET(tmp,0,LineDot/8);
 					for (i=0;i<LineDot;i++)
 					{
-						tmp[i/8] |= ((esc_sts[current_channel].dot[i][j/8]&k)?0x80:0x00)>>(i%8);
+						tmp[i/8] |= ((CURRENT_ESC_STS.dot[i][j/8]&k)?0x80:0x00)>>(i%8);
 					}
 					TPPrintLine(tmp);
 					k >>=1;
 				}
 				
 
-				memset(esc_sts[current_channel].dot,0,LineDot*FONT_CN_A_HEIGHT*FONT_ENLARGE_MAX/8);
+				MEMSET(CURRENT_ESC_STS.dot,0,LineDot*FONT_CN_A_HEIGHT*FONT_ENLARGE_MAX/8);
 
 			}
 			break;
@@ -453,11 +463,11 @@ extern void esc_p(void)
 			chs[1] = Getchar();
 			if (chs[1]&0x01)
 			{
-				esc_sts[current_channel].rotate = CIR_TWO_NINETY_DEGREE;
+				CURRENT_ESC_STS.rotate = CIR_TWO_NINETY_DEGREE;
 			}
 			else
 			{
-				esc_sts[current_channel].rotate = ANTITYPE;
+				CURRENT_ESC_STS.rotate = ANTITYPE;
 			}
 			break;
 		case 'E':
@@ -478,13 +488,13 @@ extern void esc_p(void)
 			{
 				if (chs[1]&0x01)
 				{
-					esc_sts[current_channel].font_en = FONT_B_WIDTH;
-					esc_sts[current_channel].font_cn = FONT_CN_B_WIDTH;
+					CURRENT_ESC_STS.font_en = FONT_B_WIDTH;
+					CURRENT_ESC_STS.font_cn = FONT_CN_B_WIDTH;
 				}
 				else
 				{
-					esc_sts[current_channel].font_en = FONT_A_WIDTH;
-					esc_sts[current_channel].font_cn = FONT_CN_A_WIDTH;
+					CURRENT_ESC_STS.font_en = FONT_A_WIDTH;
+					CURRENT_ESC_STS.font_cn = FONT_CN_A_WIDTH;
 				}
 			}
 			break;
@@ -532,7 +542,7 @@ extern void esc_p(void)
 
 					if (BT816_set_name(current_channel,&chs[6]) == 0)
 					{
-						memcpy(chs,"+NAME=",6);
+						MEMCPY(chs,"+NAME=",6);
 						chs[6+i] = ',';
 						chs[7+i] = 'O';
 						chs[8+i] = 'K';
@@ -540,8 +550,8 @@ extern void esc_p(void)
 
 						PrintCurrentBuffer(0);	//先将缓冲区的内容打印出来，再打印设置字符串
 
-						memset(tmp,0,LineDot/8);
-						strcpy(tmp,chs);
+						MEMSET(tmp,0,LineDot/8);
+						STRNCPY(tmp,chs,LineDot/8);
 						TPPrintAsciiLine(tmp,LineDot/8);
 						TPFeedLine(4);
 					}
@@ -561,7 +571,7 @@ extern void esc_p(void)
 
 					if (BT816_set_pin(current_channel,&chs[5]) == 0)
 					{
-						memcpy(chs,"+PIN=",5);
+						MEMCPY(chs,"+PIN=",5);
 						chs[5+i] = ',';
 						chs[6+i] = 'O';
 						chs[7+i] = 'K';
@@ -569,8 +579,8 @@ extern void esc_p(void)
 
 						PrintCurrentBuffer(0);	//先将缓冲区的内容打印出来，再打印设置字符串
 
-						memset(tmp,0,LineDot/8);
-						strcpy(tmp,chs);
+						MEMSET(tmp,0,LineDot/8);
+						STRNCPY(tmp,chs,LineDot/8);
 						TPPrintAsciiLine(tmp,LineDot/8);
 						TPFeedLine(4);
 					}
@@ -603,7 +613,7 @@ extern void esc_p(void)
 			//	n=0打印机有值    n=4打印机缺纸  n=8准备打印      
 			//	n='L' 电压过低(5.0Volt 以下)       n='O' 电压过高(9.5Volt 以上)
 			//@todo...
-			//BT816_send_data(current_channel,&esc_sts[current_channel].status4,1);
+			//BT816_send_data(current_channel,&CURRENT_ESC_STS.status4,1);
 			break;
 		case 'L':
 			chs[1] = Getchar();
@@ -611,11 +621,11 @@ extern void esc_p(void)
 			//DC3 L x y  设置字符间距和行间距，默认0
 			if (chs[1]<128)
 			{
-				esc_sts[current_channel].charspace = chs[1];
+				CURRENT_ESC_STS.charspace = chs[1];
 			}
 			if (chs[2]<128)
 			{
-				esc_sts[current_channel].linespace = chs[2];
+				CURRENT_ESC_STS.linespace = chs[2];
 			}
 			break;
 		}
@@ -645,23 +655,23 @@ extern void esc_p(void)
 		case '!':
 			//GS ! n 选择字符大小
 			chs[1]=Getchar();
-			esc_sts[current_channel].larger |= ((chs[1]&(1<<4))?1:0);
-			esc_sts[current_channel].larger |= ((chs[1]&(1<<5))?1:0)<<4;
+			CURRENT_ESC_STS.larger |= ((chs[1]&(1<<4))?1:0);
+			CURRENT_ESC_STS.larger |= ((chs[1]&(1<<5))?1:0)<<4;
 			if (chs[1]&0x0f)
 			{
-				esc_sts[current_channel].larger |= 0x01;		//暂时只支持2倍高
+				CURRENT_ESC_STS.larger |= 0x01;		//暂时只支持2倍高
 			}
 			else
 			{
-				esc_sts[current_channel].larger &= ~0x01;		
+				CURRENT_ESC_STS.larger &= ~0x01;		
 			}
 			if (chs[1]&0xf0)
 			{
-				esc_sts[current_channel].larger |= (0x01<<4);	//暂时支持2倍宽
+				CURRENT_ESC_STS.larger |= (0x01<<4);	//暂时支持2倍宽
 			}
 			else
 			{
-				esc_sts[current_channel].larger &= ~(0x01<<4);	
+				CURRENT_ESC_STS.larger &= ~(0x01<<4);	
 			}
 			break;
 		case '*':
@@ -675,7 +685,7 @@ extern void esc_p(void)
 		case 'B':
 			//GS  B  n 选择/ 取消黑白反显打印模式
 			chs[1] = Getchar();
-			esc_sts[current_channel].revert = (chs[1]&0x01);
+			CURRENT_ESC_STS.revert = (chs[1]&0x01);
 			break;
 		case 'H':
 			//GS  H  n 选择HRI 字符的打印位置
@@ -686,9 +696,9 @@ extern void esc_p(void)
 			//GS  L  nL  nH 设置左边距
 			chs[1] = Getchar();
 			chs[2] = Getchar();
-			esc_sts[current_channel].leftspace = chs[2];
-			esc_sts[current_channel].leftspace <<= 8;
-			esc_sts[current_channel].leftspace |= chs[1];
+			CURRENT_ESC_STS.leftspace = chs[2];
+			CURRENT_ESC_STS.leftspace <<= 8;
+			CURRENT_ESC_STS.leftspace |= chs[1];
 			break;
 		case 'h':
 			//GS  h  n 选择条码高度
@@ -784,7 +794,7 @@ extern void esc_p(void)
 					//}
 					for (i = 0; i < (chs[6]*256+chs[5]);i++)
 					{
-						memset(tmp,0,sizeof(tmp));
+						MEMSET(tmp,0,sizeof(tmp));
 						off = 0;
 						for (j = 0; j < (chs[4]*256+chs[3]);j++)
 						{

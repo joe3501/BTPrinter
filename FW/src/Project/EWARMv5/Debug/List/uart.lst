@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:50 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:17 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -125,7 +123,7 @@ E:\BT Printer\FW\src\App\uart.c
      88          				{
      89          					if (current_channel != USB_PRINT_CHANNEL_OFFSET)
      90          					{
-     91          						set_BT_FREE(current_channel);
+     91          						set_BT_free(current_channel);
      92          					}
      93          					else
      94          					{
@@ -193,7 +191,7 @@ E:\BT Printer\FW\src\App\uart.c
     156          extern void PrintBufToZero(void)
     157          {
     158               ringbuffer_reset(&spp_ringbuf[current_channel]);
-    159          	 set_BT_FREE(current_channel);
+    159          	 set_BT_free(current_channel);
     160          }
     161          /******************************************************************************
     162          **                            End Of File
@@ -218,27 +216,23 @@ E:\BT Printer\FW\src\App\uart.c
      --------------      -----
      ringbuffer_status     40
      ringbuffer_data_len   68
-     spp_rec_buffer      5120
-     spp_ringbuf           80
-     Getchar              300
+     spp_rec_buffer      3072
+     spp_ringbuf           48
+     Getchar              244
      timeout                4
      PrintBufGetchar       24
      PrintBufPushBytes     24
      PrintBufPushLine      24
-     PrintBufToZero        86
-     ??DataTable21          4
-     ??DataTable22          4
-     ??DataTable23          4
-     ??DataTable24          4
-     ??DataTable25          4
-     ??DataTable26          4
+     PrintBufToZero        30
+     ??DataTable17          4
+     ??DataTable18          4
 
  
- 5 204 bytes in section .bss
-   590 bytes in section .text
+ 3 124 bytes in section .bss
+   462 bytes in section .text
  
-   590 bytes of CODE memory
- 5 204 bytes of DATA memory
+   462 bytes of CODE memory
+ 3 124 bytes of DATA memory
 
 Errors: none
-Warnings: none
+Warnings: 1

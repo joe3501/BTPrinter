@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:52 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:20 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -730,7 +728,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
     692          		DMA_Cmd(DMA1_Channel4, DISABLE);
     693          
     694          		/* set buffer address */
-    695          		memcpy(BT816_send_buff[BT1_MODULE],pData,length);
+    695          		MEMCPY(BT816_send_buff[BT1_MODULE],pData,length);
     696          
     697          		DMA1_Channel4->CMAR = (u32)&BT816_send_buff[BT1_MODULE][0];
     698          		/* set size */
@@ -761,7 +759,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
     723          		DMA_Cmd(DMA1_Channel7, DISABLE);
     724          
     725          		/* set buffer address */
-    726          		memcpy(BT816_send_buff[BT2_MODULE],pData,length);
+    726          		MEMCPY(BT816_send_buff[BT2_MODULE],pData,length);
     727          
     728          		DMA1_Channel7->CMAR = (u32)&BT816_send_buff[BT2_MODULE][0];
     729          		/* set size */
@@ -792,7 +790,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
     754          		DMA_Cmd(DMA1_Channel2, DISABLE);
     755          
     756          		/* set buffer address */
-    757          		memcpy(BT816_send_buff[BT3_MODULE],pData,length);
+    757          		MEMCPY(BT816_send_buff[BT3_MODULE],pData,length);
     758          
     759          		DMA1_Channel2->CMAR = (u32)&BT816_send_buff[BT3_MODULE][0];
     760          		/* set size */
@@ -822,7 +820,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
     784          	DMA_Cmd(DMA2_Channel5, DISABLE);
     785          
     786          	/* set buffer address */
-    787          	memcpy(BT816_send_buff[BT4_MODULE],pData,length);
+    787          	MEMCPY(BT816_send_buff[BT4_MODULE],pData,length);
     788          
     789          	DMA2_Channel5->CMAR = (u32)&BT816_send_buff[BT4_MODULE][0];
     790          	/* set size */
@@ -906,7 +904,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
     868          		set_BT1_BUSY();
     869          		ringbuffer_put(&spp_ringbuf[BT1_MODULE],res,res_len);
     870          #ifdef DEBUG_VER
-    871          		//memcpy(debug_buffer+debug_cnt,res,res_len);
+    871          		//MEMCPY(debug_buffer+debug_cnt,res,res_len);
     872          		//debug_cnt += res_len;
     873          #endif
     874          		DMA1_Channel5->CNDTR = BT816_RES_BUFFER_LEN;
@@ -1236,7 +1234,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1198          				{
    1199          					if (stat == 2)
    1200          					{
-   1201          						if (memcmp(token,"BDTP",4)==0)
+   1201          						if (MEMCMP(token,"BDTP",4)==0)
    1202          						{
    1203          							if (token_value[0] != '0')
    1204          							{
@@ -1244,18 +1242,18 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1206          							}
    1207          						}
    1208          #ifdef DEBUG_VER
-   1209          						else if (memcmp(token,"BDVER",5)==0)
+   1209          						else if (MEMCMP(token,"BDVER",5)==0)
    1210          						{
    1211          							token_value[j]=0;
    1212          							printf("BlueTooth Module Ver:%s\r\n",token_value);
    1213          						}
-   1214          						else if (memcmp(token,"BDADDR",6)==0)
+   1214          						else if (MEMCMP(token,"BDADDR",6)==0)
    1215          						{
    1216          							token_value[j]=0;
    1217          							printf("BlueTooth Module Addr:%s\r\n",token_value);
    1218          						}
    1219          #endif
-   1220          						else if (memcmp(token,"BDMODE",6)==0)
+   1220          						else if (MEMCMP(token,"BDMODE",6)==0)
    1221          						{
    1222          #ifdef HID_MODE
    1223          							if (token_value[0] != '2')
@@ -1311,14 +1309,14 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1273          
    1274          	assert(ver_buffer != 0);
    1275          	ver_buffer[0] = 0;
-   1276          	memcpy(buffer,"AT+VER\x0d\x0a",8);
+   1276          	MEMCPY(buffer,"AT+VER\x0d\x0a",8);
    1277          	ret = BT816_write_cmd(bt_channel,(const unsigned char*)buffer,8,EXPECT_RES_FORMAT2_TYPE);
    1278          	if (ret)
    1279          	{
    1280          		return ret;
    1281          	}
    1282          
-   1283          	if (memcmp(&BT816_res[bt_channel].DataBuffer[3],"VER=",4) == 0)
+   1283          	if (MEMCMP(&BT816_res[bt_channel].DataBuffer[3],"VER=",4) == 0)
    1284          	{
    1285          		for (i = 0; i < ((BT816_res[bt_channel].DataLength-9) > 20)?20:(BT816_res[bt_channel].DataLength-9);i++)
    1286          		{
@@ -1351,7 +1349,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1313          
    1314          	assert(name != 0);
    1315          	name[0] = 0;
-   1316          	memcpy(buffer,"AT+NAME\x0d\x0a",9);
+   1316          	MEMCPY(buffer,"AT+NAME\x0d\x0a",9);
    1317          
    1318          	ret = BT816_write_cmd(bt_channel,(const unsigned char*)buffer,9,EXPECT_RES_FORMAT2_TYPE);
    1319          	if (ret)
@@ -1359,7 +1357,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1321          		return ret;
    1322          	}
    1323          
-   1324          	if (memcmp(&BT816_res[bt_channel].DataBuffer[3],"NAME",4) == 0)
+   1324          	if (MEMCMP(&BT816_res[bt_channel].DataBuffer[3],"NAME",4) == 0)
    1325          	{
    1326          		for (i = 0; i < ((BT816_res[bt_channel].DataLength-10) > 20)?20:(BT816_res[bt_channel].DataLength-10);i++)
    1327          		{
@@ -1390,18 +1388,18 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1352          	int		len;
    1353          
    1354          	assert(name != 0);
-   1355          	memcpy(buffer,"AT+NAME=",8);
-   1356          	len = strlen((char const*)name);
+   1355          	MEMCPY(buffer,"AT+NAME=",8);
+   1356          	len = STRLEN((char const*)name);
    1357          	if (len>22)
    1358          	{
-   1359          		memcpy(buffer+8,name,22);
+   1359          		MEMCPY(buffer+8,name,22);
    1360          		buffer[30] = 0x0d;
    1361          		buffer[31] = 0x0a;
    1362          		len = 32;
    1363          	}
    1364          	else
    1365          	{
-   1366          		memcpy(buffer+8,name,len);
+   1366          		MEMCPY(buffer+8,name,len);
    1367          		buffer[8+len] = 0x0d;
    1368          		buffer[9+len] = 0x0a;
    1369          		len += 10;
@@ -1423,18 +1421,18 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1385          	int		len;
    1386          
    1387          	assert(pin != 0);
-   1388          	memcpy(buffer,"AT+PIN=",7);
-   1389          	len = strlen((char const*)pin);
+   1388          	MEMCPY(buffer,"AT+PIN=",7);
+   1389          	len = STRLEN((char const*)pin);
    1390          	if (len>8)
    1391          	{
-   1392          		memcpy(buffer+7,pin,8);
+   1392          		MEMCPY(buffer+7,pin,8);
    1393          		buffer[15] = 0x0d;
    1394          		buffer[16] = 0x0a;
    1395          		len = 17;
    1396          	}
    1397          	else
    1398          	{
-   1399          		memcpy(buffer+7,pin,len);
+   1399          		MEMCPY(buffer+7,pin,len);
    1400          		buffer[7+len] = 0x0d;
    1401          		buffer[8+len] = 0x0a;
    1402          		len += 9;
@@ -1599,7 +1597,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1561          		return -4;
    1562          	}
    1563          
-   1564          	if (memcmp(str,"HJ Pr",5) != 0)
+   1564          	if (MEMCMP(str,"HJ Pr",5) != 0)
    1565          	{
    1566          		if (BT816_set_name(BT1_MODULE,"HJ Printer1"))
    1567          		{
@@ -1612,7 +1610,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1574          		return -4;
    1575          	}
    1576          
-   1577          	if (memcmp(str,"HJ Pr",5) != 0)
+   1577          	if (MEMCMP(str,"HJ Pr",5) != 0)
    1578          	{
    1579          		if (BT816_set_name(BT2_MODULE,"HJ Printer2"))
    1580          		{
@@ -1625,7 +1623,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1587          		return -4;
    1588          	}
    1589          
-   1590          	if (memcmp(str,"HJ Pr",5) != 0)
+   1590          	if (MEMCMP(str,"HJ Pr",5) != 0)
    1591          	{
    1592          		if (BT816_set_name(BT3_MODULE,"HJ Printer3"))
    1593          		{
@@ -1638,7 +1636,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1600          		return -4;
    1601          	}
    1602          
-   1603          	if (memcmp(str,"HJ Pr",5) != 0)
+   1603          	if (MEMCMP(str,"HJ Pr",5) != 0)
    1604          	{
    1605          		if (BT816_set_name(BT4_MODULE,"HJ Printer4"))
    1606          		{
@@ -1648,7 +1646,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1610          
    1611          #endif
    1612          
-   1613          	memset(spp_rec_buffer,0,MAX_BT_CHANNEL*SPP_BUFFER_LEN);
+   1613          	MEMSET(spp_rec_buffer,0,MAX_BT_CHANNEL*SPP_BUFFER_LEN);
    1614          	RESET_BT1_DMA();
    1615          	RESET_BT2_DMA();
    1616          	RESET_BT3_DMA();
@@ -1656,15 +1654,41 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1618          	return 0;
    1619          }
    1620          
-   1621          #endif
+   1621          void set_BT_free(unsigned char ch)
+   1622          {
+   1623          	switch(ch)
+   1624          	{
+   1625          #if(BT_MODULE_CONFIG & USE_BT1_MODULE)
+   1626          	case BT1_MODULE:
+   1627          	GPIO_ResetBits(GPIOB, GPIO_Pin_8);
+   1628          	break;
+   1629          #endif
+   1630          #if(BT_MODULE_CONFIG & USE_BT2_MODULE)
+   1631          	case BT2_MODULE:
+   1632          	GPIO_ResetBits(GPIOC, GPIO_Pin_1);
+   1633          	break;
+   1634          #endif
+   1635          #if(BT_MODULE_CONFIG & USE_BT3_MODULE)
+   1636          	case BT3_MODULE:
+   1637          	GPIO_ResetBits(GPIOE, GPIO_Pin_15);
+   1638          	break;
+   1639          #endif
+   1640          #if(BT_MODULE_CONFIG & USE_BT4_MODULE)
+   1641          	case BT4_MODULE:
+   1642          	GPIO_ResetBits(GPIOD, GPIO_Pin_0);
+   1643          	break;
+   1644          #endif
+   1645          	default:
+   1646          	break;
+   1647          	}
+   1648          }
+   1649          #endif
 
    Maximum stack usage in bytes:
 
      Function                    .cstack
      --------                    -------
      BT816_Channel1_RxISRHandler     16
-     BT816_Channel2_RxISRHandler     16
-     BT816_Channel3_RxISRHandler     16
      BT816_Channel4_RxISRHandler     16
      BT816_GPIO_config               80
      BT816_NVIC_config               16
@@ -1678,66 +1702,54 @@ E:\BT Printer\FW\src\Drivers\BT816.c
      BT816_set_name                  56
      BT816_set_pin                   56
      BT816_write_cmd                 16
-     memcpy                           8
-     memset                           8
      ringbuffer_data_len              8
      ringbuffer_status                0
      send_data_to_BT                 16
+     set_BT_free                      8
 
 
    Section sizes:
 
      Function/Label                             Bytes
      --------------                             -----
-     memcpy                                       14
-     memset                                       20
      ringbuffer_status                            40
      ringbuffer_data_len                          68
-     BT816_res                                    48
-     BT816_send_buff                             128
-     BT816_recbuffer                            2048
+     BT816_res                                    24
+     BT816_send_buff                              64
+     BT816_recbuffer                            1024
      bt_connect_status                             1
-     BT816_GPIO_config                          1624
-     BT816_NVIC_config                           480
-     send_data_to_BT                             340
-     BT816_reset_resVar                          242
-     BT816_Channel1_RxISRHandler                 182
-     BT816_Channel2_RxISRHandler                 200
-     BT816_Channel3_RxISRHandler                 204
-     BT816_Channel4_RxISRHandler                 208
-     BT816_write_cmd                             108
-     BT816_Reset                                 152
-     BT816_query_version                         208
-     BT816_query_name                            208
-     BT816_set_name                              132
-     BT816_set_pin                               136
-     BT816_connect_status                        380
-     BT816_send_data                              24
+     BT816_GPIO_config                           844
+     BT816_NVIC_config                           248
+     send_data_to_BT                             176
+     BT816_reset_resVar                          142
+     BT816_Channel1_RxISRHandler                 196
+     BT816_Channel4_RxISRHandler                 188
+     BT816_write_cmd                             104
+     BT816_Reset                                  82
+     BT816_query_version                         200
+     BT816_query_name                            196
+     BT816_set_name                              124
+     BT816_set_pin                               132
+     BT816_connect_status                        180
+     BT816_send_data                              20
      BT816_init                                  484
+     set_BT_free                                  48
      ??DataTable13                                 4
      ??DataTable15                                 4
      ??DataTable28                                 4
-     ??DataTable35                                 4
+     ??DataTable42                                 4
      ??DataTable43                                 4
-     ??DataTable50                                 4
-     ??DataTable52                                 4
-     ??DataTable58                                 4
-     ??DataTable80                                 4
-     ??DataTable81                                 4
-     ??DataTable84                                 4
-     ??DataTable85                                 4
-     ??DataTable88                                 4
-     ??DataTable89                                 4
-     ??DataTable92                                 4
-     ??DataTable93                                 4
-     ??DataTable105                                4
-     ??DataTable111                                4
-     ??DataTable117                                4
-     ??DataTable118                                4
+     ??DataTable46                                 4
+     ??DataTable47                                 4
+     ??DataTable63                                 4
+     ??DataTable64                                 4
+     ??DataTable74                                 4
+     ??DataTable101                                4
+     ??DataTable103                                4
+     ??DataTable104                                4
+     ??DataTable106                                4
+     ??DataTable114                                4
      ??DataTable121                                4
-     ??DataTable122                                4
-     ??DataTable123                                4
-     ??DataTable129                                4
      ?<Constant "ver_buffer != 0">                16
      ?<Constant "E:\\BT Printer\\FW\\src\\...">   40
      ?<Constant "AT+VER\r\n">                     12
@@ -1755,13 +1767,13 @@ E:\BT Printer\FW\src\Drivers\BT816.c
      ?<Constant "HJ Printer4">                    12
 
  
- 2 225 bytes in section .bss
+ 1 113 bytes in section .bss
    196 bytes in section .rodata
- 5 550 bytes in section .text
+ 3 536 bytes in section .text
  
- 5 516 bytes of CODE  memory (+ 34 bytes shared)
+ 3 536 bytes of CODE  memory
    196 bytes of CONST memory
- 2 225 bytes of DATA  memory
+ 1 113 bytes of DATA  memory
 
 Errors: none
-Warnings: 13
+Warnings: 12

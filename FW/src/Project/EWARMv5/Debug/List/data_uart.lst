@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:25:25 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:22 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -125,19 +123,21 @@ E:\BT Printer\FW\src\Drivers\data_uart.c
      86          /**
      87          * @brief 实现此函数可以利用系统函数printf,方便调试时格式输出调试信息
      88          */
-     89          int fputc(int ch, FILE *f)
-     90          {
-     91          	//ENABLE_DATA_UART();
-     92          	/* Write a character to the USART */
-     93          	
-     94          	USART_SendData(UART5, (u8) ch);
-     95          	
-     96          	while(USART_GetFlagStatus(UART5, USART_FLAG_TXE) == RESET)
-     97          	{
-     98          	}
-     99          	//	DISABLE_DATA_UART;
-    100          	return ch;        
-    101          }
+     89          #if 0
+     90          int fputc(int ch, FILE *f)
+     91          {
+     92          	//ENABLE_DATA_UART();
+     93          	/* Write a character to the USART */
+     94          	
+     95          	USART_SendData(UART5, (u8) ch);
+     96          	
+     97          	while(USART_GetFlagStatus(UART5, USART_FLAG_TXE) == RESET)
+     98          	{
+     99          	}
+    100          	//	DISABLE_DATA_UART;
+    101          	return ch;        
+    102          }
+    103          #endif
 
    Maximum stack usage in bytes:
 
@@ -145,7 +145,6 @@ E:\BT Printer\FW\src\Drivers\data_uart.c
      --------           -------
      data_uart_init         24
      data_uart_sendbyte      8
-     fputc                   8
      uart_rec_byte           8
 
 
@@ -156,13 +155,12 @@ E:\BT Printer\FW\src\Drivers\data_uart.c
      data_uart_init      136
      data_uart_sendbyte   16
      uart_rec_byte        52
-     fputc                32
-     ??DataTable6          4
+     ??DataTable4          4
 
  
- 240 bytes in section .text
+ 208 bytes in section .text
  
- 240 bytes of CODE memory
+ 208 bytes of CODE memory
 
 Errors: none
 Warnings: none

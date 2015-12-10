@@ -11,6 +11,7 @@
 #include <string.h>
 #include "crc32.h"
 #include "record_mod.h"
+#include "basic_fun.h"
 
 
 
@@ -120,7 +121,7 @@ int DefaultTerminalPara(void)
 
 	pSrc				= (unsigned char *)&g_param;
 	//先清空所有参数
-	memset(pSrc,0,sizeof(TTerminalPara));
+	MEMSET(pSrc,0,sizeof(TTerminalPara));
 	//设置结束标记
 	g_param.endtag[0]		= 0x55;
 	g_param.endtag[1]		= 0xAA;

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:52 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:20 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -139,7 +137,7 @@ E:\BT Printer\FW\src\App\ESC_POS_test.c
     100          		{
     101          			if(line_buffer[i] & 0x80)
     102          			{
-    103          				pos = esc_sts[current_channel].leftspace+i*8+j;
+    103          				pos = CURRENT_ESC_STS.leftspace+i*8+j;
     104          				tmp[k++]=(pos&0xff);
     105          				tmp[k++]=(pos>>8)&0xff;
     106          			}
@@ -162,7 +160,7 @@ E:\BT Printer\FW\src\App\ESC_POS_test.c
     123          	unsigned char					tmp[26];
     124          
     125          
-    126          	//lcd_x							= esc_sts[current_channel].leftspace;
+    126          	//lcd_x							= CURRENT_ESC_STS.leftspace;
     127          	//lcd_y							= y;
     128          
     129          	// pOrg   res_bufferÆðÊ¼µØÖ·
@@ -177,12 +175,12 @@ E:\BT Printer\FW\src\App\ESC_POS_test.c
     138          	if ((pData+26) >= (pOrg + 0x200))
     139          	{
     140          		remain = pOrg + 0x200 - pData;
-    141          		memcpy(tmp,pData,remain);
+    141          		MEMCPY(tmp,pData,remain);
     142          
     143          		dwLBA++;
     144          		pOrg							= read_resdata(dwLBA);
     145          		pData = pOrg;
-    146          		memcpy(tmp+remain,pData,26-remain);
+    146          		MEMCPY(tmp+remain,pData,26-remain);
     147          
     148          		if ((*tmp != 'B')||(*(tmp+1) != 'M'))
     149          		{
@@ -228,7 +226,7 @@ E:\BT Printer\FW\src\App\ESC_POS_test.c
     189          	for(;h>0; h--)
     190          	{
     191          		line_offset = 0;
-    192          		memset(line_buffer,0,LineDot/8);
+    192          		MEMSET(line_buffer,0,LineDot/8);
     193          		while(w>0)
     194          		{
     195          lop:
@@ -332,12 +330,12 @@ E:\BT Printer\FW\src\App\ESC_POS_test.c
      ESC_POS_test_esc                                292
      line_buffer                                      48
      line_offset                                       1
-     print_CharLine                                  152
+     print_CharLine                                  136
      print_PictureStreem                             336
      print_PictureOut                                 84
      ESC_POS_test_esc_special                         20
+     ??DataTable6                                      4
      ??DataTable7                                      4
-     ??DataTable8                                      4
      ?<Constant "\n">                                  2
      ?<Constant "\033@1234567890\262\342\312\324\n"   20
      ?<Constant "\033 \020\033!\377 1234567890\262\   24
@@ -353,11 +351,11 @@ E:\BT Printer\FW\src\App\ESC_POS_test.c
  
   49 bytes in section .bss
  230 bytes in section .rodata
- 892 bytes in section .text
+ 876 bytes in section .text
  
- 892 bytes of CODE  memory
+ 876 bytes of CODE  memory
  230 bytes of CONST memory
   49 bytes of DATA  memory
 
 Errors: none
-Warnings: 8
+Warnings: 5

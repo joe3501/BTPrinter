@@ -86,6 +86,7 @@ unsigned char uart_rec_byte(void)
 /**
 * @brief 实现此函数可以利用系统函数printf,方便调试时格式输出调试信息
 */
+#if 0
 int fputc(int ch, FILE *f)
 {
 	//ENABLE_DATA_UART();
@@ -99,3 +100,4 @@ int fputc(int ch, FILE *f)
 	//	DISABLE_DATA_UART;
 	return ch;        
 }
+#endif

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     09/Dec/2015  16:16:52 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:21 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -123,35 +121,28 @@ E:\BT Printer\FW\src\App\Event.c
      85              case evtKeyDownHold7000msMode:
      86                  break;
      87          	case evtPaperOut:
-     88          		for (i = 0; i< MAX_PRINT_CHANNEL;i++)
-     89          		{
-     90          			esc_sts[i].status4 |= (0x03<<5);
-     91          		}
-     92                  
-     93          		break;
-     94          	case evtPaperIn:
-     95          		for (i = 0; i< MAX_PRINT_CHANNEL;i++)
-     96          		{
-     97          			esc_sts[i].status4 &= ~(0x03<<5);
-     98          		}
-     99                  Wake_up();
-    100                  break;
-    101              case evtBmDetect:
-    102                  break;
-    103              case evtGetRealTimeStatus4:
-    104                 //Putchar(esc_sts.status4);
-    105                  break;
-    106          	case evtLifetest:
-    107          	   break;
-    108          	default:
-    109          		break;
-    110          	}
-    111          }
-    112          //======================================================================================================
-    113          
-    114          
-    115          
-    116          
+     88          		ESC_STS_STATUS_SET_FLAG(0x03,5);
+     89          		break;
+     90          	case evtPaperIn:
+     91          		ESC_STS_STATUS_RESET_FLAG(0x03,5);
+     92                  Wake_up();
+     93                  break;
+     94              case evtBmDetect:
+     95                  break;
+     96              case evtGetRealTimeStatus4:
+     97                 //Putchar(esc_sts.status4);
+     98                  break;
+     99          	case evtLifetest:
+    100          	   break;
+    101          	default:
+    102          		break;
+    103          	}
+    104          }
+    105          //======================================================================================================
+    106          
+    107          
+    108          
+    109          
 
    Maximum stack usage in bytes:
 
@@ -173,17 +164,17 @@ E:\BT Printer\FW\src\App\Event.c
      event_init       12
      event_post       26
      event_pend       42
-     event_proc      212
+     event_proc      192
      ??DataTable5      4
      ??DataTable8      4
      ??DataTable10     4
 
  
   66 bytes in section .bss
- 304 bytes in section .text
+ 284 bytes in section .text
  
- 304 bytes of CODE memory
+ 284 bytes of CODE memory
   66 bytes of DATA memory
 
 Errors: none
-Warnings: none
+Warnings: 3

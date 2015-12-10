@@ -7,9 +7,8 @@
  * @note
 */
 #include "stm32f10x_lib.h" 
-
+#include "hw_platform.h"
 #include "TimeBase.h"
-#include "JMemory.h"
 #include <assert.h>
 
 
@@ -42,6 +41,8 @@ void delay_ms(unsigned int time)
 		while(i--) ;    
 	}
 }
+
+
 /**
  * @brief     初始化产生延时时基的计数器TIM2,设定计数器产生1ms的时基
  * @param[in] none
@@ -90,65 +91,8 @@ void TimeBase_Init(void)
 	//timer_isr_hook = (TimerIsrHook)0;
 }
 
-#if 0
-
-/**
- * @brief 开启定时器
- * @param[in] TimerIsrHook hook_func		定时中断回调函数
-*/
-void start_timer(TimerIsrHook hook_func)
-{
-	if (timer_isr_hook)
-	{
-		if (timer_isr_hook == hook_func)
-		{
-			return;
-		}
-		else
-		{
-			while(1);		//error
-		}
-	}
-	timer_isr_hook = hook_func;
-	TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-	/* TIM counter enable */
-	TIM_Cmd(TIM2, ENABLE);
-}
-
-
-/**
- * @brief 关闭定时器
-*/
-void stop_timer(void)
-{
-	TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
-	/* TIM counter enable */
-	TIM_Cmd(TIM2, DISABLE);
-	timer_isr_hook = (TimerIsrHook)0;
-}
-
-
-/**
- * @brief TIM2的溢出中断ISR
- * @param[in] none
- * @return none
- * @note  TIM2的中断服务函数调用
-*/
-void TIM2_UpdateISRHandler(void)
-{    
-	if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
-	{
-		if (timer_isr_hook)
-		{
-			timer_isr_hook();
-		}
-		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-	}
-}
-#endif
-
-
-
+#if(SOFT_TIMER_FUNC_ENABLE) 
+#include "JMemory.h"
 typedef struct v_timer_t
 {
 	unsigned char	mode;
@@ -405,3 +349,13 @@ unsigned char DelayIsEnd(void)
 {
 	return	Delay_end_flag; 
 }
+#else
+void TIM2_UpdateISRHandler(void)
+{
+	if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+	{
+		//@todo....
+		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+	}
+}
+#endif

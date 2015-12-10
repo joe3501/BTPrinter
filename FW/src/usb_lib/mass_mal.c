@@ -153,31 +153,31 @@ u16 MAL_Read(u8 lun, u32 Memory_Offset, u32 *Readbuff, u16 Transfer_Length)
 			#ifdef DUMMY_FAT_FS
 				if (Memory_Offset < (MBR_LBA*Mass_Block_Size[lun]+512))
 				{
-					memcpy(Readbuff,dummy_MBR+Memory_Offset-MBR_LBA*Mass_Block_Size[lun],Transfer_Length);
+					MEMCPY(Readbuff,dummy_MBR+Memory_Offset-MBR_LBA*Mass_Block_Size[lun],Transfer_Length);
 				}
 				else if ((Memory_Offset >= DBR_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (DBR_LBA*Mass_Block_Size[lun]+512)))
 				{
-					memcpy(Readbuff,dummy_DBR+Memory_Offset-DBR_LBA*Mass_Block_Size[lun],Transfer_Length);
+					MEMCPY(Readbuff,dummy_DBR+Memory_Offset-DBR_LBA*Mass_Block_Size[lun],Transfer_Length);
 				}
 				else if ((Memory_Offset >= FAT1_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (FAT1_LBA*Mass_Block_Size[lun]+512)))
 				{
-					memcpy(Readbuff,dummy_FAT+Memory_Offset-FAT1_LBA*Mass_Block_Size[lun],Transfer_Length);
+					MEMCPY(Readbuff,dummy_FAT+Memory_Offset-FAT1_LBA*Mass_Block_Size[lun],Transfer_Length);
 				}
 				else if ((Memory_Offset >= FAT2_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (FAT2_LBA*Mass_Block_Size[lun]+512)))
 				{
-					memcpy(Readbuff,dummy_FAT+Memory_Offset-FAT2_LBA*Mass_Block_Size[lun],Transfer_Length);
+					MEMCPY(Readbuff,dummy_FAT+Memory_Offset-FAT2_LBA*Mass_Block_Size[lun],Transfer_Length);
 				}
 				else if ((Memory_Offset >= FDT_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (FDT_LBA*Mass_Block_Size[lun]+512)))
 				{
-					memcpy(Readbuff,dummy_FDT+Memory_Offset-FDT_LBA*Mass_Block_Size[lun],Transfer_Length);
+					MEMCPY(Readbuff,dummy_FDT+Memory_Offset-FDT_LBA*Mass_Block_Size[lun],Transfer_Length);
 				}
 				else if ((Memory_Offset >= DB_FILE_LBA*Mass_Block_Size[lun])&&(Memory_Offset < (DB_FILE_LBA*Mass_Block_Size[lun]+IF_FILE_SIZE)))
 				{
-					memcpy(Readbuff,g_send_buff + Memory_Offset-DB_FILE_LBA*Mass_Block_Size[lun],Transfer_Length);
+					MEMCPY(Readbuff,g_send_buff + Memory_Offset-DB_FILE_LBA*Mass_Block_Size[lun],Transfer_Length);
 				}
 				else
 				{
-					memset(Readbuff,0,Transfer_Length);
+					MEMSET(Readbuff,0,Transfer_Length);
 				}
 				break;
 			#endif

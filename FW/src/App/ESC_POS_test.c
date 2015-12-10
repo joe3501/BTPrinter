@@ -100,7 +100,7 @@ void print_CharLine(void)
 		{
 			if(line_buffer[i] & 0x80)
 			{
-				pos = esc_sts[current_channel].leftspace+i*8+j;
+				pos = CURRENT_ESC_STS.leftspace+i*8+j;
 				tmp[k++]=(pos&0xff);
 				tmp[k++]=(pos>>8)&0xff;
 			}
@@ -123,7 +123,7 @@ static void print_PictureStreem(unsigned int dwLBA, unsigned int offset)
 	unsigned char					tmp[26];
 
 
-	//lcd_x							= esc_sts[current_channel].leftspace;
+	//lcd_x							= CURRENT_ESC_STS.leftspace;
 	//lcd_y							= y;
 
 	// pOrg   res_bufferÆðÊ¼µØÖ·
@@ -138,12 +138,12 @@ static void print_PictureStreem(unsigned int dwLBA, unsigned int offset)
 	if ((pData+26) >= (pOrg + 0x200))
 	{
 		remain = pOrg + 0x200 - pData;
-		memcpy(tmp,pData,remain);
+		MEMCPY(tmp,pData,remain);
 
 		dwLBA++;
 		pOrg							= read_resdata(dwLBA);
 		pData = pOrg;
-		memcpy(tmp+remain,pData,26-remain);
+		MEMCPY(tmp+remain,pData,26-remain);
 
 		if ((*tmp != 'B')||(*(tmp+1) != 'M'))
 		{
@@ -189,7 +189,7 @@ static void print_PictureStreem(unsigned int dwLBA, unsigned int offset)
 	for(;h>0; h--)
 	{
 		line_offset = 0;
-		memset(line_buffer,0,LineDot/8);
+		MEMSET(line_buffer,0,LineDot/8);
 		while(w>0)
 		{
 lop:

@@ -342,7 +342,7 @@ int	spi_flash_rpage(int lba, int secnum, unsigned char *buf)
 	/* Send ReadAddr low nibble address byte to read from */
 	spi_flash_send_byte(lba & 0xFF);
 
-	memset((void *)buf, 0 , 512);
+	MEMSET((void *)buf, 0 , 512);
 	for(i=0; i<secnum * 512; i++)
 	{
 		*buf	= spi_flash_send_byte(Dummy_Byte);
@@ -793,25 +793,26 @@ int spi_flash_write(unsigned int sector_offset,unsigned char *pBuffer,unsigned i
 		if (((sector_offset+i)/8) == current_cache_block)
 		{
 			//如果当前要写的Sector位于已经被缓存的Block（4K Block）,那么直接将要写的数据写入缓存即可
-			memcpy(buffer+((sector_offset+i)%8)*512,pBuffer+512*i,512);
-			continue;
+			MEMCPY(buffer+((sector_offset+i)%8)*512,pBuffer+512*i,512);
 		}
-
-		//需要先将被缓存的数据写入SPI FLASH
-		if(spi_flash_post_write())
+		else
 		{
-			return -2;
-		}
+			//需要先将被缓存的数据写入SPI FLASH
+			if(spi_flash_post_write())
+			{
+				return -2;
+			}
 
-		//将要写入的Sectro所在的Block全部读入缓存
-		if(spi_flash_rpage((sector_offset+i)&0xfffffff8,8,buffer)){
-			return -3;		//读取失败
-		}
+			//将要写入的Sectro所在的Block全部读入缓存
+			if(spi_flash_rpage((sector_offset+i)&0xfffffff8,8,buffer)){
+				return -3;		//读取失败
+			}
 
-		//往缓存写入新的数据
-		tmp = (sector_offset+i)%8; 
-		memcpy(buffer+tmp*512,pBuffer+i*512,512);
-		current_cache_block = (sector_offset+i)/8;	//标记当前缓存的Block
+			//往缓存写入新的数据
+			tmp = (sector_offset+i)%8; 
+			MEMCPY(buffer+tmp*512,pBuffer+i*512,512);
+			current_cache_block = (sector_offset+i)/8;	//标记当前缓存的Block
+		}
 	}
 	
 
@@ -839,12 +840,13 @@ int spi_flash_read(unsigned int sector_offset,unsigned char *pBuffer,unsigned in
 		if (((sector_offset+i)/8) == current_cache_block)
 		{
 			//如果当前要读的Sector位于已经被缓存的Block（4K Block）,那么直接读缓存数据即可
-			memcpy(pBuffer+512*i,buffer+((sector_offset+i)%8)*512,512);
-			continue;
+			MEMCPY(pBuffer+512*i,buffer+((sector_offset+i)%8)*512,512);
 		}
-
-		if(spi_flash_rpage(sector_offset+i,1,pBuffer+512*i)){
-			return -3;		//读取失败
+		else
+		{
+			if(spi_flash_rpage(sector_offset+i,1,pBuffer+512*i)){
+				return -3;		//读取失败
+			}
 		}
 	}
 

@@ -4,6 +4,18 @@
 #define ARRAY_SIZE(arr)		(sizeof(arr) / sizeof(arr[0]))
 #define ALIGN_SIZE		4
 
+#define KT_TINY_SIZE		//小内存模式
+
+#define	MEMSET		kt_memset
+#define	MEMCPY		kt_memcpy
+#define	MEMCMP		kt_memcmp
+#define	MEMMOVE		kt_memmove
+#define	STRSTR		kt_strstr
+#define	STRCASECMP	kt_strcasecmp
+#define	STRNCPY		kt_strncpy
+#define	STRCMP		kt_strcmp
+#define	STRLEN		kt_strlen
+
 /**
  * @ingroup BasicDef
  *
@@ -48,4 +60,16 @@ void build_time_dis_str(unsigned char *date_time_bcd,unsigned char *dis_str,unsi
 char *F2S(float d, char* str);
 int if_last_char_valid(unsigned char *buf,unsigned int len);
 int	if_include_unicode_character(unsigned char *buf,unsigned int len);
+
+void *kt_memset(void *s, int c, unsigned int count);
+void *kt_memcpy(void *dst, const void *src, unsigned int count);
+void *kt_memmove(void *dest, const void *src, unsigned int n);
+unsigned int kt_memcmp(const void *cs, const void *ct, unsigned int count);
+char *kt_strstr(const char *s1, const char *s2);
+unsigned int kt_strcasecmp(const char *a, const char *b);
+char *kt_strncpy(char *dst, const char *src, unsigned int n);
+unsigned int kt_strncmp(const char *cs, const char *ct, unsigned int count);
+unsigned int kt_strcmp(const char *cs, const char *ct);
+unsigned int kt_strlen(const char *s);
+
 #endif //BASIC_FUN_H

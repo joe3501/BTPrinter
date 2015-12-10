@@ -358,17 +358,17 @@ void font_data_read(unsigned char font_type,unsigned char *c,unsigned char *pBuf
 		if (((offset&0x1ff)+size) > 512)
 		{
 			len1 = 512-(offset&0x1ff);
-			memcpy(pBuf,pData,len1);
+			MEMCPY(pBuf,pData,len1);
 			len2 = size - len1;
 			pData = read_resdata(pInfo->address + (offset/512) + 1);
-			memcpy(pBuf+len1,pData,len2);
+			MEMCPY(pBuf+len1,pData,len2);
 		}
 		else
 		{
-			memcpy(pBuf,pData,size);
+			MEMCPY(pBuf,pData,size);
 		}
 	}//12
 
-	//memset(pBuf,0x01,size);
+	//MEMSET(pBuf,0x01,size);
 
 }

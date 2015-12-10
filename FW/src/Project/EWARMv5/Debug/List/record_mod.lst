@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     01/Dec/2015  17:38:09 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:26 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,9 +11,7 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
-#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
-#                    Workbench 5.4\arm\INC\DLib_Config_Full.h" -I "E:\BT      #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -295,7 +293,7 @@ E:\BT Printer\FW\src\App\record_mod.c
     256          		desadd += 16;
     257          	}
     258          	// 将剩余的字节复制
-    259          	memset(tmpbuf,0xFF,16);
+    259          	MEMSET(tmpbuf,0xFF,16);
     260          	spi_flash_raddr(srcadd, len, tmpbuf);
     261          	if (0 != spi_flash_waddr(desadd, 16, tmpbuf))
     262          	{
@@ -1086,7 +1084,7 @@ E:\BT Printer\FW\src\App\record_mod.c
    1047          			spi_flash_raddr(tmpadd+2+256*i, 256, record+1+256*i);
    1048          			spi_flash_raddr(tmpadd+1+recordsize+3*i, 3, ecckey_read);
    1049          			calculate_ecc(record+1+256*i,256,ecckey_cal);
-   1050          			if (0 != memcmp(ecckey_cal,ecckey_read,3))
+   1050          			if (0 != MEMCMP(ecckey_cal,ecckey_read,3))
    1051          			{
    1052          				correct_data(record+1+256*i, ecckey_read, ecckey_cal,256);
    1053          			}
@@ -1095,15 +1093,15 @@ E:\BT Printer\FW\src\App\record_mod.c
    1056          		}
    1057          		if (recordsizetmp != 0)
    1058          		{
-   1059          			memset(eccdata_tmp, 0, 256);
+   1059          			MEMSET(eccdata_tmp, 0, 256);
    1060          			spi_flash_raddr(tmpadd+2+256*i, recordsizetmp, eccdata_tmp);
    1061          			spi_flash_raddr(tmpadd+1+recordsize+3*i, 3, ecckey_read);
    1062          			calculate_ecc(eccdata_tmp, 256, ecckey_cal);
-   1063          			if (0 != memcmp(ecckey_cal,ecckey_read,3))
+   1063          			if (0 != MEMCMP(ecckey_cal,ecckey_read,3))
    1064          			{
    1065          				correct_data(eccdata_tmp, ecckey_read, ecckey_cal, 256);
    1066          			}
-   1067          			memcpy(record+1+256*i, eccdata_tmp, recordsizetmp);
+   1067          			MEMCPY(record+1+256*i, eccdata_tmp, recordsizetmp);
    1068          		}
    1069          		return 0;
    1070          	}
@@ -1283,10 +1281,10 @@ E:\BT Printer\FW\src\App\record_mod.c
    1244          				return -5;		// 写Flash出错
    1245          			}
    1246          			spi_flash_raddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_read);
-   1247          			if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+   1247          			if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
    1248          			{
    1249          				spi_flash_raddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_read);
-   1250          				if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+   1250          				if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
    1251          				{
    1252          					return -5;
    1253          				}
@@ -1296,18 +1294,18 @@ E:\BT Printer\FW\src\App\record_mod.c
    1257          		}
    1258          		if (recordsizetmp != 0)
    1259          		{
-   1260          			memset(eccdata_tmp, 0, 256);
-   1261          			memcpy(eccdata_tmp,pNewData+1+i*256,recordsizetmp);
+   1260          			MEMSET(eccdata_tmp, 0, 256);
+   1261          			MEMCPY(eccdata_tmp,pNewData+1+i*256,recordsizetmp);
    1262          			calculate_ecc(eccdata_tmp, 256, ecckey_cal);
    1263          			if (0 != spi_flash_waddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_cal))	// 写校验码
    1264          			{
    1265          				return -5;		// 写Flash出错
    1266          			}
    1267          			spi_flash_raddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_read);
-   1268          			if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+   1268          			if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
    1269          			{
    1270          				spi_flash_raddr(swap_blk + (tmpadd - target_blk)+1+recordsize+i*3, 3, ecckey_read);
-   1271          				if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+   1271          				if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
    1272          				{
    1273          					return -5;
    1274          				}
@@ -1565,10 +1563,10 @@ E:\BT Printer\FW\src\App\record_mod.c
    1526          				return -5;		// 写Flash出错
    1527          			}
    1528          			spi_flash_raddr(recordheadpt+1+recordsize+i*3, 3, ecckey_read);
-   1529          			if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+   1529          			if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
    1530          			{
    1531          				spi_flash_raddr(recordheadpt+1+recordsize+i*3, 3, ecckey_read);
-   1532          				if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+   1532          				if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
    1533          				{
    1534          					goto Rollback;
    1535          				}
@@ -1578,18 +1576,18 @@ E:\BT Printer\FW\src\App\record_mod.c
    1539          		}
    1540          		if (recordsizetmp != 0)
    1541          		{
-   1542          			memset(eccdata_tmp, 0, 256);
-   1543          			memcpy(eccdata_tmp,record+1+i*256,recordsizetmp);
+   1542          			MEMSET(eccdata_tmp, 0, 256);
+   1543          			MEMCPY(eccdata_tmp,record+1+i*256,recordsizetmp);
    1544          			calculate_ecc(eccdata_tmp, 256, ecckey_cal);
    1545          			if (0 != spi_flash_waddr(recordheadpt+1+recordsize+i*3, 3, ecckey_cal))	// 写校验码
    1546          			{
    1547          				return -5;		// 写Flash出错
    1548          			}
    1549          			spi_flash_raddr(recordheadpt+1+recordsize+i*3, 3, ecckey_read);
-   1550          			if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+   1550          			if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
    1551          			{
    1552          				spi_flash_raddr(recordheadpt+1+recordsize+i*3, 3, ecckey_read);
-   1553          				if (0 != memcmp(ecckey_read, ecckey_cal, 3))
+   1553          				if (0 != MEMCMP(ecckey_read, ecckey_cal, 3))
    1554          				{
    1555          					goto Rollback;
    1556          				}
@@ -2120,8 +2118,6 @@ E:\BT Printer\FW\src\App\record_mod.c
      Function         .cstack
      --------         -------
      get_recordinfo       16
-     memcpy                8
-     memset                8
      param_format          8
      param_init            8
      param_read           40
@@ -2146,8 +2142,6 @@ E:\BT Printer\FW\src\App\record_mod.c
 
      Function/Label   Bytes
      --------------   -----
-     memcpy             14
-     memset             20
      recinfo            44
      simprit            16
      ecckey_read         4
@@ -2188,9 +2182,9 @@ E:\BT Printer\FW\src\App\record_mod.c
 
  
    334 bytes in section .bss
- 7 092 bytes in section .text
+ 7 058 bytes in section .text
  
- 7 058 bytes of CODE memory (+ 34 bytes shared)
+ 7 058 bytes of CODE memory
    334 bytes of DATA memory
 
 Errors: none

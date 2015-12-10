@@ -88,7 +88,7 @@ extern uint8_t Getchar(void)        //接收数据
 				{
 					if (current_channel != USB_PRINT_CHANNEL_OFFSET)
 					{
-						set_BT_FREE(current_channel);
+						set_BT_free(current_channel);
 					}
 					else
 					{
@@ -156,7 +156,7 @@ extern void PrintBufPushLine( uint8_t *p, uint32_t len)
 extern void PrintBufToZero(void)
 {
      ringbuffer_reset(&spp_ringbuf[current_channel]);
-	 set_BT_FREE(current_channel);
+	 set_BT_free(current_channel);
 }
 /******************************************************************************
 **                            End Of File
