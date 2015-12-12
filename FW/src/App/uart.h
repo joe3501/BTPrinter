@@ -26,9 +26,9 @@
 
 #define USB_PRINT_CHANNEL_OFFSET		(MAX_BT_CHANNEL)
 
-extern unsigned char		spp_rec_buffer[MAX_PRINT_CHANNEL][SPP_BUFFER_LEN];
+extern unsigned char		spp_rec_buffer[MAX_BT_CHANNEL][SPP_BUFFER_LEN];
 extern struct ringbuffer	spp_ringbuf[MAX_PRINT_CHANNEL];
-
+extern unsigned char		usb_rec_buffer[USB_BUFFER_LEN];
 //extern uint8_t Putchar(uint8_t c) ;
 extern uint8_t Getchar(void);
 extern void PrintBufPushLine( uint8_t *p, uint32_t len);

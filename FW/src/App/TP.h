@@ -34,6 +34,7 @@ extern void PrintBufPushBytes(uint8_t c);
 extern void Wake_up(void);
 extern void SetDesity(void);
 extern uint8_t IsPrinterIdle(void);
+extern uint8_t IsPrinterFree(void);
 extern void TPSelfTest2(void);
 extern void TIM3_IRQ_Handle(void);
 extern void test_motor(void);

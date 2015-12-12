@@ -3,9 +3,9 @@
 
 #define KEY_FEED()  ( GPIO_ReadInputDataBit(GPIOE,GPIO_Pin_2))
 
-extern void KeyScanProc(void);
-extern void KeyScanInit(void);
-
+void KeyScanProc(void);
+void KeyScanInit(void);
+void box_ctrl(int ms);
 
 #endif
 

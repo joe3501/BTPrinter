@@ -2,7 +2,7 @@
 #define _BT816_H_
 #include "hw_platform.h"
 
-#define		BT816_RES_BUFFER_LEN			512//1024		//数据帧缓冲大小取决于蓝牙打印机APP拆包的大小
+#define		BT816_RES_BUFFER_LEN			1024		//数据帧缓冲大小取决于蓝牙打印机APP拆包的大小
 													//也就是说假如打印机需要通过SPP发送一个很大的数据包下来，应该会拆分成
 													//小的数据包发送出来，每个蓝牙打印机APP的拆包机制可能不一样，所以此数据
 													//在内存能够允许的情况下尽量开大一下，对打印APP的兼容性会好很多。
@@ -11,7 +11,8 @@
 													//蓝牙因为流控被阻塞时，会将主机发送的赌赛在其内部的数据一次传输过来。测试的时候发现其一次最多传了384字节
 													//
 
-#define		SPP_BUFFER_LEN					1024//2048	//这个是纯粹的串口环形缓冲区大小，通过硬件流控的方式控制缓冲区的溢出
+#define		SPP_BUFFER_LEN					2048	//这个是纯粹的串口环形缓冲区大小，通过硬件流控的方式控制缓冲区的溢出
+#define		USB_BUFFER_LEN					1024	//USB接收环形缓冲区的大小
 
 #define USE_BT1_MODULE		(1<<0)
 #define USE_BT2_MODULE		(1<<1)

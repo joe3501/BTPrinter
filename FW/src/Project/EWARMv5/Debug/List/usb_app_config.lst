@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:18 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:19:58 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -12,15 +12,17 @@
 #                    \Obj\" --no_cse --no_unroll --no_inline                  #
 #                    --no_code_motion --no_tbaa --no_clustering               #
 #                    --no_scheduling --debug --endian=little --cpu=Cortex-M3  #
-#                    -e --fpu=None -I "E:\BT Printer\FW\src\Project\EWARMv5\. #
-#                    .\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" #
-#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\ #
-#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\" #
-#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\ #
-#                    " -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC #
-#                    -CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uC #
-#                    OS\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\ #
-#                    ..\uCOS\uCOS-II\Ports\" -I "E:\BT                        #
+#                    -e --fpu=None --dlib_config "C:\Program Files\IAR        #
+#                    Systems\Embedded Workbench 5.4\arm\INC\DLib_Config_Norma #
+#                    l.h" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\" -I    #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\App\" -I     #
+#                    "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Drivers\"    #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\FatFs\"   #
+#                    -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\Lib\inc\" #
+#                     -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\uC- #
+#                    CPU\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCO #
+#                    S\uC-LIB\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\. #
+#                    .\uCOS\uCOS-II\Ports\" -I "E:\BT                         #
 #                    Printer\FW\src\Project\EWARMv5\..\..\uCOS\uCOS-II\Source #
 #                    \" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\..\uCOS\u #
 #                    C-Probe\" -I "E:\BT Printer\FW\src\Project\EWARMv5\..\.. #
@@ -148,8 +150,8 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
     111          {
     112          	if (device_type == USB_PRINTER)
     113          	{
-    114          		MEMSET(spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],0,SPP_BUFFER_LEN);
-    115          		ringbuffer_init(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],SPP_BUFFER_LEN);
+    114          		MEMSET(usb_rec_buffer,0,USB_BUFFER_LEN);
+    115          		ringbuffer_init(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],usb_rec_buffer,USB_BUFFER_LEN);
     116          	}
     117          
     118          	if (g_usb_type != device_type)
@@ -326,4 +328,4 @@ E:\BT Printer\FW\src\usb_lib\usb_app_config.c
    2 bytes of DATA memory
 
 Errors: none
-Warnings: 4
+Warnings: 3

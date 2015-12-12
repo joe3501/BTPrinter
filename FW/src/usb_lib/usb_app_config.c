@@ -111,8 +111,8 @@ void usb_device_init(unsigned char device_type)
 {
 	if (device_type == USB_PRINTER)
 	{
-		MEMSET(spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],0,SPP_BUFFER_LEN);
-		ringbuffer_init(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],spp_rec_buffer[USB_PRINT_CHANNEL_OFFSET],SPP_BUFFER_LEN);
+		MEMSET(usb_rec_buffer,0,USB_BUFFER_LEN);
+		ringbuffer_init(&spp_ringbuf[USB_PRINT_CHANNEL_OFFSET],usb_rec_buffer,USB_BUFFER_LEN);
 	}
 
 	if (g_usb_type != device_type)

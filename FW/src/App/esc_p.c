@@ -348,8 +348,8 @@ extern void esc_p(void)
 			{
 				chs[2] = Getchar();
 				chs[3] = Getchar();
-				//@todo...., 产生控制钱箱的脉冲
-
+				//产生控制钱箱的脉冲
+				box_ctrl(chs[1]*2);
 			}
 			break;
 		case 0x27:

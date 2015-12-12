@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:26 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:20:03 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,7 +11,9 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Normal.h" -I "E:\BT    #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -72,7 +74,7 @@ E:\BT Printer\FW\src\usb_lib\memory.c
      36          volatile u32 Counter = 0;
      37          u32  Idx;
      38          //u32 Data_Buffer[BULK_MAX_PACKET_SIZE *2]; /* 512 bytes*/
-     39          u32 Data_Buffer[512]; /* 512 bytes*/
+     39          u8 Data_Buffer[512]; /* 512 bytes*/
      40          u8 TransferState = TXFR_IDLE;
      41          /* Extern variables ----------------------------------------------------------*/
      42          extern u8 Bulk_Data_Buff[BULK_MAX_PACKET_SIZE];  /* data buffer*/
@@ -222,7 +224,7 @@ E:\BT Printer\FW\src\usb_lib\memory.c
      Block_offset        4
      Counter             4
      Idx                 4
-     Data_Buffer      2048
+     Data_Buffer       512
      TransferState       1
      Read_Memory       264
      Offset              4
@@ -237,11 +239,11 @@ E:\BT Printer\FW\src\usb_lib\memory.c
      ??DataTable27       4
 
  
- 2 081 bytes in section .bss
-   572 bytes in section .text
+ 545 bytes in section .bss
+ 572 bytes in section .text
  
-   572 bytes of CODE memory
- 2 081 bytes of DATA memory
+ 572 bytes of CODE memory
+ 545 bytes of DATA memory
 
 Errors: none
-Warnings: 2
+Warnings: 1

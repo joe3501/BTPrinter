@@ -43,6 +43,13 @@ extern void KeyScanProc(void)
 			keyStatus |= KEY_FEED_DB_SHIFT;//keyStatus =xxx1
 		}
 	}
+
+	//for burning test,auto post key event
+        if (IsPrinterFree())
+        {
+			event_post(evtKeyDownFeed);
+        }
+        
 }
 /*
 static void PowerOnSelfTest(void)
@@ -70,9 +77,26 @@ void KeyScanInit(void)
 	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_10MHz;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
+	//BOX_CTRL	-- PA.4
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_4;
+	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_10MHz;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	GPIO_ResetBits(GPIOA, GPIO_Pin_4);
+
 	keyStatus = 0;
 }
 
+
+//¿ªÆôÇ®Ïä¿ØÖÆµÄÂö³å
+void box_ctrl(int ms)
+{
+	GPIO_SetBits(GPIOA, GPIO_Pin_4);
+	delay_ms(ms);
+	GPIO_ResetBits(GPIOA, GPIO_Pin_4);
+}
 
 
 

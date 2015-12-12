@@ -137,9 +137,9 @@ extern signed char	 current_channel;		//当前正在处理的通道
 #define CURRENT_ESC_STS				esc_sts[0]
 #define ESC_P_INIT()				esc_p_init(0)
 #define ESC_STS_STATUS_DEINIT()		esc_sts[0].status4=0
-#define ESC_STS_STATUS_SET_FLAG(bitmask,n)	esc_sts[i].status4 |= ((bitmask)<<(n))
+#define ESC_STS_STATUS_SET_FLAG(bitmask,n)	esc_sts[0].status4 |= ((bitmask)<<(n))
 
-#define ESC_STS_STATUS_RESET_FLAG(bitmask,n)	esc_sts[i].status4 &= ~((bitmask)<<(n))
+#define ESC_STS_STATUS_RESET_FLAG(bitmask,n)	esc_sts[0].status4 &= ~((bitmask)<<(n))
 #endif
 
 //======================================================================================================

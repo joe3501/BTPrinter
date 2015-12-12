@@ -1541,6 +1541,18 @@ extern uint8_t IsPrinterIdle(void)
 	}
 }
 
+extern uint8_t IsPrinterFree(void)
+{
+	if(tp.state == TPSTATE_IDLE || tp.state == TPSTATE_PRE_IDLE)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
 extern void TPPrintTestPage(void)
 {
 

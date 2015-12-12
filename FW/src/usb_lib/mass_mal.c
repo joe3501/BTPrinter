@@ -78,7 +78,8 @@ u16 MAL_Init(u8 lun)
 * Output         : None
 * Return         : None
 *******************************************************************************/
-u16 MAL_Write(u8 lun, u32 Memory_Offset, u32 *Writebuff, u16 Transfer_Length)
+//u16 MAL_Write(u8 lun, u32 Memory_Offset, u32 *Writebuff, u16 Transfer_Length)
+u16 MAL_Write(u8 lun, u32 Memory_Offset, u8 *Writebuff, u16 Transfer_Length)
 {
    unsigned char *pBuf = (unsigned char*)Writebuff;
 #ifdef DUMMY_FAT_FS
@@ -143,7 +144,8 @@ u16 MAL_Write(u8 lun, u32 Memory_Offset, u32 *Writebuff, u16 Transfer_Length)
 * Output         : None
 * Return         : Buffer pointer
 *******************************************************************************/
-u16 MAL_Read(u8 lun, u32 Memory_Offset, u32 *Readbuff, u16 Transfer_Length)
+//u16 MAL_Read(u8 lun, u32 Memory_Offset, u32 *Readbuff, u16 Transfer_Length)
+u16 MAL_Read(u8 lun, u32 Memory_Offset, u8 *Readbuff, u16 Transfer_Length)
 {
   switch (lun)
   {

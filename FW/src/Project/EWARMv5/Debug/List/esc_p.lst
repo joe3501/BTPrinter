@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:23 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:19:58 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,7 +11,9 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Normal.h" -I "E:\BT    #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -384,8 +386,8 @@ E:\BT Printer\FW\src\App\esc_p.c
     348          			{
     349          				chs[2] = Getchar();
     350          				chs[3] = Getchar();
-    351          				//@todo...., 产生控制钱箱的脉冲
-    352          
+    351          				//产生控制钱箱的脉冲
+    352          				box_ctrl(chs[1]*2);
     353          			}
     354          			break;
     355          		case 0x27:
@@ -983,7 +985,7 @@ E:\BT Printer\FW\src\App\esc_p.c
      double_byte             106
      esc_p_init              576
      esc_init                 18
-     esc_p                  3564
+     esc_p                  3572
      ??DataTable35             4
      ??DataTable36             4
      ??DataTable39             4
@@ -994,11 +996,11 @@ E:\BT Printer\FW\src\App\esc_p.c
  
  3 509 bytes in section .bss
     28 bytes in section .rodata
- 4 276 bytes in section .text
+ 4 284 bytes in section .text
  
- 4 276 bytes of CODE  memory
+ 4 284 bytes of CODE  memory
     28 bytes of CONST memory
  3 509 bytes of DATA  memory
 
 Errors: none
-Warnings: 9
+Warnings: 8

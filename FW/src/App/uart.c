@@ -35,7 +35,9 @@ extern unsigned char debug_buffer[];
 extern unsigned int debug_cnt;
 #endif
 
-unsigned char		spp_rec_buffer[MAX_PRINT_CHANNEL][SPP_BUFFER_LEN];
+//unsigned char		spp_rec_buffer[MAX_PRINT_CHANNEL][SPP_BUFFER_LEN];
+unsigned char		spp_rec_buffer[MAX_BT_CHANNEL][SPP_BUFFER_LEN];			//蓝牙通道的环形缓冲区size为2048
+unsigned char		usb_rec_buffer[USB_BUFFER_LEN];								//USB通道的环形缓冲区size为1024足够
 struct ringbuffer	spp_ringbuf[MAX_PRINT_CHANNEL];
 
 extern uint32_t systick_cnt;

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:21 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:20:01 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,7 +11,9 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Normal.h" -I "E:\BT    #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -379,7 +381,7 @@ E:\BT Printer\FW\src\App\PaperDetect.c
      AD_Value             40
      systick_cnt           4
      TPPaperSNSInit      368
-     PaperStartSns       212
+     PaperStartSns       180
      TPBMSNSDetect       328
      TPPaperSNSDetect    180
      TPPrinterMark        18
@@ -394,10 +396,10 @@ E:\BT Printer\FW\src\App\PaperDetect.c
 
  
     48 bytes in section .bss
- 1 360 bytes in section .text
+ 1 328 bytes in section .text
  
- 1 360 bytes of CODE memory
+ 1 328 bytes of CODE memory
     48 bytes of DATA memory
 
 Errors: none
-Warnings: 4
+Warnings: 3

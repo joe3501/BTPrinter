@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:19 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:06:35 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,7 +11,9 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Normal.h" -I "E:\BT    #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -79,40 +81,64 @@ E:\BT Printer\FW\src\App\KeyScan.c
      43          			keyStatus |= KEY_FEED_DB_SHIFT;//keyStatus =xxx1
      44          		}
      45          	}
-     46          }
-     47          /*
-     48          static void PowerOnSelfTest(void)
-     49          {
-     50          	// two keys down
-     51          	//if((keyStatus & (KEY_FEED_SHIFT | KEY_MODE_SHIFT)) == (KEY_FEED_SHIFT | KEY_MODE_SHIFT))
-     52          	if((keyStatus & (KEY_FEED_SHIFT)) == (KEY_FEED_SHIFT ))
-     53          	{
-     54          		event_post(evtSelfTest);
-     55          	}
-     56          	systimeRemoveCallback(PowerOnSelfTest);
-     57          }
-     58          */
-     59          
-     60          //按键初始化
-     61          void KeyScanInit(void)
-     62          {
-     63          	GPIO_InitTypeDef							GPIO_InitStructure;
-     64          
-     65          	//FEED_KEY	-- PE.2
-     66          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
-     67          
-     68          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
-     69          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPU;
-     70          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_10MHz;
-     71          	GPIO_Init(GPIOE, &GPIO_InitStructure);
-     72          
-     73          	keyStatus = 0;
-     74          }
-     75          
-     76          
-     77          
-     78          
+     46          
+     47          	//for burning test,auto post key event
+     48                  if (IsPrinterFree())
+     49                  {
+     50          			event_post(evtKeyDownFeed);
+     51                  }
+     52                  
+     53          }
+     54          /*
+     55          static void PowerOnSelfTest(void)
+     56          {
+     57          	// two keys down
+     58          	//if((keyStatus & (KEY_FEED_SHIFT | KEY_MODE_SHIFT)) == (KEY_FEED_SHIFT | KEY_MODE_SHIFT))
+     59          	if((keyStatus & (KEY_FEED_SHIFT)) == (KEY_FEED_SHIFT ))
+     60          	{
+     61          		event_post(evtSelfTest);
+     62          	}
+     63          	systimeRemoveCallback(PowerOnSelfTest);
+     64          }
+     65          */
+     66          
+     67          //按键初始化
+     68          void KeyScanInit(void)
+     69          {
+     70          	GPIO_InitTypeDef							GPIO_InitStructure;
+     71          
+     72          	//FEED_KEY	-- PE.2
+     73          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
+     74          
+     75          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_2;
+     76          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_IPU;
+     77          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_10MHz;
+     78          	GPIO_Init(GPIOE, &GPIO_InitStructure);
      79          
+     80          	//BOX_CTRL	-- PA.4
+     81          	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+     82          
+     83          	GPIO_InitStructure.GPIO_Pin				= GPIO_Pin_4;
+     84          	GPIO_InitStructure.GPIO_Mode			= GPIO_Mode_Out_PP;
+     85          	GPIO_InitStructure.GPIO_Speed			= GPIO_Speed_10MHz;
+     86          	GPIO_Init(GPIOA, &GPIO_InitStructure);
+     87          	GPIO_ResetBits(GPIOA, GPIO_Pin_4);
+     88          
+     89          	keyStatus = 0;
+     90          }
+     91          
+     92          
+     93          //开启钱箱控制的脉冲
+     94          void box_ctrl(int ms)
+     95          {
+     96          	GPIO_SetBits(GPIOA, GPIO_Pin_4);
+     97          	delay_ms(ms);
+     98          	GPIO_ResetBits(GPIOA, GPIO_Pin_4);
+     99          }
+    100          
+    101          
+    102          
+    103          
 
    Maximum stack usage in bytes:
 
@@ -120,6 +146,7 @@ E:\BT Printer\FW\src\App\KeyScan.c
      --------    -------
      KeyScanInit      8
      KeyScanProc      8
+     box_ctrl         8
 
 
    Section sizes:
@@ -127,17 +154,19 @@ E:\BT Printer\FW\src\App\KeyScan.c
      Function/Label Bytes
      -------------- -----
      keyStatus         1
-     KeyScanProc     122
-     KeyScanInit      44
+     KeyScanProc     136
+     KeyScanInit      86
+     box_ctrl         28
      ??DataTable13     4
-     ??DataTable14     4
+     ??DataTable16     4
+     ??DataTable18     4
 
  
    1 byte  in section .bss
- 174 bytes in section .text
+ 262 bytes in section .text
  
- 174 bytes of CODE memory
+ 262 bytes of CODE memory
    1 byte  of DATA memory
 
 Errors: none
-Warnings: none
+Warnings: 2

@@ -1555,7 +1555,7 @@ int BT816_init(void)
 		}
 	}
 
-#if 1
+#if 0
 	if (BT816_query_name(BT1_MODULE,str))
 	{
 		return -4;

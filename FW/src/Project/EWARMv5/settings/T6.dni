@@ -11,7 +11,7 @@ ActionState=1
 Enabled=0
 ShowSource=1
 [DebugChecksum]
-Checksum=1230239492
+Checksum=-399382116
 [DisAssemblyWindow]
 NumStates=_ 1
 State 1=_ 1
@@ -93,4 +93,5 @@ Bp5=_ "STD_CODE" "{D:\work\T6\FW\src\App\app.c}.3979.3@1" 0 0 0 0 "" 0 "" 0
 Bp6=_ "STD_CODE" "{E:\T6\FW\src\Drivers\EM3096_scan.c}.694.2@1" 0 0 0 0 "" 0 "" 0
 Bp7=_ "STD_CODE" "{$PROJ_DIR$}.2876.9@1" 0 0 0 0 "" 0 "" 0
 Bp8=_ "STD_CODE" "{E:\H520B\FW\src\App\record_m.c}.583.2@1" 0 0 0 0 "" 0 "" 0
-Count=9
+Bp9=_ "STD_CODE" "{E:\BT Printer\FW\src\Drivers\BT816.c}.865.2@1" 1 0 0 0 "" 0 "" 0
+Count=10

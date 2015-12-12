@@ -36,7 +36,7 @@ volatile u32 Block_offset;
 volatile u32 Counter = 0;
 u32  Idx;
 //u32 Data_Buffer[BULK_MAX_PACKET_SIZE *2]; /* 512 bytes*/
-u32 Data_Buffer[512]; /* 512 bytes*/
+u8 Data_Buffer[512]; /* 512 bytes*/
 u8 TransferState = TXFR_IDLE;
 /* Extern variables ----------------------------------------------------------*/
 extern u8 Bulk_Data_Buff[BULK_MAX_PACKET_SIZE];  /* data buffer*/

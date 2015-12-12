@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:20 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:20:00 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,7 +11,9 @@
 #                    -o "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"     #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Normal.h" -I "E:\BT    #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -1591,7 +1593,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
    1555          		}
    1556          	}
    1557          
-   1558          #if 1
+   1558          #if 0
    1559          	if (BT816_query_name(BT1_MODULE,str))
    1560          	{
    1561          		return -4;
@@ -1694,7 +1696,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
      BT816_NVIC_config               16
      BT816_Reset                      8
      BT816_connect_status             8
-     BT816_init                      32
+     BT816_init                       8
      BT816_query_name                32
      BT816_query_version             40
      BT816_reset_resVar               0
@@ -1716,7 +1718,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
      ringbuffer_data_len                          68
      BT816_res                                    24
      BT816_send_buff                              64
-     BT816_recbuffer                            1024
+     BT816_recbuffer                            2048
      bt_connect_status                             1
      BT816_GPIO_config                           844
      BT816_NVIC_config                           248
@@ -1732,7 +1734,7 @@ E:\BT Printer\FW\src\Drivers\BT816.c
      BT816_set_pin                               132
      BT816_connect_status                        180
      BT816_send_data                              20
-     BT816_init                                  484
+     BT816_init                                  260
      set_BT_free                                  48
      ??DataTable13                                 4
      ??DataTable15                                 4
@@ -1760,20 +1762,15 @@ E:\BT Printer\FW\src\Drivers\BT816.c
      ?<Constant "AT+NAME=">                       12
      ?<Constant "pin != 0">                       12
      ?<Constant "AT+PIN=">                         8
-     ?<Constant "HJ Printer1">                    12
-     ?<Constant "HJ Pr">                           8
-     ?<Constant "HJ Printer2">                    12
-     ?<Constant "HJ Printer3">                    12
-     ?<Constant "HJ Printer4">                    12
 
  
- 1 113 bytes in section .bss
-   196 bytes in section .rodata
- 3 536 bytes in section .text
+ 2 137 bytes in section .bss
+   140 bytes in section .rodata
+ 3 312 bytes in section .text
  
- 3 536 bytes of CODE  memory
-   196 bytes of CONST memory
- 1 113 bytes of DATA  memory
+ 3 312 bytes of CODE  memory
+   140 bytes of CONST memory
+ 2 137 bytes of DATA  memory
 
 Errors: none
 Warnings: 12

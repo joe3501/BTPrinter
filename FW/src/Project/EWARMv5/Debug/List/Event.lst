@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:21 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:19:58 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,7 +11,9 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Normal.h" -I "E:\BT    #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -94,55 +96,59 @@ E:\BT Printer\FW\src\App\Event.c
      58          		//ESC_POS_test_esc();
      59          		//ESC_POS_test_esc_special();
      60          		//TPPrintTestPage();
-     61          		TPFeedStart();
-     62          		//TPSelfTest2();
-     63          		break;
-     64          	case evtKeyUpFeed:
-     65          		TPFeedStop();
-     66          		break;
-     67          	case evtKeyDownHold500msMode:
-     68                  break;
-     69          	case evtKeyDownMode:
-     70          		#if 1
-     71          		if(TPPrinterReady())
-     72                  TPPrintTestPage();
-     73          		#endif
-     74          		break;
-     75          	case evtKeyDownHold2000msMode:
-     76          		if(TPPrinterReady())
-     77                  TPPrintTestPage();
+     61          		//TPFeedStart();
+     62                    if(TPPrinterReady())
+     63                    {
+     64                      TPSelfTest2();
+     65                    }
+     66          		
+     67          		break;
+     68          	case evtKeyUpFeed:
+     69          		TPFeedStop();
+     70          		break;
+     71          	case evtKeyDownHold500msMode:
+     72                  break;
+     73          	case evtKeyDownMode:
+     74          		#if 1
+     75          		if(TPPrinterReady())
+     76                  TPPrintTestPage();
+     77          		#endif
      78          		break;
-     79          	case evtKeyUpMode:
-     80          		break;
-     81          	case evtKeyHoldMode:
+     79          	case evtKeyDownHold2000msMode:
+     80          		if(TPPrinterReady())
+     81                  TPPrintTestPage();
      82          		break;
-     83          	case evtKeyDownHold5000msMode:
+     83          	case evtKeyUpMode:
      84          		break;
-     85              case evtKeyDownHold7000msMode:
-     86                  break;
-     87          	case evtPaperOut:
-     88          		ESC_STS_STATUS_SET_FLAG(0x03,5);
-     89          		break;
-     90          	case evtPaperIn:
-     91          		ESC_STS_STATUS_RESET_FLAG(0x03,5);
-     92                  Wake_up();
-     93                  break;
-     94              case evtBmDetect:
-     95                  break;
-     96              case evtGetRealTimeStatus4:
-     97                 //Putchar(esc_sts.status4);
-     98                  break;
-     99          	case evtLifetest:
-    100          	   break;
-    101          	default:
-    102          		break;
-    103          	}
-    104          }
-    105          //======================================================================================================
-    106          
-    107          
-    108          
-    109          
+     85          	case evtKeyHoldMode:
+     86          		break;
+     87          	case evtKeyDownHold5000msMode:
+     88          		break;
+     89              case evtKeyDownHold7000msMode:
+     90                  break;
+     91          	case evtPaperOut:
+     92          		ESC_STS_STATUS_SET_FLAG(0x03,5);
+     93          		break;
+     94          	case evtPaperIn:
+     95          		ESC_STS_STATUS_RESET_FLAG(0x03,5);
+     96                  Wake_up();
+     97                  break;
+     98              case evtBmDetect:
+     99                  break;
+    100              case evtGetRealTimeStatus4:
+    101                 //Putchar(esc_sts.status4);
+    102                  break;
+    103          	case evtLifetest:
+    104          	   break;
+    105          	default:
+    106          		break;
+    107          	}
+    108          }
+    109          //======================================================================================================
+    110          
+    111          
+    112          
+    113          
 
    Maximum stack usage in bytes:
 
@@ -164,17 +170,17 @@ E:\BT Printer\FW\src\App\Event.c
      event_init       12
      event_post       26
      event_pend       42
-     event_proc      192
+     event_proc      168
      ??DataTable5      4
      ??DataTable8      4
      ??DataTable10     4
 
  
   66 bytes in section .bss
- 284 bytes in section .text
+ 260 bytes in section .text
  
- 284 bytes of CODE memory
+ 260 bytes of CODE memory
   66 bytes of DATA memory
 
 Errors: none
-Warnings: 3
+Warnings: 2

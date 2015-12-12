@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:18 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:19:59 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,7 +11,9 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Normal.h" -I "E:\BT    #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -1576,175 +1578,188 @@ E:\BT Printer\FW\src\App\TP.c
    1541          	}
    1542          }
    1543          
-   1544          extern void TPPrintTestPage(void)
+   1544          extern uint8_t IsPrinterFree(void)
    1545          {
-   1546          
-   1547          	uint32_t len,i;
-   1548          	char buf[64];
-   1549          
-   1550          	//debug_cnt = 0;
-   1551          	current_channel = 0;
-   1552          	PrintBufToZero();
-   1553          	len = snprintf(buf, sizeof(buf),  "\n");
-   1554          	TPPrintAsciiLine(buf,len);
-   1555          #if 1
-   1556          #if defined(PT486)
-   1557          	len = snprintf(buf, sizeof(buf), "System: HJ_PT486_KT100\n");
-   1558          #elif defined(PT488)
-   1559          	len = snprintf(buf, sizeof(buf), "System: PT488_1MB1\n");
-   1560          #elif defined(PT48D)
-   1561          	len = snprintf(buf, sizeof(buf), "System: PT48D\n");
-   1562          #elif defined(PT48F)
-   1563          	len = snprintf(buf, sizeof(buf), "System: PT48F\n");
-   1564          #elif defined(PT48G)
-   1565          	len = snprintf(buf, sizeof(buf), "System: PT48G\n");
-   1566          #endif
-   1567          	TPPrintAsciiLine(buf,len);
-   1568          
-   1569          
-   1570          	len = snprintf(buf, sizeof(buf), "Firmware:%d.%02d.%02d \n", VERSION_MAJOR, VERSION_MINOR,VERSION_TEST);
-   1571          	TPPrintAsciiLine(buf,len);
-   1572          
-   1573          	len = snprintf(buf, sizeof(buf), "Build date: %s\n", __DATE__);
-   1574          	TPPrintAsciiLine(buf,len);
-   1575          
-   1576          	len = snprintf(buf, sizeof(buf), "Build time: %s\n", __TIME__);
-   1577          	TPPrintAsciiLine(buf,len);
-   1578          
-   1579          	len = snprintf(buf, sizeof(buf),  "\n");
-   1580          	TPPrintAsciiLine(buf,len);
+   1546          	if(tp.state == TPSTATE_IDLE || tp.state == TPSTATE_PRE_IDLE)
+   1547          	{
+   1548          		return 1;
+   1549          	}
+   1550          	else
+   1551          	{
+   1552          		return 0;
+   1553          	}
+   1554          }
+   1555          
+   1556          extern void TPPrintTestPage(void)
+   1557          {
+   1558          
+   1559          	uint32_t len,i;
+   1560          	char buf[64];
+   1561          
+   1562          	//debug_cnt = 0;
+   1563          	current_channel = 0;
+   1564          	PrintBufToZero();
+   1565          	len = snprintf(buf, sizeof(buf),  "\n");
+   1566          	TPPrintAsciiLine(buf,len);
+   1567          #if 1
+   1568          #if defined(PT486)
+   1569          	len = snprintf(buf, sizeof(buf), "System: HJ_PT486_KT100\n");
+   1570          #elif defined(PT488)
+   1571          	len = snprintf(buf, sizeof(buf), "System: PT488_1MB1\n");
+   1572          #elif defined(PT48D)
+   1573          	len = snprintf(buf, sizeof(buf), "System: PT48D\n");
+   1574          #elif defined(PT48F)
+   1575          	len = snprintf(buf, sizeof(buf), "System: PT48F\n");
+   1576          #elif defined(PT48G)
+   1577          	len = snprintf(buf, sizeof(buf), "System: PT48G\n");
+   1578          #endif
+   1579          	TPPrintAsciiLine(buf,len);
+   1580          
    1581          
-   1582          	//len = snprintf(buf, sizeof(buf),  "[Uart Configure]\n");
-   1583          	//TPPrintAsciiLine(buf,len);
+   1582          	len = snprintf(buf, sizeof(buf), "Firmware:%d.%02d.%02d \n", VERSION_MAJOR, VERSION_MINOR,VERSION_TEST);
+   1583          	TPPrintAsciiLine(buf,len);
    1584          
-   1585          	//len = snprintf(buf, sizeof(buf),  "baudrate : %ld\n", 115200);
-   1586          	//TPPrintAsciiLine(buf,len);
+   1585          	len = snprintf(buf, sizeof(buf), "Build date: %s\n", __DATE__);
+   1586          	TPPrintAsciiLine(buf,len);
    1587          
-   1588          	//len = snprintf(buf, sizeof(buf),  "flow ctrl : HW Flow Control\n");
-   1589          	//TPPrintAsciiLine(buf,len);
+   1588          	len = snprintf(buf, sizeof(buf), "Build time: %s\n", __TIME__);
+   1589          	TPPrintAsciiLine(buf,len);
    1590          
-   1591          	len = snprintf(buf, sizeof(buf),  "[BT Module config]\n");
+   1591          	len = snprintf(buf, sizeof(buf),  "\n");
    1592          	TPPrintAsciiLine(buf,len);
    1593          
-   1594          	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_BT_CHANNEL);
-   1595          	TPPrintAsciiLine(buf,len);
+   1594          	//len = snprintf(buf, sizeof(buf),  "[Uart Configure]\n");
+   1595          	//TPPrintAsciiLine(buf,len);
    1596          
-   1597          	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n");
-   1598          	TPPrintAsciiLine(buf,len);
+   1597          	//len = snprintf(buf, sizeof(buf),  "baudrate : %ld\n", 115200);
+   1598          	//TPPrintAsciiLine(buf,len);
    1599          
-   1600          	for (i = 0;i<MAX_BT_CHANNEL;i++)
-   1601          	{
-   1602          		len = snprintf(buf, sizeof(buf),  "BT Module(%d):|HJ Printer%d | 0000\n",i+1,i+1);
-   1603          		TPPrintAsciiLine(buf,len);
-   1604          	}
+   1600          	//len = snprintf(buf, sizeof(buf),  "flow ctrl : HW Flow Control\n");
+   1601          	//TPPrintAsciiLine(buf,len);
+   1602          
+   1603          	len = snprintf(buf, sizeof(buf),  "[BT Module config]\n");
+   1604          	TPPrintAsciiLine(buf,len);
    1605          
-   1606          	len = snprintf(buf, sizeof(buf),  "\n");
+   1606          	len = snprintf(buf, sizeof(buf),  "%d BT Module Support\n",MAX_BT_CHANNEL);
    1607          	TPPrintAsciiLine(buf,len);
    1608          
-   1609          	len = snprintf(buf, sizeof(buf),  "[Install Fonts]\n");
+   1609          	len = snprintf(buf, sizeof(buf),  "    Seq      |    Name    | Pin\n");
    1610          	TPPrintAsciiLine(buf,len);
    1611          
-   1612          	len = snprintf(buf, sizeof(buf),  "ID  Font Name\n");
-   1613          	TPPrintAsciiLine(buf,len);
-   1614          
-   1615          
-   1616          	//if(esc_sts[current_channel].font_en == FONT_A_WIDTH)
-   1617          	{
-   1618          		len = snprintf(buf, sizeof(buf),  " 0  SYSTEM 12x24\n");
-   1619          		TPPrintAsciiLine(buf,len);
-   1620          	}
-   1621          	//else
-   1622          	{
-   1623          #if defined(FONTB_ASCII9X24)
-   1624          		len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 9x24\n");
-   1625          #else
-   1626          		len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 8x16\n");
-   1627          #endif
-   1628          		TPPrintAsciiLine(buf,len);
-   1629          	}
-   1630          	len = snprintf(buf, sizeof(buf),  " 2  GBK 24x24\n");
-   1631          	TPPrintAsciiLine(buf,len);
-   1632          
-   1633          	len = snprintf(buf, sizeof(buf),  " 3  GBK 16x16\n");
-   1634          	TPPrintAsciiLine(buf,len);
-   1635          
-   1636          	len = snprintf(buf, sizeof(buf),  "\n");
-   1637          	TPPrintAsciiLine(buf,len);
-   1638          
-   1639          	len = snprintf(buf, sizeof(buf),  "[ASCII Samples]\n");
-   1640          	TPPrintAsciiLine(buf,len);
-   1641          
-   1642          	for(i=0x20; i<0x80; i++)
-   1643          	{
-   1644          		PrintBufPushBytes(i);
-   1645          	}
-   1646          	len = snprintf(buf, sizeof(buf),  "\n\n");
-   1647          	TPPrintAsciiLine(buf,len);
-   1648          
-   1649          	len = snprintf(buf, sizeof(buf),  "[GBK Samples]\n");
-   1650          	TPPrintAsciiLine(buf,len);
-   1651          
-   1652          	len = snprintf(buf, sizeof(buf),  "ÖÐÎÄ×Ö¿â²âÊÔ£º¼òÌå×Ö ·±ów×Ö\n");
-   1653          	TPPrintAsciiLine(buf,len);
-   1654          	len = snprintf(buf, sizeof(buf),  "\n");
-   1655          	TPPrintAsciiLine(buf,len);
-   1656          
-   1657          	len = snprintf(buf, sizeof(buf),  "Selftest Finished.\n");
-   1658          	TPPrintAsciiLine(buf,len);
-   1659          #endif
+   1612          	for (i = 0;i<MAX_BT_CHANNEL;i++)
+   1613          	{
+   1614          		len = snprintf(buf, sizeof(buf),  "BT Module(%d):|HJ Printer%d | 0000\n",i+1,i+1);
+   1615          		TPPrintAsciiLine(buf,len);
+   1616          	}
+   1617          
+   1618          	len = snprintf(buf, sizeof(buf),  "\n");
+   1619          	TPPrintAsciiLine(buf,len);
+   1620          
+   1621          	len = snprintf(buf, sizeof(buf),  "[Install Fonts]\n");
+   1622          	TPPrintAsciiLine(buf,len);
+   1623          
+   1624          	len = snprintf(buf, sizeof(buf),  "ID  Font Name\n");
+   1625          	TPPrintAsciiLine(buf,len);
+   1626          
+   1627          
+   1628          	//if(esc_sts[current_channel].font_en == FONT_A_WIDTH)
+   1629          	{
+   1630          		len = snprintf(buf, sizeof(buf),  " 0  SYSTEM 12x24\n");
+   1631          		TPPrintAsciiLine(buf,len);
+   1632          	}
+   1633          	//else
+   1634          	{
+   1635          #if defined(FONTB_ASCII9X24)
+   1636          		len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 9x24\n");
+   1637          #else
+   1638          		len = snprintf(buf, sizeof(buf),  " 1  SYSTEM 8x16\n");
+   1639          #endif
+   1640          		TPPrintAsciiLine(buf,len);
+   1641          	}
+   1642          	len = snprintf(buf, sizeof(buf),  " 2  GBK 24x24\n");
+   1643          	TPPrintAsciiLine(buf,len);
+   1644          
+   1645          	len = snprintf(buf, sizeof(buf),  " 3  GBK 16x16\n");
+   1646          	TPPrintAsciiLine(buf,len);
+   1647          
+   1648          	len = snprintf(buf, sizeof(buf),  "\n");
+   1649          	TPPrintAsciiLine(buf,len);
+   1650          
+   1651          	len = snprintf(buf, sizeof(buf),  "[ASCII Samples]\n");
+   1652          	TPPrintAsciiLine(buf,len);
+   1653          
+   1654          	for(i=0x20; i<0x80; i++)
+   1655          	{
+   1656          		PrintBufPushBytes(i);
+   1657          	}
+   1658          	len = snprintf(buf, sizeof(buf),  "\n\n");
+   1659          	TPPrintAsciiLine(buf,len);
    1660          
-   1661          	len = snprintf(buf, sizeof(buf),  "\n\n\n\n\n");
+   1661          	len = snprintf(buf, sizeof(buf),  "[GBK Samples]\n");
    1662          	TPPrintAsciiLine(buf,len);
    1663          
-   1664          
-   1665          }
-   1666          
-   1667          
-   1668          extern void TPSelfTest2(void)
-   1669          {//´òÓ¡Ð±Ïß
-   1670          	uint8_t dot[LineDot/8];
-   1671          	uint32_t i,j;
-   1672          	MEMSET(dot, 0, sizeof(dot));
-   1673          	for (i=0;i<100;i++)// 400
-   1674          	{
-   1675          		for (j=0;j<8;j++)
-   1676          		{
-   1677          			MEMSET(dot,0x01<<j,sizeof(dot));
-   1678          			TPPrintLine(dot);
-   1679          		}
-   1680          	}
-   1681          }
-   1682          
-   1683          
-   1684          
-   1685          void test_motor(void)
-   1686          {
-   1687          	int i,delay,cnt = 50000;
-   1688          	MOTOR_PWR_ON();
-   1689          	for(i=0; i<6; i++)
-   1690          	{
-   1691          		PRN_POWER_CHARGE();
-   1692          		delay = 30000;
-   1693          		while(delay--);
-   1694          		PRN_POWER_DISCHARGE();
-   1695          		delay = 10000;
-   1696          		while(delay--);
-   1697          	}
-   1698          
-   1699          	while (cnt)
-   1700          	{
-   1701          		TPForwardStep(1);
-   1702          		delay_ms(1);
-   1703          		cnt--;
-   1704          	}
-   1705          	MOTOR_PWR_OFF();
-   1706          }
+   1664          	len = snprintf(buf, sizeof(buf),  "ÖÐÎÄ×Ö¿â²âÊÔ£º¼òÌå×Ö ·±ów×Ö\n");
+   1665          	TPPrintAsciiLine(buf,len);
+   1666          	len = snprintf(buf, sizeof(buf),  "\n");
+   1667          	TPPrintAsciiLine(buf,len);
+   1668          
+   1669          	len = snprintf(buf, sizeof(buf),  "Selftest Finished.\n");
+   1670          	TPPrintAsciiLine(buf,len);
+   1671          #endif
+   1672          
+   1673          	len = snprintf(buf, sizeof(buf),  "\n\n\n\n\n");
+   1674          	TPPrintAsciiLine(buf,len);
+   1675          
+   1676          
+   1677          }
+   1678          
+   1679          
+   1680          extern void TPSelfTest2(void)
+   1681          {//´òÓ¡Ð±Ïß
+   1682          	uint8_t dot[LineDot/8];
+   1683          	uint32_t i,j;
+   1684          	MEMSET(dot, 0, sizeof(dot));
+   1685          	for (i=0;i<100;i++)// 400
+   1686          	{
+   1687          		for (j=0;j<8;j++)
+   1688          		{
+   1689          			MEMSET(dot,0x01<<j,sizeof(dot));
+   1690          			TPPrintLine(dot);
+   1691          		}
+   1692          	}
+   1693          }
+   1694          
+   1695          
+   1696          
+   1697          void test_motor(void)
+   1698          {
+   1699          	int i,delay,cnt = 50000;
+   1700          	MOTOR_PWR_ON();
+   1701          	for(i=0; i<6; i++)
+   1702          	{
+   1703          		PRN_POWER_CHARGE();
+   1704          		delay = 30000;
+   1705          		while(delay--);
+   1706          		PRN_POWER_DISCHARGE();
+   1707          		delay = 10000;
+   1708          		while(delay--);
+   1709          	}
+   1710          
+   1711          	while (cnt)
+   1712          	{
+   1713          		TPForwardStep(1);
+   1714          		delay_ms(1);
+   1715          		cnt--;
+   1716          	}
+   1717          	MOTOR_PWR_OFF();
+   1718          }
 
    Maximum stack usage in bytes:
 
      Function            .cstack
      --------            -------
      IsPrintBufEmpty          0
+     IsPrinterFree            0
      IsPrinterIdle            0
      MaxHeatDotsAdj           0
      SetDesity                8
@@ -1831,6 +1846,7 @@ E:\BT Printer\FW\src\App\TP.c
      IsPrintBufEmpty                                  24
      TPPrintAsciiLine                                  8
      IsPrinterIdle                                    20
+     IsPrinterFree                                    28
      TPPrintTestPage                                 616
      TPSelfTest2                                      56
      test_motor                                       96
@@ -1851,9 +1867,9 @@ E:\BT Printer\FW\src\App\TP.c
      ?<Constant "System: HJ_PT486_KT100\n">           24
      ?<Constant "Firmware:%d.%02d.%02d \n">           24
      ?<Constant "Build date: %s\n">                   16
-     ?<Constant "Dec 10 2015">                        12
+     ?<Constant "Dec 12 2015">                        12
      ?<Constant "Build time: %s\n">                   16
-     ?<Constant "18:37:18">                           12
+     ?<Constant "15:19:59">                           12
      ?<Constant "[BT Module config]\n">               20
      ?<Constant "%d BT Module Support\n">             24
      ?<Constant "    Seq      |    Nam...">           36
@@ -1874,9 +1890,9 @@ E:\BT Printer\FW\src\App\TP.c
  
  1 177 bytes in section .bss
  1 182 bytes in section .rodata
- 4 832 bytes in section .text
+ 4 860 bytes in section .text
  
- 4 832 bytes of CODE  memory
+ 4 860 bytes of CODE  memory
  1 182 bytes of CONST memory
  1 177 bytes of DATA  memory
 

@@ -1,6 +1,6 @@
 ###############################################################################
 #                                                                             #
-# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     10/Dec/2015  18:37:17 #
+# IAR ANSI C/C++ Compiler V5.30.0.51174/W32 for ARM     12/Dec/2015  15:19:57 #
 # Copyright 1999-2009 IAR Systems AB.                                         #
 #                                                                             #
 #    Cpu mode     =  thumb                                                    #
@@ -11,7 +11,9 @@
 #                    "E:\BT Printer\FW\src\Project\EWARMv5\Debug\Obj\"        #
 #                    --no_cse --no_unroll --no_inline --no_code_motion        #
 #                    --no_tbaa --no_clustering --no_scheduling --debug        #
-#                    --endian=little --cpu=Cortex-M3 -e --fpu=None -I "E:\BT  #
+#                    --endian=little --cpu=Cortex-M3 -e --fpu=None            #
+#                    --dlib_config "C:\Program Files\IAR Systems\Embedded     #
+#                    Workbench 5.4\arm\INC\DLib_Config_Normal.h" -I "E:\BT    #
 #                    Printer\FW\src\Project\EWARMv5\..\" -I "E:\BT            #
 #                    Printer\FW\src\Project\EWARMv5\..\..\App\" -I "E:\BT     #
 #                    Printer\FW\src\Project\EWARMv5\..\..\Drivers\" -I        #
@@ -70,132 +72,134 @@ E:\BT Printer\FW\src\App\uart.c
      35          extern unsigned int debug_cnt;
      36          #endif
      37          
-     38          unsigned char		spp_rec_buffer[MAX_PRINT_CHANNEL][SPP_BUFFER_LEN];
-     39          struct ringbuffer	spp_ringbuf[MAX_PRINT_CHANNEL];
-     40          
-     41          extern uint32_t systick_cnt;
+     38          //unsigned char		spp_rec_buffer[MAX_PRINT_CHANNEL][SPP_BUFFER_LEN];
+     39          unsigned char		spp_rec_buffer[MAX_BT_CHANNEL][SPP_BUFFER_LEN];			//蓝牙通道的环形缓冲区size为2048
+     40          unsigned char		usb_rec_buffer[USB_BUFFER_LEN];								//USB通道的环形缓冲区size为1024足够
+     41          struct ringbuffer	spp_ringbuf[MAX_PRINT_CHANNEL];
      42          
-     43          /******************************************************************************
-     44          **Function name:  Getchar
-     45          **
-     46          **Description:  Get a char from the uart 0 port
+     43          extern uint32_t systick_cnt;
+     44          
+     45          /******************************************************************************
+     46          **Function name:  Getchar
      47          **
-     48          **parameters: none
-     49          **Returned value:
-     50          **
-     51          ******************************************************************************/
-     52          extern uint8_t Getchar(void)        //接收数据
-     53          {
-     54          	uint8_t c;
-     55          	unsigned int	i,delay;
-     56          	static unsigned int timeout;
-     57          	while(1)
-     58          	{
-     59          		event_proc();
-     60          
-     61          		if (current_channel == -1)
-     62          		{
-     63          			//还未进入打印通道的打印会话过程
-     64          			for (i = 0; i < MAX_PRINT_CHANNEL;i++)
-     65          			{
-     66          				if (ringbuffer_getchar(&spp_ringbuf[i],&c))
-     67          				{
-     68          					timeout = 0;
-     69          					//debug_cnt = 0;
-     70          					current_channel = i;
-     71          #ifdef DEBUG_VER
-     72          					//debug_buffer[0] = c;
-     73          					//debug_cnt = 1;
-     74          #endif
-     75          					//trip1();
-     76          					return c;
-     77          				}
-     78          			}
-     79          		}
-     80          		else
-     81          		{
-     82          			//已经进入某一个打印通道的打印会话过程
-     83          			if (ringbuffer_getchar(&spp_ringbuf[current_channel],&c))
-     84          			{
-     85          				timeout = 0;
-     86          				//debug_cnt = 0;
-     87          				if (ringbuffer_data_len(&spp_ringbuf[current_channel]) < RING_BUFF_EMPTY_TH)
-     88          				{
-     89          					if (current_channel != USB_PRINT_CHANNEL_OFFSET)
-     90          					{
-     91          						set_BT_free(current_channel);
-     92          					}
-     93          					else
-     94          					{
-     95          						SetEPRxStatus(EP2_OUT, EP_RX_VALID);
-     96          					}
-     97          				}
-     98          #ifdef DEBUG_VER
-     99          				//debug_buffer[debug_cnt] = c;
-    100          				//debug_cnt++;
-    101          #endif
-    102          				//trip1();
-    103          				return c;
-    104          			}
-    105          			else
-    106          			{
-    107          				delay = systick_cnt;		//systick中断中维持的递增计数器
-    108          				if (timeout == 0)
-    109          				{
-    110          					timeout = (delay!=0)?delay:1;
-    111          				}
-    112          				else
-    113          				{
-    114          					if (delay != timeout)
-    115          					{
-    116          						if (delay > timeout)
-    117          						{
-    118          							delay = delay - timeout;
-    119          						}
-    120          						else
-    121          						{
-    122          							delay += 0xffffffff-timeout;
-    123          						}
-    124          
-    125          						if (delay > (CHANNEL_TIMEOUT_TH/10))	//systick是10ms计数的
-    126          						{
-    127          							//trip3();
-    128          							PrintBufToZero();
-    129          							current_channel = -1;
-    130          							//debug_cnt = 0;
-    131          						}
-    132          					}
-    133          				}
-    134          			}
-    135          		}
-    136          		
-    137          	}
-    138          
-    139          }
+     48          **Description:  Get a char from the uart 0 port
+     49          **
+     50          **parameters: none
+     51          **Returned value:
+     52          **
+     53          ******************************************************************************/
+     54          extern uint8_t Getchar(void)        //接收数据
+     55          {
+     56          	uint8_t c;
+     57          	unsigned int	i,delay;
+     58          	static unsigned int timeout;
+     59          	while(1)
+     60          	{
+     61          		event_proc();
+     62          
+     63          		if (current_channel == -1)
+     64          		{
+     65          			//还未进入打印通道的打印会话过程
+     66          			for (i = 0; i < MAX_PRINT_CHANNEL;i++)
+     67          			{
+     68          				if (ringbuffer_getchar(&spp_ringbuf[i],&c))
+     69          				{
+     70          					timeout = 0;
+     71          					//debug_cnt = 0;
+     72          					current_channel = i;
+     73          #ifdef DEBUG_VER
+     74          					//debug_buffer[0] = c;
+     75          					//debug_cnt = 1;
+     76          #endif
+     77          					//trip1();
+     78          					return c;
+     79          				}
+     80          			}
+     81          		}
+     82          		else
+     83          		{
+     84          			//已经进入某一个打印通道的打印会话过程
+     85          			if (ringbuffer_getchar(&spp_ringbuf[current_channel],&c))
+     86          			{
+     87          				timeout = 0;
+     88          				//debug_cnt = 0;
+     89          				if (ringbuffer_data_len(&spp_ringbuf[current_channel]) < RING_BUFF_EMPTY_TH)
+     90          				{
+     91          					if (current_channel != USB_PRINT_CHANNEL_OFFSET)
+     92          					{
+     93          						set_BT_free(current_channel);
+     94          					}
+     95          					else
+     96          					{
+     97          						SetEPRxStatus(EP2_OUT, EP_RX_VALID);
+     98          					}
+     99          				}
+    100          #ifdef DEBUG_VER
+    101          				//debug_buffer[debug_cnt] = c;
+    102          				//debug_cnt++;
+    103          #endif
+    104          				//trip1();
+    105          				return c;
+    106          			}
+    107          			else
+    108          			{
+    109          				delay = systick_cnt;		//systick中断中维持的递增计数器
+    110          				if (timeout == 0)
+    111          				{
+    112          					timeout = (delay!=0)?delay:1;
+    113          				}
+    114          				else
+    115          				{
+    116          					if (delay != timeout)
+    117          					{
+    118          						if (delay > timeout)
+    119          						{
+    120          							delay = delay - timeout;
+    121          						}
+    122          						else
+    123          						{
+    124          							delay += 0xffffffff-timeout;
+    125          						}
+    126          
+    127          						if (delay > (CHANNEL_TIMEOUT_TH/10))	//systick是10ms计数的
+    128          						{
+    129          							//trip3();
+    130          							PrintBufToZero();
+    131          							current_channel = -1;
+    132          							//debug_cnt = 0;
+    133          						}
+    134          					}
+    135          				}
+    136          			}
+    137          		}
+    138          		
+    139          	}
     140          
-    141           extern uint8_t PrintBufGetchar(uint8_t *ch)
-    142           {
-    143          	return ringbuffer_getchar(&spp_ringbuf[current_channel],ch);
-    144           }
-    145          
-    146           extern void PrintBufPushBytes(uint8_t c)
-    147           {
-    148                ringbuffer_putchar(&spp_ringbuf[current_channel],c);
-    149           }
-    150          
-    151          //======================================================================================================
-    152          extern void PrintBufPushLine( uint8_t *p, uint32_t len)
-    153          {
-    154          	ringbuffer_put(&spp_ringbuf[current_channel],p,len);
-    155          }
-    156          extern void PrintBufToZero(void)
-    157          {
-    158               ringbuffer_reset(&spp_ringbuf[current_channel]);
-    159          	 set_BT_free(current_channel);
-    160          }
-    161          /******************************************************************************
-    162          **                            End Of File
-    163          ******************************************************************************/
+    141          }
+    142          
+    143           extern uint8_t PrintBufGetchar(uint8_t *ch)
+    144           {
+    145          	return ringbuffer_getchar(&spp_ringbuf[current_channel],ch);
+    146           }
+    147          
+    148           extern void PrintBufPushBytes(uint8_t c)
+    149           {
+    150                ringbuffer_putchar(&spp_ringbuf[current_channel],c);
+    151           }
+    152          
+    153          //======================================================================================================
+    154          extern void PrintBufPushLine( uint8_t *p, uint32_t len)
+    155          {
+    156          	ringbuffer_put(&spp_ringbuf[current_channel],p,len);
+    157          }
+    158          extern void PrintBufToZero(void)
+    159          {
+    160               ringbuffer_reset(&spp_ringbuf[current_channel]);
+    161          	 set_BT_free(current_channel);
+    162          }
+    163          /******************************************************************************
+    164          **                            End Of File
+    165          ******************************************************************************/
 
    Maximum stack usage in bytes:
 
@@ -216,7 +220,8 @@ E:\BT Printer\FW\src\App\uart.c
      --------------      -----
      ringbuffer_status     40
      ringbuffer_data_len   68
-     spp_rec_buffer      3072
+     spp_rec_buffer      4096
+     usb_rec_buffer      1024
      spp_ringbuf           48
      Getchar              244
      timeout                4
@@ -228,11 +233,11 @@ E:\BT Printer\FW\src\App\uart.c
      ??DataTable18          4
 
  
- 3 124 bytes in section .bss
+ 5 172 bytes in section .bss
    462 bytes in section .text
  
    462 bytes of CODE memory
- 3 124 bytes of DATA memory
+ 5 172 bytes of DATA memory
 
 Errors: none
 Warnings: 1
